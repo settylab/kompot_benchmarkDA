@@ -503,7 +503,7 @@ def main():
     adata.obs.columns = adata.obs.columns.astype(str)
     #adata.obsm.columns = adata.obsm.columns.astype(str)
     adata.var.columns = adata.var.columns.astype(str)
-    #adata.write_h5ad(output_dir+"adata_"+str(n_dm)+"_"+str(n_iteration)+"_"+pop+".h5ad")
+
 
 # Check if this script is being run directly
 if __name__ == "__main__":

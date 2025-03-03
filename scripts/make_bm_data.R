@@ -2,30 +2,28 @@
 
 suppressPackageStartupMessages(
     {
-        library(Seurat)
         library(argparse)
         library(tidyverse)
         library(SingleCellExperiment)
         library(scran)
+	library(Seurat)
     }
 )
 
-source('./data_utils.R')
+source('scripts/data_utils.R')
 
-if (!exists("args") || !is.list(args)) {
-    parser <- ArgumentParser()
-    parser$add_argument("data_RDS", type="character", help="path to RDS storing SingleCellExperiment object")
-    parser$add_argument("seed", type="integer", help="random seed")
-    parser$add_argument("population", type="character", help="Cell type of DA")
-    parser$add_argument("--pop_enrichment", type="double", default=0.75, help="Max condition probability in DA population")
-    parser$add_argument("--pop_col", type="character", default="celltype", help="the column name to specify population")
-    parser$add_argument("--reduced.dim", type="character", default="PCA", help="the name of reduced dim to use")
-    parser$add_argument("--k", type="integer", default=50, help="KNN parameter")
-    parser$add_argument("--data_id", type="character", default="linear", help="ID for the dataset used")
-    parser$add_argument("--make_batch_effect", type="character", default="yes", help="should synthetic batch effects be added? (yes/no)")
-    parser$add_argument("--outdir", type="character", help = "path to the output directory")
-    args <- parser$parse_args()
-}
+parser <- ArgumentParser()
+parser$add_argument("data_RDS", type="character", help="path to RDS storing SingleCellExperiment object")
+parser$add_argument("seed", type="integer", help="random seed")
+parser$add_argument("population", type="character", help="Cell type of DA")
+parser$add_argument("--pop_enrichment", type="double", default=0.75, help="Max condition probability in DA population")
+parser$add_argument("--pop_col", type="character", default="celltype", help="the column name to specify population")
+parser$add_argument("--reduced.dim", type="character", default="PCA", help="the name of reduced dim to use")
+parser$add_argument("--k", type="integer", default=50, help="KNN parameter")
+parser$add_argument("--data_id", type="character", default="linear", help="ID for the dataset used")
+parser$add_argument("--make_batch_effect", type="character", default="yes", help="should synthetic batch effects be added? (yes/no)")
+parser$add_argument("--outdir", type="character", help = "path to the output directory")
+args <- parser$parse_args()
 
 # read the parameters
 data_path <- args$data_RDS
@@ -43,6 +41,7 @@ outdir <- args$outdir
 ## Load data
 print("Loading dataset...")
 sce <- readRDS(data_path)
+#sce <- UpdateSeuratObject(object = raw_sce)
 if (!inherits(sce, "SingleCellExperiment")) {
     sce <- as.SingleCellExperiment(sce)
 }

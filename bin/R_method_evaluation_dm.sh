@@ -210,7 +210,7 @@ for pop in $pops
                         mkdir -p "$save_path_iteration"
                             echo "Doing $jobid ..."
                         echo "starting"
-                        Rscript scripts/run_DA_test.r \
+                        Rscript scripts/run_DA.r \
                         ## tol parameter for cydar needs to be regulated inside the R script
                             ${data_file} $method $seed $pop \
                             --data_dir ${data_dir}/${jobid_old}/iteration_${iteration}/ \

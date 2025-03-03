@@ -53,11 +53,19 @@ bm_outdir <- args$outdir
 print("Loading dataset...")
 raw_sce <- readRDS(data_path)
 
-sce <- raw_sce
-#sce = UpdateSeuratObject(object = raw_sce)
+if (data_id == "covid19-pbmc") {
+  sce = UpdateSeuratObject(object = raw_sce)
 if (!inherits(sce, "SingleCellExperiment")) {
     sce <- as.SingleCellExperiment(sce)
 }
+} else if (data_id != "covid19-pbmc") {
+  sce <- raw_sce
+} 
+#sce <- raw_sce
+#sce = UpdateSeuratObject(object = raw_sce)
+#if (!inherits(sce, "SingleCellExperiment")) {
+#    sce <- as.SingleCellExperiment(sce)
+#}
 
 ## Load coldata and PCA
 outprefix <- str_c("benchmark_", data_id, "_pop_", pop, '_enr', pop_enr, "_seed", seed)
@@ -65,7 +73,7 @@ coldata <- read_csv(paste0(data_dir, outprefix, ".coldata.csv")) %>% column_to_r
 X_pca <- read_csv(str_c(data_dir, outprefix, "_batchEffect", be_sd, ".pca.csv")) %>% column_to_rownames()  
 
 ## cydar radius scaler picked w/ heuristic
-tol_dataset <- list(cluster=2.8, cluster_balanced=2.85, branch=2.4, linear=2.3, 'covid19-pbmc'=2.1, 'bcr-xl'=0.75,
+tol_dataset <- list(cluster=2.8, cluster_balanced=2.85, branch=2.4, linear=2.3, 'covid19-pbmc'=2.1, 'bcr-xl'=0.75,'aging'=2.0,
                     test_scale_4000=1.2, test_scale_10000=1.2, test_scale_15000=1.2, test_scale_30000=1.2,
                     test_scale_50000=1.2, test_scale_100000=1.2, pancreas=2.85, levine32=0.45)
 if (is.null(tol)) {

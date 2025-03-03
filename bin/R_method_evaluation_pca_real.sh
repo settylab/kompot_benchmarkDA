@@ -152,7 +152,7 @@ for pop in $pops
                             echo "Doing $jobid ..."
 
                         echo "starting"
-                        Rscript scripts/run_DA_c.r \
+                        Rscript scripts/run_DA.r \
                             ${data_file} $method $seed $pop \
                             --data_dir ${data_dir}/${jobid_old}/iteration_${iteration}/ \
                             --pop_enrichment $pop_enr \

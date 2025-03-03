@@ -41,64 +41,32 @@ hyper=$8
 
 
 
-if [ "$data_id" == "cluster" ]
+if [ "$data_id" == "aging" ]
     then
-    data_dir=${root}/data/synthetic/$data_id
-    data_file=${data_dir}/cluster_anndata.h5ad
-    pops=$(for p in $(seq 1 1 3); do echo M$p; done)
-    R_methods=$(for m in mellon meld cna meld_default; do echo $m; done)
-    batch_vec=$(for m in 0 0.75 1 1.25 1.5; do echo $m; done)
-    k=30
-    resolution=0.2
-    beta=33
-    downsample=3
-    mem=8g
-    pop_col="celltype"
-    #out_dir = $root/benchmark_python/synthetic/$data_id
-elif [ "$data_id" == "cluster_balanced" ]
-    then
-    data_dir=${root}/data/synthetic/$data_id
-    data_file=${data_dir}/cluster_balanced_anndata.h5ad
-    pops=$(for p in $(seq 1 1 3); do echo M$p; done)
-    R_methods=$(for m in mellon meld cna meld_default; do echo $m; done)
-    batch_vec=$(for m in 0 0.75 1 1.25 1.5; do echo $m; done)
-    k=30
-    resolution=0.2
-    beta=33
-    downsample=3
-    mem=8g
-    pop_col="celltype"
-elif [ "$data_id" == "linear" ]
-    then
-    data_dir=${root}/data/synthetic/$data_id
-    data_file=${data_dir}/linear_anndata.h5ad
-    pops=$(for p in $(seq 1 1 7); do echo M$p; done)
-    R_methods=$(for m in meld mellon cna meld_default; do echo $m; done)
+    data_dir=${root}/data/real/$data_id
+    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/manuscript_preparation/aging_hematopoiesis_data_benchmarking.h5ad
+    #Ery_P HSC ILC Immature_B_cell LMPP MBE MKP Mature_B_cell Mono_P Monocyte Myelo_P NK Neutrophil Pre-B_cell T_cell Treg cDC pDC
+    pops=$(for m in CLP Ery_P HSC ILC Immature_B_cell LMPP MBE MKP Mature_B_cell Mono_P Monocyte Myelo_P NK Neutrophil Pre-B_cell T_cell Treg cDC pDC; do echo $m; done)
+    #Ery_P HSC ILC Immature_B_cell LMPP MBE MKP Mature_B_cell Mono_P Monocyte Myelo_P NK Neutrophil Pre-B_cell T_cell Treg cDC pDC
+    #R_methods=$(for m in mellon mellon_dm mellon_hls milo daseq cydar cna meld louvain milo_batch cna_batch louvain_batch; do echo $m; done)
     #0.75 1 1.25 1.5
-    batch_vec=$(for m in 0 0.75 1 1.25 1.5; do echo $m; done)
+    #$(for m in $(seq 0 0.1 1) $(seq 1 0.25 1.75) 20; do echo $m; done)
+    R_methods=$(for m in mellon meld cna mellon_high_ls meld_default; do echo $m; done)
+    #R_methods=$(for m in mellon meld cna; do echo $m; done)
+    #batch_vec=$(for m in $(seq 0 0.1 1); do echo $m; done)
+    batch_vec=$(for m in 0.0; do echo $m; done)
     k=30
     resolution=1
-    beta=71
+    beta=64  
+    # beta used ad.X to fit the meld benchmark model and set KNN = 30, find the beta with smallest mse
+    # this beta will be changed after the parameter tuning
     downsample=3
     mem=8g
-    pop_col="celltype"
-elif [ "$data_id" == "branch" ]
-    then
-    data_dir=${root}/data/synthetic/$data_id
-    data_file=${data_dir}/branch_anndata.h5ad
-    pops=$(for p in $(seq 1 1 8); do echo M$p; done)
-    R_methods=$(for m in mellon meld cna meld_default; do echo $m; done)
-    batch_vec=$(for m in 0 0.75 1 1.25 1.5; do echo $m; done)
-    k=30
-    resolution=1
-    beta=65
-    downsample=3
-    mem=8g
-    pop_col="celltype"
+    pop_col="midres_celltype_benchmarking"
 elif [[ "$data_id" == "covid19-pbmc" ]]
     then
     data_dir=${root}/data/real/$data_id
-    data_file=${data_dir}/original_adata_covid.h5ad
+    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/benchmarkDA/data/real/covid19-pbmc/original_adata_covid.h5ad
     pops=$(for m in RBC B PB CD14_Monocyte CD8_T CD4_T Platelet NK Granulocyte CD16_Monocyte gd_T pDC DC; do echo $m; done)
     #R_methods=$(for m in mellon mellon_dm mellon_hls milo daseq cydar cna meld louvain; do echo $m; done)
     R_methods=$(for m in mellon meld cna meld_default; do echo $m; done)
@@ -112,7 +80,7 @@ elif [[ "$data_id" == "covid19-pbmc" ]]
 elif [[ "$data_id" == "bcr-xl" ]]
     then
     data_dir=${root}/data/real/$data_id
-    data_file=${data_dir}/bcr_xl_anndata_revised.h5ad
+    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/benchmarkDA/data/real/bcr-xl/bcr_xl_anndata_revised.h5ad
     pops=$(for m in CD4_T-cells NK_cells CD8_T-cells B-cells_IgM+ monocytes surface- B-cells_IgM- DC; do echo $m; done)
     R_methods=$(for m in mellon meld cna meld_default; do echo $m; done)
     #R_methods=$(for m in mellon mellon_dm mellon_hls milo daseq cydar cna meld louvain; do echo $m; done)
@@ -126,7 +94,7 @@ elif [[ "$data_id" == "bcr-xl" ]]
 elif [[ "$data_id" == "pancreas" ]]
     then
     data_dir=${root}/data/real/$data_id
-    data_file=${data_dir}/pancreas_anndata_revised.h5ad
+    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/benchmarkDA/data/real/pancreas/pancreas_anndata_revised.h5ad
     pops=$(for m in delta_cell alpha_cell gamma_cell acinar_cell beta_cell ductal_cell epsilon_cell; do echo $m; done)
     R_methods=$(for m in mellon meld cna meld_default; do echo $m; done)
     #R_methods=$(for m in milo daseq cydar cna meld louvain; do echo $m; done)
@@ -140,7 +108,7 @@ elif [[ "$data_id" == "pancreas" ]]
 elif [[ "$data_id" == "levine32" ]]
     then
     data_dir=${root}/data/real/$data_id
-    data_file=${data_dir}/levine32_anndata_revised_deduplicated.h5ad
+    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/benchmarkDA/data/real/levine32/levine32_anndata_revised_deduplicated.h5ad
     # CD4_T_cells CD8_T_cells Pre_B_cells Mature_B_cells Monocytes Basophils
     pops=$(for m in pDCs CD4_T_cells CD8_T_cells Pre_B_cells Mature_B_cells Monocytes Basophils; do echo $m; done)
     R_methods=$(for m in mellon meld cna meld_default; do echo $m; done)
@@ -281,7 +249,7 @@ done
 # Submit a slurm array job
 jobid="mellon_syn_real_$data_id"
 cmd="sbatch -J '$jobid' --time=$time --partition=$partition \
---mem 8g --out '$root/SlurmLog_benchmark_synthetic_0227_pca/${jobid_2}_%N_%A_%a.out' --array=1-$job_number \
+--mem 8g --out '$root/SlurmLog_benchmark_real_0227_pca/${jobid_2}_%N_%A_%a.out' --array=1-$job_number \
 '$script_path' $1 $2 $3 $4 $5 $6 $7 $8"
 echo "$cmd"
 eval "$cmd"

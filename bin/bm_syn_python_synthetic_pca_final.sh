@@ -95,6 +95,7 @@ elif [ "$data_id" == "branch" ]
     downsample=3
     mem=8g
     pop_col="celltype"
+fi
 
 
 #PB CD14_Monocyte CD8_T CD4_T Platelet NK Granulocyte CD16_Monocyte gd_T pDC DC

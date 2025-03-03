@@ -45,7 +45,7 @@ if [ "$data_id" == "cluster" ]
     downsample=3
     mem=8g
     pop_col="celltype"
-    out_dir=${root}/benchmark_python/synthetic/$data_id
+    out_dir=${root}/benchmark_dm/synthetic/$data_id
 # elif [ "$data_id" == "cluster_balanced" ]
 #     then
 #     data_dir=${root}/data/synthetic/$data_id
@@ -74,7 +74,7 @@ elif [ "$data_id" == "linear" ]
     downsample=3
     mem=8g
     pop_col="celltype"
-    out_dir=${root}/benchmark_python/synthetic/$data_id
+    out_dir=${root}/benchmark_dm/synthetic/$data_id
 elif [ "$data_id" == "branch" ]
     then
     data_dir=${root}/data/synthetic/$data_id
@@ -88,7 +88,7 @@ elif [ "$data_id" == "branch" ]
     downsample=3
     mem=8g
     pop_col="celltype"
-    out_dir=${root}/benchmark_python/synthetic/$data_id
+    out_dir=${root}/benchmark_dm/synthetic/$data_id
 elif [ "$data_id" == "aging" ]
     then
     data_dir=${root}/data/real/$data_id
@@ -109,7 +109,7 @@ elif [ "$data_id" == "aging" ]
     downsample=3
     mem=8g
     pop_col="midres_celltype_benchmarking"
-    out_dir=${root}/benchmark_with_aging_dm_testing_0227/real/$data_id
+    out_dir=${root}/benchmark_dm/real/$data_id
 elif [[ "$data_id" == "covid19-pbmc" ]]
     then
     data_dir=${root}/data/real/$data_id
@@ -125,7 +125,7 @@ elif [[ "$data_id" == "covid19-pbmc" ]]
     downsample=3
     mem=32g
     pop_col="cell.type.coarse"
-    out_dir=${root}/benchmark_python/real/$data_id
+    out_dir=${root}/benchmark_dm/real/$data_id
 elif [[ "$data_id" == "bcr-xl" ]]
     then
     data_dir=${root}/data/real/$data_id
@@ -140,7 +140,7 @@ elif [[ "$data_id" == "bcr-xl" ]]
     downsample=10
     mem=32g
     pop_col="cell_type"
-    out_dir=${root}/benchmark_python/real/$data_id
+    out_dir=${root}/benchmark_dm/real/$data_id
 elif [[ "$data_id" == "pancreas" ]]
     then
     data_dir=${root}/data/real/$data_id
@@ -155,7 +155,7 @@ elif [[ "$data_id" == "pancreas" ]]
     downsample=3
     mem=8g
     pop_col="Factor.Value.inferred.cell.type...authors.labels."
-    out_dir=${root}/benchmark_python/real/$data_id
+    out_dir=${root}/benchmark_dm/real/$data_id
 elif [[ "$data_id" == "levine32" ]]
     then
     data_dir=${root}/data/real/$data_id
@@ -171,7 +171,7 @@ elif [[ "$data_id" == "levine32" ]]
     downsample=25
     mem=96g
     pop_col="cell_type"
-    out_dir=${root}/benchmark_python/real/$data_id
+    out_dir=${root}/benchmark_dm/real/$data_id
 fi
 
 
@@ -234,7 +234,7 @@ echo $job_number
 # Submit a slurm array job
 jobid="benchmarkDA_syn_real_$data_id"
 cmd="sbatch -J '$jobid' --time=$time --partition=$partition \
---mem $mem --out '$root/SlurmLog_R_test_dm_aging/${jobid}_%N_%A_%a.out' --array=1-$job_number \
+--mem $mem --out '$root/SlurmLog/${jobid}_%N_%A_%a.out' --array=1-$job_number \
 '$script_path' $1 $2 $3 $4 $5 $6 $7 $8"
 echo "$cmd"
 eval "$cmd"

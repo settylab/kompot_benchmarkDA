@@ -123,8 +123,8 @@ for p in $pops;
                             jobid=${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-${balance_bool}-${analysis_layer}-DM
                             jobid_2=${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-${balance_bool}-${analysis_layer}-${mellon_method}-${norm_or_not}-${hyper}-${correct}
 
-                            save_path=${root}/benchmark_with_aging_dm_testing_0225/synthetic/$data_id/${jobid_2}
-                            save_path_iteration=${root}/benchmark_with_aging_dm_testing_0225/synthetic/$data_id/${jobid_2}/iteration_${iteration}
+                            save_path=${root}/benchmark_dm/synthetic/$data_id/${jobid_2}
+                            save_path_iteration=${root}/benchmark_dm/synthetic/$data_id/${jobid_2}/iteration_${iteration}
                             mkdir -p "$save_path_iteration"
                             echo "Doing $jobid ..."
                             if [[ "$method" == "mellon" ]]; then
@@ -248,7 +248,7 @@ done
 # Submit a slurm array job
 jobid="mellon_syn_real_$data_id"
 cmd="sbatch -J '$jobid' --time=$time --partition=$partition \
---mem 8g --out '$root/SlurmLog_aging_evaluation_dm/${jobid_2}_%N_%A_%a.out' --array=1-$job_number \
+--mem 8g --out '$root/SlurmLog/${jobid_2}_%N_%A_%a.out' --array=1-$job_number \
 '$script_path' $1 $2 $3 $4 $5 $6 $7 $8"
 echo "$cmd"
 eval "$cmd"

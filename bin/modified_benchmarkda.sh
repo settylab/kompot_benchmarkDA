@@ -219,7 +219,7 @@ done
 # Submit a slurm array job
 jobid="mellon_syn_real_$data_id"
 cmd="sbatch -J '$jobid' --time=$time --partition=$partition \
---mem 8g --out '$root/SlurmLog_combined_package/${jobid}_%N_%A_%a.out' --array=1-$job_number \
+--mem 8g --out '$root/SlurmLog/${jobid}_%N_%A_%a.out' --array=1-$job_number \
 '$script_path' $1 $2 $3"
 echo "$cmd"
 eval "$cmd"

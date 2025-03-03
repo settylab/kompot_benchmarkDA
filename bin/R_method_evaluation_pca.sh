@@ -30,7 +30,6 @@ cd ${root}
 
 #daseq cydar louvain milo_batch cydar_batch louvain_batch
 
-
 if [ "$data_id" == "cluster" ]
     then
     data_dir=${root}/data/synthetic/$data_id
@@ -88,6 +87,89 @@ elif [ "$data_id" == "branch" ]
     mem=8g
     pop_col="celltype"
     out_dir=${root}/benchmark_pca/synthetic/$data_id
+elif [ "$data_id" == "aging" ]
+    then
+    data_dir=${root}/data/real/$data_id
+    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/manuscript_preparation/aging_hematopiesis.rds
+    pops=$(for m in CLP Ery_P HSC ILC Immature_B_cell LMPP MBE MKP Mature_B_cell Mono_P Monocyte Myelo_P NK Neutrophil Pre-B_cell T_cell Treg cDC pDC; do echo $m; done)
+    #Ery_P HSC ILC Immature_B_cell LMPP MBE MKP Mature_B_cell Mono_P Monocyte Myelo_P NK Neutrophil Pre-B_cell T_cell Treg cDC pDC
+    #R_methods=$(for m in mellon mellon_dm mellon_hls milo daseq cydar cna meld louvain milo_batch cna_batch louvain_batch; do echo $m; done)
+    #0.75 1 1.25 1.5
+    #$(for m in $(seq 0 0.1 1) $(seq 1 0.25 1.75) 20; do echo $m; done)
+    R_methods=$(for m in milo daseq cydar louvain; do echo $m; done)
+    #batch_vec=$(for m in $(seq 0 0.1 1); do echo $m; done)
+    batch_vec=$(for m in 0.0; do echo $m; done)
+    k=30
+    resolution=1
+    beta=64  
+    # beta used ad.X to fit the meld benchmark model and set KNN = 30, find the beta with smallest mse
+    # this beta will be changed after the parameter tuning
+    downsample=3
+    mem=8g
+    pop_col="midres_celltype_benchmarking"
+    out_dir=${root}/benchmark_pca/real/$data_id
+elif [[ "$data_id" == "covid19-pbmc" ]]
+    then
+    data_dir=${root}/data/real/$data_id
+    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/benchmarkDA/data/real/covid19-pbmc/single-cell-atlas-pbmc-sars-cov2_sce.rds
+    #RBC B
+    pops=$(for m in RBC B PB CD14_Monocyte CD8_T CD4_T Platelet NK Granulocyte CD16_Monocyte gd_T pDC DC; do echo $m; done)
+    #R_methods=$(for m in mellon mellon_dm mellon_hls milo daseq cydar cna meld louvain; do echo $m; done)
+    R_methods=$(for m in milo daseq cydar louvain; do echo $m; done)
+    batch_vec=0
+    k=30
+    resolution=0.5
+    beta=25
+    downsample=3
+    mem=32g
+    pop_col="cell.type.coarse"
+    out_dir=${root}/benchmark_pca/real/$data_id
+elif [[ "$data_id" == "bcr-xl" ]]
+    then
+    data_dir=${root}/data/real/$data_id
+    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/benchmarkDA/data/real/bcr-xl/bcr_xl_preprocessed_sce.rds
+    pops=$(for m in CD4_T-cells NK_cells CD8_T-cells B-cells_IgM+ monocytes surface- B-cells_IgM- DC; do echo $m; done)
+    R_methods=$(for m in milo daseq cydar louvain; do echo $m; done)
+    #R_methods=$(for m in mellon mellon_dm mellon_hls milo daseq cydar cna meld louvain; do echo $m; done)
+    batch_vec=0
+    k=30
+    resolution=0.6
+    beta=23
+    downsample=10
+    mem=32g
+    pop_col="cell_type"
+    out_dir=${root}/benchmark_python/real/$data_id
+elif [[ "$data_id" == "pancreas" ]]
+    then
+    data_dir=${root}/data/real/$data_id
+    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/benchmarkDA/data/real/pancreas/pancreas_preprocessed_sce.rds
+    pops=$(for m in delta_cell alpha_cell gamma_cell acinar_cell beta_cell ductal_cell epsilon_cell; do echo $m; done)
+    R_methods=$(for m in milo daseq cydar louvain; do echo $m; done)
+    #R_methods=$(for m in milo daseq cydar cna meld louvain; do echo $m; done)
+    batch_vec=0
+    k=30
+    resolution=1.2
+    beta=80
+    downsample=3
+    mem=8g
+    pop_col="Factor.Value.inferred.cell.type...authors.labels."
+    out_dir=${root}/benchmark_pca/real/$data_id
+elif [[ "$data_id" == "levine32" ]]
+    then
+    data_dir=${root}/data/real/$data_id
+    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/benchmarkDA/data/real/levine32/deduplicated_levine32.rds
+    # CD4_T_cells CD8_T_cells Pre_B_cells Mature_B_cells Monocytes Basophils
+    pops=$(for m in pDCs CD4_T_cells CD8_T_cells Pre_B_cells Mature_B_cells Monocytes Basophils; do echo $m; done)
+    R_methods=$(for m in milo daseq cydar louvain; do echo $m; done)
+    #R_methods=$(for m in milo daseq cydar cna meld louvain; do echo $m; done)
+    batch_vec=0
+    k=30
+    resolution=0.6
+    beta=36
+    downsample=25
+    mem=96g
+    pop_col="cell_type"
+    out_dir=${root}/benchmark_pca/real/$data_id
 fi
 
 
@@ -121,12 +203,11 @@ for pop in $pops
 
                         jobid_old=${data_id}-${pop}-${pop_enr}-${seed}-${batch_sd}-${balance_bool}-${analysis_layer}
                         echo "Doing $jobid ..."
-
                         save_path_iteration=${out_dir}/${jobid_2}/iteration_${iteration}/
                         mkdir -p "$save_path_iteration"
                             echo "Doing $jobid ..."
+
                         echo "starting"
-                        
                         Rscript scripts/run_DA.r \
                             ${data_file} $method $seed $pop \
                             --data_dir ${data_dir}/${jobid_old}/iteration_${iteration}/ \

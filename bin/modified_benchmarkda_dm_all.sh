@@ -35,7 +35,9 @@ balance_bool=$3
 # 44 45
 #$(seq 0.75 0.1 0.85)
 
-
+# for synthetic datasets, if want dm=30 instead of 10, please delete "_10" in the file name
+# for real datasets, the dm = 30 (only limit to single cell rna seq datasets)
+# for CYTOF datasets, the number of features are too small so there is no dimensional reduction applied now. We can put a small diffusion map component number on it later.
 
 if [ "$data_id" == "cluster" ]
     then
@@ -51,19 +53,19 @@ if [ "$data_id" == "cluster" ]
     mem=8g
     pop_col="celltype"
     #out_dir = $root/benchmark_python/synthetic/$data_id
-elif [ "$data_id" == "cluster_balanced" ]
-    then
-    data_dir=${root}/data/synthetic/$data_id
-    data_file=${data_dir}/cluster_balanced_anndata.h5ad
-    pops=$(for p in $(seq 1 1 3); do echo M$p; done)
-    #R_methods=$(for m in mellon mellon_dm mellon_hls milo daseq cydar cna meld louvain milo_batch cna_batch louvain_batch; do echo $m; done)
-    batch_vec=$(for m in 0 0.75 1 1.25 1.5; do echo $m; done)
-    k=30
-    resolution=0.2
-    beta=33
-    downsample=3
-    mem=8g
-    pop_col="celltype"
+# elif [ "$data_id" == "cluster_balanced" ]
+#     then
+#     data_dir=${root}/data/synthetic/$data_id
+#     data_file=${data_dir}/cluster_balanced_anndata.h5ad
+#     pops=$(for p in $(seq 1 1 3); do echo M$p; done)
+#     #R_methods=$(for m in mellon mellon_dm mellon_hls milo daseq cydar cna meld louvain milo_batch cna_batch louvain_batch; do echo $m; done)
+#     batch_vec=$(for m in 0 0.75 1 1.25 1.5; do echo $m; done)
+#     k=30
+#     resolution=0.2
+#     beta=33
+#     downsample=3
+#     mem=8g
+#     pop_col="celltype"
 elif [ "$data_id" == "linear" ]
     then
     data_dir=${root}/data/synthetic/$data_id
@@ -125,7 +127,7 @@ elif [[ "$data_id" == "covid19-pbmc" ]]
 elif [[ "$data_id" == "bcr-xl" ]]
     then
     data_dir=${root}/data/real/$data_id
-    data_file=${data_dir}/bcr_xl_anndata_revised.h5ad
+    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/benchmarkDA/data/real/bcr-xl/bcr_xl_anndata_revised.h5ad
     pops=$(for m in CD4_T-cells NK_cells CD8_T-cells B-cells_IgM+ monocytes surface- B-cells_IgM- DC; do echo $m; done)
     #R_methods=$(for m in mellon mellon_dm mellon_hls milo daseq cydar cna meld louvain; do echo $m; done)
     batch_vec=0
@@ -138,7 +140,7 @@ elif [[ "$data_id" == "bcr-xl" ]]
 elif [[ "$data_id" == "pancreas" ]]
     then
     data_dir=${root}/data/real/$data_id
-    data_file=${data_dir}/pancreas_anndata_revised.h5ad
+    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/benchmarkDA/data/real/pancreas/pancreas_dm.h5ad
     pops=$(for m in delta_cell alpha_cell gamma_cell acinar_cell beta_cell ductal_cell epsilon_cell; do echo $m; done)
     #R_methods=$(for m in milo daseq cydar cna meld louvain; do echo $m; done)
     batch_vec=0
@@ -151,7 +153,7 @@ elif [[ "$data_id" == "pancreas" ]]
 elif [[ "$data_id" == "levine32" ]]
     then
     data_dir=${root}/data/real/$data_id
-    data_file=${data_dir}/levine32_anndata_revised_deduplicated.h5ad
+    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/benchmarkDA/data/real/levine32/levine32_anndata_revised_deduplicated.h5ad
     # CD4_T_cells CD8_T_cells Pre_B_cells Mature_B_cells Monocytes Basophils
     pops=$(for m in pDCs CD4_T_cells CD8_T_cells Pre_B_cells Mature_B_cells Monocytes Basophils; do echo $m; done)
     #R_methods=$(for m in milo daseq cydar cna meld louvain; do echo $m; done)
@@ -181,7 +183,8 @@ for p in $pops;
                     if [ -z "$SLURM_ARRAY_TASK_ID" ] || [ "$job_number" -ne "$SLURM_ARRAY_TASK_ID" ]; then
                         continue
                     fi
-					jobid=${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-${balance_bool}-${analysis_layer}-DM-30
+                    ## please regulate the jobid name for saving them without replaceing the previous data !
+					jobid=${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-${balance_bool}-${analysis_layer}-DM
 					echo "Doing $jobid ..."
                     conda deactivate
                     conda activate DiffAbundance

@@ -36,10 +36,22 @@ The Python packages needed are
 - scikit-learn
 - multianndata
 
+The python packages list are saved in the differential_abundance_env_list.yml for building environment.
+The R packages list are saved in the renv.lock. Use module load R/4.3.1-gfbf-2022b first and then open R to create the renv environemnt by renv::restore()
+
 ## Data
 
 - Synthetic datasets and BCR-XL dataset are available under the `data` directory.
 - The COVID-19 PBMC dataset is available at https://www.covid19cellatlas.org/#wilk20.
+
+- But for now, all datasets are labeled with the link where they saved directly in bash scripts.
+- For finding datasets:
+   1. Please open bin/bm_syn_python_real_pca_final.sh or bin/bm_syn_python_synthetic_pca_final.sh for finding datasets with PCA layer saved in h5ad format.
+    2. Please open bin/bm_syn_python_real_dm_final.sh or bin/bm_syn_python_synthetic_dm_final.sh for finding datasets with Diffusion Map layer saved in h5ad format.
+    3. Please open bin/R_method_evaluation_dm.sh for finding datasets with Diffusion Map layer saved in RDS format.
+    4. Please open bin/R_method_evaluation_pca.sh for finding datasets with PCA layer saved in RDS format.
+
+For those datasets which has "dm", it means that its X_pca or PCA has been replaced by diffusion map values.
 
 ## Usage
 
@@ -48,19 +60,76 @@ The Python packages needed are
 The benchmarking scripts are all located in the `bin` drectory.
 
 ```text
-bin
-├── bm_parameter.sh
-├── bm_runtime.sh
-├── bm_syn_real.sh
-└── make_bm_data.sh
+Original scripts from benchmarkDA for benchmarking has been saved at bin/original_bash_scripts_from_benchmarkDA
 ```
 
 To run a benchmarking job, use the following command:
 
+### Generate synthetic labels
+PCA
 ```sh
-bash bm_{the script}.sh
+bash bin/modified_benchmarkda.sh $1 $2 $3
+```
+- $1 :dataset name (can be linear, branch, cluster, covid19-pbmc, bcr-xl, pancreas, aging, levine32)
+- $2: for indicating whether analysis is on PCA or Diffuson map, can be any name, but just need to be consistent with further analysis
+- $3: for showing whether the ground truth is balanced or not. Using "No" now.
+
+Example:
+```sh
+bash bin/modified_benchmarkda.sh linear pca No
+```
+Diffusion Map
+
+```sh
+bash bin/modified_benchmarkda_dm_all.sh $1 $2 $3
+```
+- Input similar as PCA
+
+Example:
+```sh
+bash bin/modified_benchmarkda_dm_all.sh linear dm No
 ```
 
+### Running benchmarking
+PCA
+
+Python packages
+- For synthetic datasets
+```sh
+bash bin/bm_syn_python_synthetic_pca_final.sh $1 $2 $3 $4 $5 $6 $7 $8
+```
+- For real datasets
+```sh
+bash bin/bm_syn_python_real_pca_final.sh $1 $2 $3 $4 $5 $6 $7 $8
+```
+
+R packages
+- For all datasets
+```sh
+bash bin/R_method_evaluation_pca.sh $1 $2 $3 $4 $5 $6 $7 $8
+```
+
+- $1 :dataset name (can be linear, branch, cluster, covid19-pbmc, bcr-xl, pancreas, aging, levine32)
+- $2: for indicating whether analysis is on PCA or Diffuson map, can be any name, need to match with what set in the "Generate synthetic labels" step.
+- $3: iteration number : number of iterations if we select centroid randomly, now just use 0
+- $4: for showing whether the ground truth is balanced or not. Using "No" now.
+- $5: mellon d method: Use "fractal"
+- $6: whether Mellon density is normalized or not: Use "No", un-normalized
+- $7: whether apply correction on Mellon density log fold change: Use "No", no correction
+- $8: whether Mellon parameters for density estimation are synchronized: Use "Yes", synchronized.
+
+Example:
+```sh
+bash bin/bm_syn_python_synthetic_pca_final.sh linear pca 0 No fractal No No Yes
+```
+
+```sh
+bash bin/bm_syn_python_real_pca_final.sh covid19-pbmc pca 0 No fractal No No Yes
+```
+
+```sh
+bash bin/R_method_evaluation_pca.sh linear pca 0 No fractal No No Yes
+```
 
 ## Acknowledgement
 

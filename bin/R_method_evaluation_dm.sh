@@ -204,7 +204,7 @@ for pop in $pops
                         jobid_2=${data_id}-${pop}-${pop_enr}-${seed}-${batch_sd}-${balance_bool}-${analysis_layer}-${mellon_method}-${norm_or_not}-${hyper}-${correct}
 
                         ## this jobid_old needs to match with the path where the synthetic labals generated from "modified_benchmarkda_dm_all.sh" are saved 
-                        jobid_old=${data_id}-${pop}-${pop_enr}-${seed}-${batch_sd}-${balance_bool}-${analysis_layer}-DM
+                        jobid_old=${data_id}-${pop}-${pop_enr}-${seed}-${batch_sd}-${balance_bool}-${analysis_layer}
 
                         save_path_iteration=${out_dir}/${jobid_2}/iteration_${iteration}/
                         mkdir -p "$save_path_iteration"

@@ -138,7 +138,7 @@ elif [[ "$data_id" == "bcr-xl" ]]
     downsample=10
     mem=32g
     pop_col="cell_type"
-    out_dir=${root}/benchmark_python/real/$data_id
+    out_dir=${root}/benchmark_pca/real/$data_id
 elif [[ "$data_id" == "pancreas" ]]
     then
     data_dir=${root}/data/real/$data_id

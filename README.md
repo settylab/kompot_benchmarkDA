@@ -167,7 +167,7 @@ For running bash scripts, please make sure that the jobid match (${data_id}-${p}
 Notebooks for calculating diffusion map, converting anndata and rds, and perform evaluation are saved in the notebook/.
 
 ### Codes which will be updated soon:
-- Code for generating the simulated batch effect based on the shape scale of embedding layer
+- Code for generating the simulated batch effect based on the added scaler on batch standard deviation
 - Code for Meld beta parameter optimization
 
 ## Acknowledgement

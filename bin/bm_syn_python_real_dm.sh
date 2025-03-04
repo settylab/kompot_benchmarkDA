@@ -147,7 +147,7 @@ for p in $pops;
                             if [ -z "$SLURM_ARRAY_TASK_ID" ] || [ "$job_number" -ne "$SLURM_ARRAY_TASK_ID" ]; then
                                 continue
                             fi
-                            jobid=${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-${balance_bool}-${analysis_layer}-DM
+                            jobid=${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-${balance_bool}-${analysis_layer}
                             jobid_2=${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-${balance_bool}-${analysis_layer}-${mellon_method}-${norm_or_not}-${hyper}-${correct}
 
                             save_path=${root}/benchmark_dm/real/$data_id/${jobid_2}

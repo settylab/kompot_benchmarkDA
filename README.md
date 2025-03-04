@@ -47,7 +47,7 @@ The R packages list are saved in the renv.lock.
 - Synthetic datasets and BCR-XL dataset are available under the `data` directory.
 - The COVID-19 PBMC dataset is available at https://www.covid19cellatlas.org/#wilk20.
 
-- But for now, all datasets are labeled with the link where they saved directly in bash scripts.
+But for now, all datasets are labeled with the link where they saved directly in bash scripts.
 - For finding datasets:
    1. Please open bin/bm_syn_python_real_pca_final.sh or bin/bm_syn_python_synthetic_pca_final.sh for finding datasets with PCA layer saved in h5ad format.
     2. Please open bin/bm_syn_python_real_dm_final.sh or bin/bm_syn_python_synthetic_dm_final.sh for finding datasets with Diffusion Map layer saved in h5ad format.

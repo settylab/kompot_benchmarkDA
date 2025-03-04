@@ -45,7 +45,7 @@ if [ "$data_id" == "cluster" ]
     data_file=/fh/fast/setty_m/user/ryang/differential_abundance/benchmarkDA/data/synthetic/cluster/cluster_anndata_dm_10.h5ad
     pops=$(for p in $(seq 1 1 3); do echo M$p; done)
     #R_methods=$(for m in mellon mellon_dm mellon_hls milo daseq cydar cna meld louvain milo_batch cna_batch louvain_batch; do echo $m; done)
-    batch_vec=$(for m in 0 0.75 1 1.25 1.5; do echo $m; done)
+    batch_vec=$(for m in 0; do echo $m; done)
     k=30
     resolution=0.2
     beta=33
@@ -73,7 +73,7 @@ elif [ "$data_id" == "linear" ]
     pops=$(for p in $(seq 1 1 7); do echo M$p; done)
     #R_methods=$(for m in mellon mellon_dm mellon_hls milo daseq cydar cna meld louvain milo_batch cna_batch louvain_batch; do echo $m; done)
     #0.75 1 1.25 1.5
-    batch_vec=$(for m in 0 0.75 1 1.25 1.5; do echo $m; done)
+    batch_vec=$(for m in 0; do echo $m; done)
     k=30
     resolution=1
     beta=71
@@ -86,7 +86,7 @@ elif [ "$data_id" == "branch" ]
     data_file=/fh/fast/setty_m/user/ryang/differential_abundance/benchmarkDA/data/synthetic/branch/branch_anndata_dm_10.h5ad
     pops=$(for p in $(seq 1 1 8); do echo M$p; done)
     #R_methods=$(for m in mellon mellon_dm mellon_hls milo daseq cydar cna meld louvain milo_batch cna_batch louvain_batch; do echo $m; done)
-    batch_vec=$(for m in 0 0.75 1 1.25 1.5; do echo $m; done)
+    batch_vec=$(for m in 0; do echo $m; done)
     k=30
     resolution=1
     beta=65
@@ -184,7 +184,7 @@ for p in $pops;
                         continue
                     fi
                     ## please regulate the jobid name for saving them without replaceing the previous data !
-					jobid=${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-${balance_bool}-${analysis_layer}-DM
+					jobid=${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-${balance_bool}-${analysis_layer}
 					echo "Doing $jobid ..."
                     conda deactivate
                     conda activate DiffAbundance
@@ -222,7 +222,7 @@ done
 # Submit a slurm array job
 jobid="mellon_syn_real_$data_id"
 cmd="sbatch -J '$jobid' --time=$time --partition=$partition \
---mem 8g --out '$root/SlurmLog/${jobid}_%N_%A_%a.out' --array=1-$job_number \
+--mem 8g --out '$root/SlurmLog_test_dm_0303/${jobid}_%N_%A_%a.out' --array=1-$job_number \
 '$script_path' $1 $2 $3"
 echo "$cmd"
 eval "$cmd"

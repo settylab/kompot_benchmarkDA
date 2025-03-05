@@ -37,14 +37,17 @@ The Python packages needed are
 - multianndata
 
 The python packages list are saved in the differential_abundance_env_list.yml for building environment.
-The R packages list are saved in the renv.lock. Use module load R/4.3.1-gfbf-2022b first and then open R to create the renv environemnt by renv::restore()
+
+
+The R packages list are saved in the renv.lock.
+- Use module load R/4.3.1-gfbf-2022b first and then open R to create the renv environemnt by renv::restore()
 
 ## Data
 
 - Synthetic datasets and BCR-XL dataset are available under the `data` directory.
 - The COVID-19 PBMC dataset is available at https://www.covid19cellatlas.org/#wilk20.
 
-- But for now, all datasets are labeled with the link where they saved directly in bash scripts.
+But for now, all datasets are labeled with the link where they saved directly in bash scripts.
 - For finding datasets:
    1. Please open bin/bm_syn_python_real_pca_final.sh or bin/bm_syn_python_synthetic_pca_final.sh for finding datasets with PCA layer saved in h5ad format.
     2. Please open bin/bm_syn_python_real_dm_final.sh or bin/bm_syn_python_synthetic_dm_final.sh for finding datasets with Diffusion Map layer saved in h5ad format.
@@ -52,6 +55,11 @@ The R packages list are saved in the renv.lock. Use module load R/4.3.1-gfbf-202
     4. Please open bin/R_method_evaluation_pca.sh for finding datasets with PCA layer saved in RDS format.
 
 For those datasets which has "dm", it means that its X_pca or PCA has been replaced by diffusion map values.
+
+More note about diffusion map datasets
+- for synthetic datasets, if want dm=30 instead of 10, please delete "_10" in the file name
+- for real datasets, the dm = 30 (only limit to single cell rna seq datasets)
+- for CYTOF datasets, the number of features are too small so there is no dimensional reduction applied now. We can put a small diffusion map component number on it later.
 
 ## Usage
 
@@ -130,6 +138,37 @@ bash bin/bm_syn_python_real_pca_final.sh covid19-pbmc pca 0 No fractal No No Yes
 ```sh
 bash bin/R_method_evaluation_pca.sh linear pca 0 No fractal No No Yes
 ```
+
+
+Diffusion Map
+
+
+Python packages
+- For synthetic datasets
+```sh
+bash bin/bm_syn_python_synthetic_dm.sh $1 $2 $3 $4 $5 $6 $7 $8
+```
+- For real datasets
+```sh
+bash bin/bm_syn_python_real_pca_dm $1 $2 $3 $4 $5 $6 $7 $8
+```
+
+R packages
+- For all datasets
+```sh
+bash bin/R_method_evaluation_dm.sh $1 $2 $3 $4 $5 $6 $7 $8
+```
+The parameter settings are same. Only path for saving results are different. 
+
+For running bash scripts, please make sure that the jobid match (${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-${balance_bool}-${analysis_layer}) with where we save ground truth.
+
+### Helper notebooks
+
+Notebooks for calculating diffusion map, converting anndata and rds, and perform evaluation are saved in the notebook/.
+
+### Codes which will be updated soon:
+- Code for generating the simulated batch effect based on the added scaler on batch standard deviation
+- Code for Meld beta parameter optimization
 
 ## Acknowledgement
 

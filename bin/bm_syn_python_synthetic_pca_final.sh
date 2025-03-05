@@ -16,8 +16,8 @@ script_dir="$(dirname "$script_path")"
 if [ -z "${root+x}" ]; then
     export root="$(readlink -f "$script_dir/..")"
 fi
-cd ${root}/python_method_copy
-echo "files are in :$root/python_method_copy" 
+cd ${root}/python_method
+echo "files are in :$root/python_method" 
 
 #data_dir="$root/data"
 #out_dir="$root/benchmark_python"

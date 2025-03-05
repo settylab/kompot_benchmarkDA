@@ -70,7 +70,7 @@ if (!inherits(sce, "SingleCellExperiment")) {
 ## Load coldata and PCA
 outprefix <- str_c("benchmark_", data_id, "_pop_", pop, '_enr', pop_enr, "_seed", seed)
 coldata <- read_csv(paste0(data_dir, outprefix, ".coldata.csv")) %>% column_to_rownames()
-X_pca <- read_csv(str_c(data_dir, outprefix, "_batchEffect", be_sd, ".pca.csv")) %>% column_to_rownames()  
+X_pca <- read_csv(str_c(data_dir, outprefix, "_batchEffect", be_sd, ".emb.csv")) %>% column_to_rownames()  
 
 ## cydar radius scaler picked w/ heuristic
 tol_dataset <- list(cluster=2.8, cluster_balanced=2.85, branch=2.4, linear=2.3, 'covid19-pbmc'=2.1, 'bcr-xl'=0.75,'aging'=2.0,

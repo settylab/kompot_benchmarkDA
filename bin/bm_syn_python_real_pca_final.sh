@@ -155,19 +155,17 @@ for p in $pops;
 
                                 conda deactivate
                                 conda activate DiffAbundance
-                                python Mellon_bm_new.py \
+                                python Mellon_bm.py \
                                     --file_path ${data_file} \
                                     --pop ${p} \
                                     --pop_enr $enr \
                                     --pop_column ${pop_col} \
-                                    --mode_select centroid \
                                     --ds_type $data_id \
                                     --batch_sd ${batch_sd_num} \
                                     --input_file $data_dir/${jobid}/ \
                                     --package $method \
                                     --seed ${seed} \
-                                    --n_random_cell 0 \
-                                    --mode_embedding PCA \
+                                    --layer_embedding X_pca \
                                     --n_dm 0 \
                                     --mellon_d_method ${mellon_method} \
                                     --norm_density ${norm_or_not} \
@@ -186,18 +184,17 @@ for p in $pops;
                                     --pop ${p} \
                                     --pop_enr $enr \
                                     --pop_column ${pop_col} \
-                                    --mode_select centroid \
                                     --ds_type $data_id \
                                     --batch_sd ${batch_sd_num} \
                                     --input_file $data_dir/${jobid}/ \
                                     --package $method \
                                     --seed ${seed} \
-                                    --n_random_cell 0 \
-                                    --mode_embedding PCA \
+                                    --layer_embedding X_pca \
                                     --beta $beta \
                                     --k_meld $k \
                                     --output_dir $save_path/
                                 exit $!
+
                             elif [[ "$method" == "meld_default" ]]; then
                                 conda deactivate
                                 conda activate DiffAbundance
@@ -206,14 +203,12 @@ for p in $pops;
                                     --pop ${p} \
                                     --pop_enr $enr \
                                     --pop_column ${pop_col} \
-                                    --mode_select centroid \
                                     --ds_type $data_id \
                                     --batch_sd ${batch_sd_num} \
                                     --input_file $data_dir/${jobid}/ \
                                     --package $method \
                                     --seed ${seed} \
-                                    --n_random_cell 0 \
-                                    --mode_embedding PCA \
+                                    --layer_embedding X_pca \
                                     --beta 40 \
                                     --k_meld $k \
                                     --output_dir $save_path/
@@ -226,14 +221,12 @@ for p in $pops;
                                     --pop ${p} \
                                     --pop_enr $enr \
                                     --pop_column ${pop_col} \
-                                    --mode_select centroid \
                                     --ds_type $data_id \
                                     --batch_sd ${batch_sd_num} \
                                     --input_file $data_dir/${jobid}/ \
                                     --package $method \
                                     --seed ${seed} \
-                                    --n_random_cell 0 \
-                                    --mode_embedding PCA \
+                                    --layer_embedding X_pca \
                                     --k_cna $k \
                                     --output_dir $save_path/
                                 exit $!

@@ -16,8 +16,8 @@ script_dir="$(dirname "$script_path")"
 if [ -z "${root+x}" ]; then
     export root="$(readlink -f "$script_dir/..")"
 fi
-cd ${root}/python_method
-echo "files are in :$root/python_method" 
+cd ${root}/python_method_copy
+echo "files are in :$root/python_method_copy" 
 
 #data_dir="$root/data"
 #out_dir="$root/benchmark_python"
@@ -119,7 +119,7 @@ for p in $pops;
                             if [ -z "$SLURM_ARRAY_TASK_ID" ] || [ "$job_number" -ne "$SLURM_ARRAY_TASK_ID" ]; then
                                 continue
                             fi
-                            jobid=${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-${balance_bool}-${analysis_layer}
+                            jobid=${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-${balance_bool}-${analysis_layer}-test
                             jobid_2=${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-${balance_bool}-${analysis_layer}-${mellon_method}-${norm_or_not}-${hyper}-${corrected}
 
                             save_path=${root}/benchmark_pca/synthetic/$data_id/${jobid_2}
@@ -130,19 +130,17 @@ for p in $pops;
 
                                 conda deactivate
                                 conda activate DiffAbundance
-                                python Mellon_bm_new.py \
+                                python Mellon_bm.py \
                                     --file_path ${data_file} \
                                     --pop ${p} \
                                     --pop_enr $enr \
                                     --pop_column ${pop_col} \
-                                    --mode_select centroid \
                                     --ds_type $data_id \
                                     --batch_sd ${batch_sd_num} \
                                     --input_file $data_dir/${jobid}/ \
                                     --package $method \
                                     --seed ${seed} \
-                                    --n_random_cell 0 \
-                                    --mode_embedding PCA \
+                                    --layer_embedding X_pca \
                                     --n_dm 0 \
                                     --mellon_d_method ${mellon_method} \
                                     --norm_density ${norm_or_not} \
@@ -161,14 +159,12 @@ for p in $pops;
                                     --pop ${p} \
                                     --pop_enr $enr \
                                     --pop_column ${pop_col} \
-                                    --mode_select centroid \
                                     --ds_type $data_id \
                                     --batch_sd ${batch_sd_num} \
                                     --input_file $data_dir/${jobid}/ \
                                     --package $method \
                                     --seed ${seed} \
-                                    --n_random_cell 0 \
-                                    --mode_embedding PCA \
+                                    --layer_embedding X_pca \
                                     --beta $beta \
                                     --k_meld $k \
                                     --output_dir $save_path/
@@ -181,14 +177,12 @@ for p in $pops;
                                     --pop ${p} \
                                     --pop_enr $enr \
                                     --pop_column ${pop_col} \
-                                    --mode_select centroid \
                                     --ds_type $data_id \
                                     --batch_sd ${batch_sd_num} \
                                     --input_file $data_dir/${jobid}/ \
                                     --package $method \
                                     --seed ${seed} \
-                                    --n_random_cell 0 \
-                                    --mode_embedding PCA \
+                                    --layer_embedding X_pca \
                                     --beta 40 \
                                     --k_meld $k \
                                     --output_dir $save_path/
@@ -201,14 +195,12 @@ for p in $pops;
                                     --pop ${p} \
                                     --pop_enr $enr \
                                     --pop_column ${pop_col} \
-                                    --mode_select centroid \
                                     --ds_type $data_id \
                                     --batch_sd ${batch_sd_num} \
                                     --input_file $data_dir/${jobid}/ \
                                     --package $method \
                                     --seed ${seed} \
-                                    --n_random_cell 0 \
-                                    --mode_embedding PCA \
+                                    --layer_embedding X_pca \
                                     --k_cna $k \
                                     --output_dir $save_path/
                                 exit $!

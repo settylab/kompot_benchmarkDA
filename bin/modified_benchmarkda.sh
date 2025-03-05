@@ -16,8 +16,8 @@ script_dir="$(dirname "$script_path")"
 if [ -z "${root+x}" ]; then
     export root="$(readlink -f "$script_dir/..")"
 fi
-cd ${root}/python_method
-echo "files are in :$root/python_method" 
+cd ${root}/python_method_copy
+echo "files are in :$root/python_method_copy" 
 
 #data_dir="$root/data"
 #out_dir="$root/benchmark_python"
@@ -189,11 +189,9 @@ for p in $pops;
                     mkdir "$DIRECTORY"
                     python generate_bm_data.py \
                         --file_path ${data_file} \
-                        --mode_distance euclidean \
                         --pop ${p} \
                         --pop_enr $enr \
                         --pop_column ${pop_col} \
-                        --mode_select centroid \
                         --ds_type $data_id \
                         --batch_sd ${batch_sd_num} \
                         --n_conditions 2 \
@@ -203,9 +201,7 @@ for p in $pops;
                         --condition_balance 1 \
                         --m 2 \
                         --a_logit 0.5 \
-                        --n_random_cell 0 \
                         --mode_embedding PCA \
-                        --knn_k 15 \
                         --layer_embedding X_pca \
                         --balance $balance_bool \
                         --output_dir $DIRECTORY/

@@ -22,55 +22,55 @@ def replicate_normalize_densities(sample_densities, replicate):
     return sample_likelihoods
 
 
-def runMELD(adata,k,sample_col, label_col, embedding_method,beta,dm_comp = 10):
+def runMELD(adata,k,sample_col, label_col, layer_embedding,beta):
     # add sample and label dataframe to adata
     samplem = pd.DataFrame(index=pd.Series(adata.obs[sample_col]).unique())
     samplem.loc[:,label_col] = \
         adata.obs[[sample_col, label_col]].groupby(by=sample_col).aggregate(lambda x: x[0])
     adata.uns['samplem'] = samplem
     
-    if embedding_method == "PCA":
-        # run meld method
-        if adata.n_vars <= 50:
-            G = gt.Graph(adata.X, knn=k, use_pygsp=True)
-        else:
-            if 'X_pca' not in adata.obsm:
+    if adata.n_vars <= 50:
+        G = gt.Graph(adata.X, knn=k, use_pygsp=True)
+    else:
+        if layer_embedding not in adata.obsm:
                 # perform pca and use it to generate graph
-                sc.tl.pca(adata, n_comps=50)
-            G = gt.Graph(adata.obsm['X_pca_batch'], knn=k, use_pygsp=True)
-        
-        meld_op = meld.MELD(beta=beta)
-        # generate the densities of each sample
-        sample_densities = meld_op.fit_transform(G, sample_labels=adata.obs[sample_col])
-        # normalize the densities for each replicate
-        replicates = samplem.index.map(lambda x: x.split('_')[-1]).unique()
-        sample_likelihoods = replicate_normalize_densities(sample_densities, replicates)
-        # average the likelihoods w.r.t conditions
-        obj_cond = sorted(samplem[label_col].unique())[-1]
-        obj_cond_columns = samplem.loc[samplem[label_col] == obj_cond,:].index.to_list()
-        sample_likelihoods = sample_likelihoods[obj_cond_columns].mean(axis=1)
-    
-    elif embedding_method == "DiffusionMap":
-            # run meld method
-        if adata.n_vars <= 50:
-            G = gt.Graph(adata.X, knn=k, use_pygsp=True)
+            raise ValueError(f"Embedding '{layer_embedding}' not found in adata.obsm. "
+                         "Please make sure it has been calculated.")
         else:
-            if "DM_EigenVectors" not in adata.obsm:
-                palantir.utils.run_diffusion_maps(
-                    adata, n_components=dm_comp, pca_key="X_pca_batch"
-                )
-            G = gt.Graph(adata.obsm["DM_EigenVectors"], knn=k, use_pygsp=True)
-    
-        meld_op = meld.MELD(beta=beta)
+            G = gt.Graph(adata.obsm[f"{layer_embedding}_batch"], knn=k, use_pygsp=True)
+        
+    meld_op = meld.MELD(beta=beta)
         # generate the densities of each sample
-        sample_densities = meld_op.fit_transform(G, sample_labels=adata.obs[sample_col])
+    sample_densities = meld_op.fit_transform(G, sample_labels=adata.obs[sample_col])
         # normalize the densities for each replicate
-        replicates = samplem.index.map(lambda x: x.split('_')[-1]).unique()
-        sample_likelihoods = replicate_normalize_densities(sample_densities, replicates)
+    replicates = samplem.index.map(lambda x: x.split('_')[-1]).unique()
+    sample_likelihoods = replicate_normalize_densities(sample_densities, replicates)
         # average the likelihoods w.r.t conditions
-        obj_cond = sorted(samplem[label_col].unique())[-1]
-        obj_cond_columns = samplem.loc[samplem[label_col] == obj_cond,:].index.to_list()
-        sample_likelihoods = sample_likelihoods[obj_cond_columns].mean(axis=1)
+    obj_cond = sorted(samplem[label_col].unique())[-1]
+    obj_cond_columns = samplem.loc[samplem[label_col] == obj_cond,:].index.to_list()
+    sample_likelihoods = sample_likelihoods[obj_cond_columns].mean(axis=1)
+    
+    # elif embedding_method == "DiffusionMap":
+    #         # run meld method
+    #     if adata.n_vars <= 50:
+    #         G = gt.Graph(adata.X, knn=k, use_pygsp=True)
+    #     else:
+    #         if "DM_EigenVectors" not in adata.obsm:
+    #             palantir.utils.run_diffusion_maps(
+    #                 adata, n_components=dm_comp, pca_key="X_pca_batch"
+    #             )
+    #         G = gt.Graph(adata.obsm["DM_EigenVectors"], knn=k, use_pygsp=True)
+    
+    #     meld_op = meld.MELD(beta=beta)
+    #     # generate the densities of each sample
+    #     sample_densities = meld_op.fit_transform(G, sample_labels=adata.obs[sample_col])
+    #     # normalize the densities for each replicate
+    #     replicates = samplem.index.map(lambda x: x.split('_')[-1]).unique()
+    #     sample_likelihoods = replicate_normalize_densities(sample_densities, replicates)
+    #     # average the likelihoods w.r.t conditions
+    #     obj_cond = sorted(samplem[label_col].unique())[-1]
+    #     obj_cond_columns = samplem.loc[samplem[label_col] == obj_cond,:].index.to_list()
+    #     sample_likelihoods = sample_likelihoods[obj_cond_columns].mean(axis=1)
         
     return sample_likelihoods.values,samplem
 

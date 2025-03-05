@@ -10,6 +10,9 @@ from sklearn.metrics import roc_auc_score
 from sklearn.metrics import precision_recall_curve, average_precision_score
 from sklearn import metrics
 
+import logging
+logger = logging.getLogger("mellon")
+
 def compute_z_score(dens1, dens2, var1, var2, eps=1e-16):
     log_fold_change_mean = dens2 - dens1
     zscores = log_fold_change_mean / np.sqrt(var1 + var2 + eps)
@@ -24,10 +27,11 @@ def runMELLON(
     if adata.n_vars <= 50:
         adata.obsm["X_pca_batch"] = adata.X
     else:
-        if "X_pca" not in adata.obsm:
+        if "X_pca_batch" not in adata.obsm:
             logging.info("Running PCA")
             # perform pca and use it to generate graph
             sc.tl.pca(adata, n_comps=50)
+            adata.obsm["X_pca_batch"] = adata.obsm["X_pca"]
     if dm_comp > 0:
         if "DM_EigenVectors" not in adata.obsm:
             palantir.utils.run_diffusion_maps(
@@ -78,10 +82,6 @@ def runMELLON(
         ls_list.append(ls)
         mu_list.append(mu)
         
-    condition2_dens = densities[1]
-    condition1_dens = densities[0]
-    condition2_dens_norm = densities_norm[1]
-    condition1_dens_norm = densities_norm[0]
     
     if norm_density == "Yes" and mellon_d_method == "fractal":
         log_fold_change_mean, zscores = compute_z_score(*densities_norm, *variances)
@@ -90,15 +90,17 @@ def runMELLON(
     else:
         log_fold_change_mean, zscores = compute_z_score(*densities, *variances)
 
-    return condition1_dens,condition2_dens,condition1_dens_norm,condition2_dens_norm,log_fold_change_mean, zscores,d_list,ls_list,mu_list
+    return log_fold_change_mean, zscores
 
 
 
-def runMELLON_2(
-    adata, mellon_d_method: str, norm_density:str, corrected:str, label_col: str, dm_comp,  ls_factor: float):
+def runMELLON_synchronized(
+    adata, mellon_d_method: str, norm_density:str, corrected:str, label_col: str, dm_comp,  ls_factor: float , ls_mode:str):
     
     """
     This function is different from the above runMellon function, since it estimated hyper-parameters including mu for Gaussian Distribution, landscale factor and d.
+    ls_mode: if PCA: ls small; if DM: ls large
+    (Note: the mode of PCA or DM needs to be set manually, because for avoiding additional error, the DM eigenvectors replaced the PCA layer in anndata)
     """
 
     conditions = adata.obs[label_col].unique()
@@ -110,102 +112,107 @@ def runMELLON_2(
             logging.info("Running PCA")
             # perform pca and use it to generate graph
             sc.tl.pca(adata, n_comps=50)
+            adata.obsm["X_pca_batch"] = adata.obsm["X_pca"]
+            
     if dm_comp > 0:
-        if "DM_EigenVectors" not in adata.obsm:
-            palantir.utils.run_diffusion_maps(
-                adata, n_components=dm_comp, pca_key="X_pca_batch"
-            )
-        X = adata.obsm["DM_EigenVectors"]
-        cov_func_curry = mellon.cov.Matern52
+       if ("DM_EigenVectors" not in adata.obsm
+            or adata.obsm["DM_EigenVectors"].shape[1] != dm_comp):
+            palantir.utils.run_diffusion_maps(adata, n_components=dm_comp, pca_key="X_pca_batch")
+            X = adata.obsm["DM_EigenVectors"]
+            cov_func_curry = mellon.cov.Matern52
+
     else:
         X = adata.obsm["X_pca_batch"]
         if not isinstance(X, np.ndarray):
             X = X.to_numpy() 
-        ls_factor *= 2
-        cov_func_curry = mellon.cov.Matern32
+        if ls_mode == "DM":
+            ls_factor = ls_factor
+            logger.info(f"ls_factor large, not change,ls_factor={ls_factor}")
+        elif ls_mode == "PCA":
+            ls_factor *= 2
+            logger.info(f"ls_factor small, ls_factor={ls_factor}")
+        cov_func_curry = mellon.cov.Matern52
     # X = adata.obsm["X_pca"]
     
     # # compute hyper parameters
+    # Compute hyperparameters
     d = mellon.parameters.compute_d_factal(X)
-    print("done with d estimation")
-    print(d)
+    logger.info(f"Computed d={d}")
     nn_distances = mellon.parameters.compute_nn_distances(X)
-    print("done with nn distance")
+    logger.info("Computed nearest neighbor distances")
     base_ls = mellon.parameters.compute_ls(nn_distances)
-    print("done with base ls")
-    ls = ls_factor * base_ls * 2**(1/d)
+    logger.info(f"Computed base_ls={base_ls}")
+    if ls_mode == "DM":
+        ls = ls_factor * base_ls
+        logger.info(f"Computed DM layer ls={ls}")
+    elif ls_mode == "PCA":
+        ls = ls_factor * base_ls * 2 ** (1 / d)
+        logger.info(f"Computed PCA layer ls={ls}")
     mu = mellon.parameters.compute_mu(nn_distances, d) - 5
-    print("done with mu")
-    landmarks_compute = mellon.parameters.compute_landmarks(X,n_landmarks = 5000)
-    print("done with landmarks")
+    logger.info(f"Computed mu={mu}")
+    landmarks_compute = mellon.parameters.compute_landmarks(X, n_landmarks=5_000)
+    logger.info("Computed landmarks")
 
     #lk_num = mellon.parameters.compute_n_landmarks("sparse_cholesky", adata.n_obs,None)
     #lk = mellon.parameters.compute_landmarks(X,n_landmarks = 0)
     
-    densities = list()
-    variances = list()
-    densities_norm = []
-    d_list = []
-    ls_list = []
-    mu_list = []
+    estimators = []
     for condition in sorted(conditions):
+        logger.info(f"Processing condition {condition}.")
         idx = adata.obs[label_col] == condition
-        n = np.sum(idx)
         sub_X = X[idx, :]
         estimator = mellon.DensityEstimator(
             ls=ls,
-            #ls_factor = ls_factor,
-            #d_method = mellon_d_method,
             cov_func_curry=cov_func_curry,
-            landmarks = landmarks_compute,
+            landmarks=landmarks_compute,
             optimizer="advi",
             predictor_with_uncertainty=True,
-            d = d,
-            mu = mu,
+            d=d,
+            mu=mu,
         )
-        predictor = estimator.fit(sub_X).predict
-        dens_norm = predictor(X,normalize = True)
-        dens = predictor(X)
-        # dens -= d*np.log(n) # normalization
-        densities.append(dens)
-        densities_norm.append(dens_norm)
-        
-        d = estimator.d
-        ls = estimator.ls
-        mu = estimator.mu
-        
-        d_list.append(d)
-        ls_list.append(ls)
-        mu_list.append(mu)
-        
-        var = predictor.uncertainty(X)
-        variances.append(var)
+        estimator.fit(sub_X)
+        estimators.append(estimator)
 
-    condition2_dens = densities[1]
-    condition1_dens = densities[0]
-    condition2_dens_norm = densities_norm[1]
-    condition1_dens_norm = densities_norm[0]
+    logger.info("Computing densities")
+    densities = [e.predict(X) for e in estimators]
+    logger.info("Computing normalized densities")
+    normalized_densities = [e.predict(X, normalize=True) for e in estimators]
+    logger.info("Computing uncertainty")
+    variances = [e.predict.uncertainty(X) for e in estimators]
+        
+    # var = predictor.uncertainty(X)
+    # variances.append(var)
+
+    # condition2_dens = densities[1]
+    # condition1_dens = densities[0]
+    # condition2_dens_norm = densities_norm[1]
+    # condition1_dens_norm = densities_norm[0]
 
 
 
 
     if norm_density == "Yes" and mellon_d_method == "fractal":
-        log_fold_change_mean, zscores = compute_z_score(*densities_norm, *variances)
+        logger.info("Computing normalized log-fold change.")
+        log_fold_change_mean, zscores = compute_z_score(*normalized_densities[:2], *variances[:2])
     elif norm_density == "No" and mellon_d_method == "fractal":
-        log_fold_change_mean, zscores = compute_z_score(*densities, *variances)
+        logger.info("Computing log-fold change.")
+        log_fold_change_mean, zscores = compute_z_score(*densities[:2], *variances[:2])
     else:
-        log_fold_change_mean, zscores = compute_z_score(*densities, *variances)
+        logger.info("Computing log-fold change with default.")
+        log_fold_change_mean, zscores = compute_z_score(*densities[:2], *variances[:2])
 
     
     if corrected == "Yes":
+        logger.info("Applying corrective term")
         ddens = sum(densities) * d
         correction = np.exp(ddens - np.mean(ddens))
         log_fold_change_mean = log_fold_change_mean * correction
     else:
         if corrected == "No":
+            logger.info("Applying uncorrective term, the log fold change mean not change")
             log_fold_change_mean = log_fold_change_mean
     
-    return condition1_dens,condition2_dens,condition1_dens_norm,condition2_dens_norm,log_fold_change_mean, zscores,d_list,ls_list,mu_list
+    return log_fold_change_mean, zscores
     #return condition1_dens,condition2_dens,log_fold_change_mean, zscores
 
 

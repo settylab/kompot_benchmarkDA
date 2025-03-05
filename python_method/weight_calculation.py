@@ -5,7 +5,7 @@ import scanpy as sc
 import anndata as ad
 
 
-from scipy.spatial.distance import pdist, squareform, cdist
+#from scipy.spatial.distance import pdist, squareform, cdist
 
 def calculate_weights_centroid(centroid_dist, m=2):
     

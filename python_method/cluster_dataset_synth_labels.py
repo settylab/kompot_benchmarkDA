@@ -19,7 +19,7 @@ from rpy2.robjects import pandas2ri
 
 
 
-def add_synth_label_cluster_labels(adata,pop,seed, pop_enr,pop_col, n_conditions,n_batches, n_replicates,balance = "Yes",cap_enr = None):
+def add_synth_label_cluster_labels(adata,pop,seed, pop_enr,pop_col, n_conditions,balance = "Yes",cap_enr = None):
     
     """
     1. Assign labels to cells in cluster_dataset. No euclidean distance is required, and no fuzzy-c means clustering and sigmoid function needed for calculating weight matrix
@@ -198,23 +198,25 @@ def quantile_assign_label(adata,pop_col,pop_enr,pop):
     
     return adata
     
-def add_batch_effect(adata, batch_col="synth_samples", norm_sd=0.5,seed = 43):
+def add_batch_effect_pca(adata, layer_embedding,batch_col="synth_batches", norm_sd=0.5,seed = 43):
     """
     Adds a batch effect to the PCA results stored in an AnnData object.
     
     Parameters:
     - adata: AnnData object containing single-cell data with PCA results in .obsm['X_pca']
+    - later_embedding: indicate which embedding layer will be used for the simulation of batch effect
     - batch_col: The column in .obs corresponding to batch information
     - norm_sd: The standard deviation of the normal distribution for generating batch effects
     
     Returns:
     - Modified AnnData object with added batch effects in .obsm['X_pca_batch']
     """
-    # Extract PCA results
+
     np.random.seed(seed)
-    X_pca = adata.obsm['X_pca']
+    # Extract PCA results
+    X_pca = adata.obsm[layer_embedding]
     
-    X_pca_df = pd.DataFrame(adata.obsm['X_pca'],index = adata.obs_names)
+    X_pca_df = pd.DataFrame(adata.obsm[layer_embedding],index = adata.obs_names)
     
     # Initialize X_pca_batch with the original PCA results
     X_pca_batch = X_pca_df.copy()
@@ -229,6 +231,9 @@ def add_batch_effect(adata, batch_col="synth_samples", norm_sd=0.5,seed = 43):
         X_pca_batch.loc[batch_indices] += batch_effect
     
     # Store the modified PCA results with batch effects
-    adata.obsm['X_pca_batch'] = X_pca_batch.to_numpy()
+    adata.obsm[f"{layer_embedding}_batch"] = X_pca_batch
     
     return adata
+
+
+### def add_batch_effect_DM(adata, layer_embedding,batch_col="synth_batches", norm_sd=0.5,seed = 43):

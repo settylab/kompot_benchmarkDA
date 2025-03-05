@@ -29,12 +29,11 @@ def main():
 
     # Add arguments
     parser.add_argument('--file_path', type=str, help='Path to the file')
-    parser.add_argument('--pca_path', type=str, help='PCA path')
-    parser.add_argument('--umap_path', type=str, help='UMAP path')
+
     parser.add_argument('--pop', type=str, help='Population')
     parser.add_argument('--pop_enr', type=float, help='Population enrichment')
     parser.add_argument('--pop_column', type=str, help='Population column')
-    parser.add_argument('--mode_select', type=str, help='Mode select, centroid or random')
+  
 
     parser.add_argument('--ds_type', type=str, help='type of dataset')
     parser.add_argument('--batch_sd', type=float, help='batch standard deviation')
@@ -44,10 +43,8 @@ def main():
 
     parser.add_argument('--seed', type=int, help='Seed for random number generation')
 
-
-    parser.add_argument('--n_random_cell', type=int, help='Number of random cells')
+    parser.add_argument('--layer_embedding', type=str, help='Layer embedding, X_pca or DM_EigenVectors')
     
-    parser.add_argument('--mode_embedding', type=str, help='Embedding mode ,PCA or DiffusionMap')
 
     #parser.add_argument('--n_dm', type=int, help='Number of diffusion component for Mellon value')
 
@@ -64,13 +61,9 @@ def main():
 
     # Accessing arguments (example)
     file_path = args.file_path
-
-    pca_path = args.pca_path
-    umap_path = args.umap_path
     pop = args.pop
     pop_enr = args.pop_enr
     pop_column = args.pop_column
-    mode_select = args.mode_select
     ds_type = args.ds_type
     batch_sd = args.batch_sd
 
@@ -79,10 +72,9 @@ def main():
     input_file = args.input_file
     package = args.package
 
-    n_random_cell = args.n_random_cell
 
     #output_filepath = args.output_filepath
-    mode_embedding = args.mode_embedding
+    layer_embedding = args.layer_embedding
 
 #     n_dm = args.n_dm
 
@@ -98,28 +90,17 @@ def main():
     input_file = Path(input_file)
     str_batch = str(batch_sd)
     int_batch = helper_functions.convert_number_str(str_batch)
-    
-    adata_orig = read_file.read_dataset(file_path, mode_embedding, pca_path, umap_path, n_components=10)
-    if n_random_cell >= len(list(adata_orig[adata_orig.obs[pop_column] == pop].obs_names)):
-        n_random_cell == len(list(adata_orig[adata_orig.obs[pop_column] == pop].obs_names))
 
 
-    if mode_select == "centroid":
-        n_iteration = 1
-    elif mode_select == "random":
-        n_iteration = n_random_cell
-    for i in range(n_iteration):
+    for i in range(1):
         iteration_directory = input_file / f'iteration_{i}'
         output_dir_i = output_dir / f'iteration_{i}'
-        adata = read_file.read_dataset(file_path, mode_embedding, pca_path, umap_path, n_components=10)
-        if mode_embedding == "PCA":
-            adata.obsm["X_pca_batch"] = np.array(pd.read_csv(iteration_directory/f'benchmark_{ds_type}_pop_{pop}_enr{pop_enr}_seed{seed}_batchEffect{int_batch}.pca.csv', index_col=0))
-        elif mode_embedding == "DiffusionMap":
-            adata.obsm["DM_EigenVectors"] = np.array(pd.read_csv(iteration_directory/f'benchmark_{ds_type}_pop_{pop}_enr{pop_enr}_seed{seed}_batchEffect{int_batch}.DM.csv', index_col=0))
-            adata.obsm["X_pca_batch"] = np.array(pd.read_csv(iteration_directory/f'benchmark_{ds_type}_pop_{pop}_enr{pop_enr}_seed{seed}_batchEffect{int_batch}.pca.csv', index_col=0))
+        adata = read_file.read_dataset(file_path)
+
+        adata.obsm[f"{layer_embedding}_batch"] = np.array(pd.read_csv(iteration_directory/f'benchmark_{ds_type}_pop_{pop}_enr{pop_enr}_seed{seed}_batchEffect{int_batch}.emb.csv', index_col=0))
 
         adata.obs = pd.read_csv(iteration_directory/f'benchmark_{ds_type}_pop_{pop}_enr{pop_enr}_seed{seed}.coldata.csv', index_col=0)
-        adata_temp = anndata.AnnData(adata.obsm["X_pca_batch"], obs=adata.obs, dtype=np.float64)
+        adata_temp = anndata.AnnData(adata.obsm[f"{layer_embedding}_batch"], obs=adata.obs, dtype=np.float64)
         adata_temp.obs.index.name = "cell"
         cna_res, md = runCNA.runCNA_func(adata_temp,k_cna,"synth_samples","synth_labels",{'Condition1': 0, "Condition2": 1},"synth_batches")
         da_cell = np.repeat(0., len(md))

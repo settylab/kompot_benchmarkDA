@@ -101,12 +101,12 @@ def main():
         adata.obs = pd.read_csv(iteration_directory/f'benchmark_{ds_type}_pop_{pop}_enr{pop_enr}_seed{seed}.coldata.csv', index_col=0)
         if hyperparameter == "No":
     
-            log_fold_change_mean, zscores = runMellon_new.runMELLON(
+            log_fold_change_mean, zscores = runMellon.runMELLON(
                     adata, mellon_d_method, norm_density,"synth_labels" ,n_dm,ls_factor)
 
         elif hyperparameter == "Yes":
 
-            log_fold_change_mean, zscores = runMellon_new.runMELLON_synchronized(
+            log_fold_change_mean, zscores = runMellon.runMELLON_synchronized(
                         adata, mellon_d_method, norm_density,corrected,"synth_labels" ,n_dm,ls_factor,ls_mode)
         
         

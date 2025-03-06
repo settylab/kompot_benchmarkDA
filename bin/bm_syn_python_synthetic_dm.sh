@@ -44,7 +44,7 @@ hyper=$8
 if [ "$data_id" == "cluster" ]
     then
     data_dir=${root}/data/synthetic/$data_id
-    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/benchmarkDA/data/synthetic/cluster/cluster_anndata_dm_10.h5ad
+    data_file=${data_dir}/cluster_anndata_dm_10.h5ad
     pops=$(for p in $(seq 1 1 3); do echo M$p; done)
     #R_methods=$(for m in mellon meld cna mellon_high_ls meld_default; do echo $m; done)
     R_methods=$(for m in mellon mellon_high_ls; do echo $m; done)
@@ -72,7 +72,7 @@ if [ "$data_id" == "cluster" ]
 elif [ "$data_id" == "linear" ]
     then
     data_dir=${root}/data/synthetic/$data_id
-    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/benchmarkDA/data/synthetic/linear/linear_anndata_dm_10.h5ad
+    data_file=${data_dir}/linear_anndata_dm_10.h5ad
     pops=$(for p in $(seq 1 1 7); do echo M$p; done)
     R_methods=$(for m in mellon meld cna mellon_high_ls meld_default; do echo $m; done)
     #0.75 1 1.25 1.5
@@ -86,7 +86,7 @@ elif [ "$data_id" == "linear" ]
 elif [ "$data_id" == "branch" ]
     then
     data_dir=${root}/data/synthetic/$data_id
-    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/benchmarkDA/data/synthetic/branch/branch_anndata_dm_10.h5ad
+    data_file=${data_dir}/branch_anndata_dm_10.h5ad
     pops=$(for p in $(seq 1 1 8); do echo M$p; done)
     R_methods=$(for m in mellon meld cna mellon_high_ls meld_default; do echo $m; done)
     batch_vec=$(for m in 0; do echo $m; done)

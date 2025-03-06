@@ -44,7 +44,7 @@ hyper=$8
 if [ "$data_id" == "aging" ]
     then
     data_dir=${root}/data/real/$data_id
-    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/benchmarkDA/data/real/aging/aging_hematopoiesis_data_benchmarking.h5ad
+    data_file=${data_dir}/aging_hematopoiesis_data_benchmarking.h5ad
     #Ery_P HSC ILC Immature_B_cell LMPP MBE MKP Mature_B_cell Mono_P Monocyte Myelo_P NK Neutrophil Pre-B_cell T_cell Treg cDC pDC
     pops=$(for m in CLP Ery_P HSC ILC Immature_B_cell LMPP MBE MKP Mature_B_cell Mono_P Monocyte Myelo_P NK Neutrophil Pre-B_cell T_cell Treg cDC pDC; do echo $m; done)
     #Ery_P HSC ILC Immature_B_cell LMPP MBE MKP Mature_B_cell Mono_P Monocyte Myelo_P NK Neutrophil Pre-B_cell T_cell Treg cDC pDC
@@ -66,7 +66,7 @@ if [ "$data_id" == "aging" ]
 elif [[ "$data_id" == "covid19-pbmc" ]]
     then
     data_dir=${root}/data/real/$data_id
-    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/benchmarkDA/data/real/covid19-pbmc/original_adata_covid.h5ad
+    data_file=${data_dir}/original_adata_covid.h5ad
     pops=$(for m in RBC B PB CD14_Monocyte CD8_T CD4_T Platelet NK Granulocyte CD16_Monocyte gd_T pDC DC; do echo $m; done)
     #R_methods=$(for m in mellon mellon_dm mellon_hls milo daseq cydar cna meld louvain; do echo $m; done)
     R_methods=$(for m in mellon meld cna meld_default; do echo $m; done)
@@ -80,7 +80,7 @@ elif [[ "$data_id" == "covid19-pbmc" ]]
 elif [[ "$data_id" == "bcr-xl" ]]
     then
     data_dir=${root}/data/real/$data_id
-    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/benchmarkDA/data/real/bcr-xl/bcr_xl_anndata_revised.h5ad
+    data_file=${data_dir}/bcr_xl_anndata_revised.h5ad
     pops=$(for m in CD4_T-cells NK_cells CD8_T-cells B-cells_IgM+ monocytes surface- B-cells_IgM- DC; do echo $m; done)
     R_methods=$(for m in mellon meld cna meld_default; do echo $m; done)
     #R_methods=$(for m in mellon mellon_dm mellon_hls milo daseq cydar cna meld louvain; do echo $m; done)
@@ -94,7 +94,7 @@ elif [[ "$data_id" == "bcr-xl" ]]
 elif [[ "$data_id" == "pancreas" ]]
     then
     data_dir=${root}/data/real/$data_id
-    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/benchmarkDA/data/real/pancreas/pancreas_anndata_revised.h5ad
+    data_file=${data_dir}/pancreas_anndata_revised.h5ad
     pops=$(for m in delta_cell alpha_cell gamma_cell acinar_cell beta_cell ductal_cell epsilon_cell; do echo $m; done)
     R_methods=$(for m in mellon meld cna meld_default; do echo $m; done)
     #R_methods=$(for m in milo daseq cydar cna meld louvain; do echo $m; done)
@@ -108,7 +108,7 @@ elif [[ "$data_id" == "pancreas" ]]
 elif [[ "$data_id" == "levine32" ]]
     then
     data_dir=${root}/data/real/$data_id
-    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/benchmarkDA/data/real/levine32/levine32_anndata_revised_deduplicated.h5ad
+    data_file=${data_dir}/levine32_anndata_revised_deduplicated.h5ad
     # CD4_T_cells CD8_T_cells Pre_B_cells Mature_B_cells Monocytes Basophils
     pops=$(for m in pDCs CD4_T_cells CD8_T_cells Pre_B_cells Mature_B_cells Monocytes Basophils; do echo $m; done)
     R_methods=$(for m in mellon meld cna meld_default; do echo $m; done)

@@ -90,7 +90,7 @@ elif [ "$data_id" == "branch" ]
 elif [ "$data_id" == "aging" ]
     then
     data_dir=${root}/data/real/$data_id
-    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/manuscript_preparation/aging_hematopiesis.rds
+    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/benchmarkDA/data/real/aging/aging_hematopiesis.rds
     pops=$(for m in CLP Ery_P HSC ILC Immature_B_cell LMPP MBE MKP Mature_B_cell Mono_P Monocyte Myelo_P NK Neutrophil Pre-B_cell T_cell Treg cDC pDC; do echo $m; done)
     #Ery_P HSC ILC Immature_B_cell LMPP MBE MKP Mature_B_cell Mono_P Monocyte Myelo_P NK Neutrophil Pre-B_cell T_cell Treg cDC pDC
     #R_methods=$(for m in mellon mellon_dm mellon_hls milo daseq cydar cna meld louvain milo_batch cna_batch louvain_batch; do echo $m; done)

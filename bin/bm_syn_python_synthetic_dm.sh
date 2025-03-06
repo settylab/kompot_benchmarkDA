@@ -46,8 +46,9 @@ if [ "$data_id" == "cluster" ]
     data_dir=${root}/data/synthetic/$data_id
     data_file=/fh/fast/setty_m/user/ryang/differential_abundance/benchmarkDA/data/synthetic/cluster/cluster_anndata_dm_10.h5ad
     pops=$(for p in $(seq 1 1 3); do echo M$p; done)
-    R_methods=$(for m in mellon meld cna mellon_high_ls meld_default; do echo $m; done)
-    batch_vec=$(for m in 0 0.75 1 1.25 1.5; do echo $m; done)
+    #R_methods=$(for m in mellon meld cna mellon_high_ls meld_default; do echo $m; done)
+    R_methods=$(for m in mellon mellon_high_ls; do echo $m; done)
+    batch_vec=$(for m in 0; do echo $m; done)
     k=30
     resolution=0.2
     beta=33
@@ -55,19 +56,19 @@ if [ "$data_id" == "cluster" ]
     mem=8g
     pop_col="celltype"
     #out_dir = $root/benchmark_python/synthetic/$data_id
-elif [ "$data_id" == "cluster_balanced" ]
-    then
-    data_dir=${root}/data/synthetic/$data_id
-    #data_file=/fh/fast/setty_m/user/ryang/differential_abundance/benchmarkDA/data/synthetic/linear/linear_anndata_dm.h5ad
-    pops=$(for p in $(seq 1 1 3); do echo M$p; done)
-    R_methods=$(for m in mellon meld cna mellon_high_ls meld_default; do echo $m; done)
-    batch_vec=$(for m in 0 0.75 1 1.25 1.5; do echo $m; done)
-    k=30
-    resolution=0.2
-    beta=33
-    downsample=3
-    mem=8g
-    pop_col="celltype"
+# elif [ "$data_id" == "cluster_balanced" ]
+#     then
+#     data_dir=${root}/data/synthetic/$data_id
+#     #data_file=/fh/fast/setty_m/user/ryang/differential_abundance/benchmarkDA/data/synthetic/linear/linear_anndata_dm.h5ad
+#     pops=$(for p in $(seq 1 1 3); do echo M$p; done)
+#     R_methods=$(for m in mellon meld cna mellon_high_ls meld_default; do echo $m; done)
+#     batch_vec=$(for m in 0; do echo $m; done)
+#     k=30
+#     resolution=0.2
+#     beta=33
+#     downsample=3
+#     mem=8g
+#     pop_col="celltype"
 elif [ "$data_id" == "linear" ]
     then
     data_dir=${root}/data/synthetic/$data_id
@@ -75,7 +76,7 @@ elif [ "$data_id" == "linear" ]
     pops=$(for p in $(seq 1 1 7); do echo M$p; done)
     R_methods=$(for m in mellon meld cna mellon_high_ls meld_default; do echo $m; done)
     #0.75 1 1.25 1.5
-    batch_vec=$(for m in 0 0.75 1 1.25 1.5; do echo $m; done)
+    batch_vec=$(for m in 0; do echo $m; done)
     k=30
     resolution=1
     beta=71
@@ -88,7 +89,7 @@ elif [ "$data_id" == "branch" ]
     data_file=/fh/fast/setty_m/user/ryang/differential_abundance/benchmarkDA/data/synthetic/branch/branch_anndata_dm_10.h5ad
     pops=$(for p in $(seq 1 1 8); do echo M$p; done)
     R_methods=$(for m in mellon meld cna mellon_high_ls meld_default; do echo $m; done)
-    batch_vec=$(for m in 0 0.75 1 1.25 1.5; do echo $m; done)
+    batch_vec=$(for m in 0; do echo $m; done)
     k=30
     resolution=1
     beta=65
@@ -146,7 +147,7 @@ for p in $pops;
                                     --mellon_d_method ${mellon_method} \
                                     --norm_density ${norm_or_not} \
                                     --hyperparameter ${hyper} \
-                                    --corrected ${corrected} \
+                                    --corrected ${correct} \
                                     --ls_factor 1.5 \
                                     --ls_mode PCA \
                                     --output_dir $save_path/
@@ -169,7 +170,7 @@ for p in $pops;
                                     --mellon_d_method ${mellon_method} \
                                     --norm_density ${norm_or_not} \
                                     --hyperparameter ${hyper} \
-                                    --corrected ${corrected} \
+                                    --corrected ${correct} \
                                     --ls_factor 10 \
                                     --ls_mode DM \
                                     --output_dir $save_path/

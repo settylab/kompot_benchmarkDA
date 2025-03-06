@@ -44,7 +44,7 @@ hyper=$8
 if [ "$data_id" == "aging" ]
     then
     data_dir=${root}/data/real/$data_id
-    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/manuscript_preparation/aging_hematopoiesis_data_benchmarking.h5ad
+    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/benchmarkDA/data/real/aging/aging_hematopoiesis_data_benchmarking.h5ad
     #Ery_P HSC ILC Immature_B_cell LMPP MBE MKP Mature_B_cell Mono_P Monocyte Myelo_P NK Neutrophil Pre-B_cell T_cell Treg cDC pDC
     pops=$(for m in CLP Ery_P HSC ILC Immature_B_cell LMPP MBE MKP Mature_B_cell Mono_P Monocyte Myelo_P NK Neutrophil Pre-B_cell T_cell Treg cDC pDC; do echo $m; done)
     #Ery_P HSC ILC Immature_B_cell LMPP MBE MKP Mature_B_cell Mono_P Monocyte Myelo_P NK Neutrophil Pre-B_cell T_cell Treg cDC pDC

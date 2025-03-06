@@ -35,10 +35,10 @@ cd ${root}
 if [ "$data_id" == "cluster" ]
     then
     data_dir=${root}/data/synthetic/$data_id
-    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/manuscript_preparation/cluster_dm_10.rds
+    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/benchmarkDA/data/synthetic/cluster/cluster_dm_10.rds
     pops=$(for p in $(seq 1 1 3); do echo M$p; done)
     R_methods=$(for m in milo daseq cydar louvain; do echo $m; done)
-    batch_vec=$(for m in 0 0.75 1 1.25 1.5; do echo $m; done)
+    batch_vec=$(for m in 0; do echo $m; done)
     k=30
     resolution=0.2
     beta=33
@@ -63,11 +63,11 @@ if [ "$data_id" == "cluster" ]
 elif [ "$data_id" == "linear" ]
     then
     data_dir=${root}/data/synthetic/$data_id
-    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/manuscript_preparation/linear_dm_10.rds
+    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/benchmarkDA/data/synthetic/linear/linear_dm_10.rds
     pops=$(for p in $(seq 1 1 7); do echo M$p; done)
     R_methods=$(for m in milo daseq cydar louvain; do echo $m; done)
     #0.75 1 1.25 1.5
-    batch_vec=$(for m in 0 0.75 1 1.25 1.5; do echo $m; done)
+    batch_vec=$(for m in 0; do echo $m; done)
     k=30
     resolution=1
     beta=71
@@ -78,10 +78,10 @@ elif [ "$data_id" == "linear" ]
 elif [ "$data_id" == "branch" ]
     then
     data_dir=${root}/data/synthetic/$data_id
-    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/manuscript_preparation/branch_dm_10.rds
+    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/benchmarkDA/data/synthetic/branch/branch_dm_10.rds
     pops=$(for p in $(seq 1 1 8); do echo M$p; done)
     R_methods=$(for m in milo daseq cydar louvain; do echo $m; done)
-    batch_vec=$(for m in 0 0.75 1 1.25 1.5; do echo $m; done)
+    batch_vec=$(for m in 0; do echo $m; done)
     k=30
     resolution=1
     beta=65
@@ -92,7 +92,7 @@ elif [ "$data_id" == "branch" ]
 elif [ "$data_id" == "aging" ]
     then
     data_dir=${root}/data/real/$data_id
-    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/manuscript_preparation/aging_dm_30.rds
+    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/benchmarkDA/data/real/aging/aging_dm_30.rds
     pops=$(for m in CLP Ery_P HSC ILC Immature_B_cell LMPP MBE MKP Mature_B_cell Mono_P Monocyte Myelo_P NK Neutrophil Pre-B_cell T_cell Treg cDC pDC; do echo $m; done)
     #Ery_P HSC ILC Immature_B_cell LMPP MBE MKP Mature_B_cell Mono_P Monocyte Myelo_P NK Neutrophil Pre-B_cell T_cell Treg cDC pDC
     #R_methods=$(for m in mellon mellon_dm mellon_hls milo daseq cydar cna meld louvain milo_batch cna_batch louvain_batch; do echo $m; done)
@@ -113,7 +113,7 @@ elif [ "$data_id" == "aging" ]
 elif [[ "$data_id" == "covid19-pbmc" ]]
     then
     data_dir=${root}/data/real/$data_id
-    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/manuscript_preparation/covid_dm.rds
+    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/benchmarkDA/data/real/covid19-pbmc/covid_dm.rds
     #RBC B
     pops=$(for m in RBC B PB CD14_Monocyte CD8_T CD4_T Platelet NK Granulocyte CD16_Monocyte gd_T pDC DC; do echo $m; done)
     #R_methods=$(for m in mellon mellon_dm mellon_hls milo daseq cydar cna meld louvain; do echo $m; done)
@@ -144,7 +144,7 @@ elif [[ "$data_id" == "bcr-xl" ]]
 elif [[ "$data_id" == "pancreas" ]]
     then
     data_dir=${root}/data/real/$data_id
-    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/manuscript_preparation/pancreas_dm_30.rds
+    data_file=/fh/fast/setty_m/user/ryang/differential_abundance/benchmarkDA/data/real/pancreas/pancreas_dm_30.rds
     pops=$(for m in delta_cell alpha_cell gamma_cell acinar_cell beta_cell ductal_cell epsilon_cell; do echo $m; done)
     R_methods=$(for m in milo daseq cydar louvain; do echo $m; done)
     #R_methods=$(for m in milo daseq cydar cna meld louvain; do echo $m; done)
@@ -211,7 +211,6 @@ for pop in $pops
                             echo "Doing $jobid ..."
                         echo "starting"
                         Rscript scripts/run_DA.r \
-                        ## tol parameter for cydar needs to be regulated inside the R script
                             ${data_file} $method $seed $pop \
                             --data_dir ${data_dir}/${jobid_old}/iteration_${iteration}/ \
                             --pop_enrichment $pop_enr \
@@ -234,7 +233,7 @@ echo $job_number
 # Submit a slurm array job
 jobid="benchmarkDA_syn_real_$data_id"
 cmd="sbatch -J '$jobid' --time=$time --partition=$partition \
---mem $mem --out '$root/SlurmLog/${jobid}_%N_%A_%a.out' --array=1-$job_number \
+--mem $mem --out '$root/SlurmLog_test_dm_0305/${jobid}_%N_%A_%a.out' --array=1-$job_number \
 '$script_path' $1 $2 $3 $4 $5 $6 $7 $8"
 echo "$cmd"
 eval "$cmd"

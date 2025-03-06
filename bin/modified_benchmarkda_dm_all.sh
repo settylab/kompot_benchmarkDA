@@ -192,11 +192,9 @@ for p in $pops;
                     mkdir "$DIRECTORY"
                     python generate_bm_data.py \
                         --file_path ${data_file} \
-                        --mode_distance euclidean \
                         --pop ${p} \
                         --pop_enr $enr \
                         --pop_column ${pop_col} \
-                        --mode_select centroid \
                         --ds_type $data_id \
                         --batch_sd ${batch_sd_num} \
                         --n_conditions 2 \
@@ -206,9 +204,7 @@ for p in $pops;
                         --condition_balance 1 \
                         --m 2 \
                         --a_logit 0.5 \
-                        --n_random_cell 0 \
                         --mode_embedding PCA \
-                        --knn_k 15 \
                         --layer_embedding X_pca \
                         --balance $balance_bool \
                         --output_dir $DIRECTORY/
@@ -222,7 +218,7 @@ done
 # Submit a slurm array job
 jobid="mellon_syn_real_$data_id"
 cmd="sbatch -J '$jobid' --time=$time --partition=$partition \
---mem 8g --out '$root/SlurmLog_test_dm_0303/${jobid}_%N_%A_%a.out' --array=1-$job_number \
+--mem 8g --out '$root/SlurmLog/${jobid}_%N_%A_%a.out' --array=1-$job_number \
 '$script_path' $1 $2 $3"
 echo "$cmd"
 eval "$cmd"

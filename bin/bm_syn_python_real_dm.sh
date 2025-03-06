@@ -32,7 +32,7 @@ iteration_num=$3
 balance_bool=$4
 mellon_method=$5
 norm_or_not=$6
-correct=$7
+corrected=$7
 hyper=$8
 # job_number=0
 # M2 M3 M4 M5 M6 M7
@@ -148,7 +148,7 @@ for p in $pops;
                                 continue
                             fi
                             jobid=${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-${balance_bool}-${analysis_layer}
-                            jobid_2=${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-${balance_bool}-${analysis_layer}-${mellon_method}-${norm_or_not}-${hyper}-${correct}
+                            jobid_2=${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-${balance_bool}-${analysis_layer}-${mellon_method}-${norm_or_not}-${hyper}-${corrected}
 
                             save_path=${root}/benchmark_dm/real/$data_id/${jobid_2}
                             save_path_iteration=${root}/benchmark_dm/real/$data_id/${jobid_2}/iteration_${iteration}

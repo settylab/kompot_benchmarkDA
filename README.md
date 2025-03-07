@@ -44,8 +44,8 @@ The R packages list are saved in the renv.lock.
 
 ## Data
 
-- Synthetic datasets and levine32 and pancreas are available under the `data` directory.
-- The COVID-19 PBMC dataset is available at https://www.covid19cellatlas.org/#wilk20.
+- Synthetic datasets are available under the `data` directory.
+- Real datasets are available at:https://drive.google.com/drive/folders/15wWFD5FMe0VdzN1pUnaUUpQ17OXkeebH
 
 For those datasets which has "dm", it means that its X_pca or PCA has been replaced by diffusion map values.
 

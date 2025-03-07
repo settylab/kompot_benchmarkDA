@@ -47,7 +47,7 @@ The R packages list are saved in the renv.lock.
 - Synthetic datasets are available under the `data` directory.
 - Real datasets are available at:https://drive.google.com/drive/folders/15wWFD5FMe0VdzN1pUnaUUpQ17OXkeebH
 
-For those datasets which has "dm", it means that its X_pca or PCA has been replaced by diffusion map values.
+## Note about dataset embedding layer information
 
 More note about diffusion map datasets
 - for synthetic datasets, I used dm = 10 for running scripts

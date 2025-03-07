@@ -79,7 +79,7 @@ The name of input_path_rds and output_path_h5ad should be the same.
 #### For data preprocessing
 
 ```sh
-bash bin/dataset_preprocessing $1 $2 $3 $4
+bash bin/dataset_preprocessing.sh $1 $2 $3 $4
 ```
 - $1 :dataset name (can be linear, branch, cluster, covid19-pbmc, bcr-xl, pancreas, aging, levine32)
 - $2: name of embedding layer in anndata obsm, if the name of pca layer is X_pca, enter X_pca. 
@@ -88,7 +88,7 @@ bash bin/dataset_preprocessing $1 $2 $3 $4
 
 Example:
 ```sh
-bash bin/dataset_preprocessing linear X_pca 10 DM
+bash bin/dataset_preprocessing.sh linear X_pca 10 DM
 ```
 
 ### Generate synthetic labels

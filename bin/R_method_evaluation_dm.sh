@@ -235,7 +235,7 @@ echo $job_number
 # Submit a slurm array job
 jobid="benchmarkDA_syn_real_$data_id"
 cmd="sbatch -J '$jobid' --time=$time --partition=$partition \
---mem $mem --out '$root/SlurmLog_test_dm_0305/${jobid}_%N_%A_%a.out' --array=1-$job_number \
+--mem $mem --out '$root/SlurmLog/${jobid}_%N_%A_%a.out' --array=1-$job_number \
 '$script_path' $1 $2 $3 $4 $5 $6 $7 $8 $9 ${10}"
 echo "$cmd"
 eval "$cmd"

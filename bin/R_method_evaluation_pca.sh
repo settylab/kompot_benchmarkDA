@@ -67,7 +67,7 @@ elif [ "$data_id" == "linear" ]
     pops=$(for p in $(seq 1 1 7); do echo M$p; done)
     R_methods=$(for m in milo daseq cydar louvain; do echo $m; done)
     #0.75 1 1.25 1.5
-    batch_vec=$(for m in 0; do echo $m; done)
+    batch_vec=$(for m in 0 0.75 1 1.25 1.5; do echo $m; done)
     k=30
     resolution=1
     beta=71

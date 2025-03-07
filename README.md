@@ -71,10 +71,17 @@ To run a benchmarking job, use the following command:
 #### For transfering from rds to anndata:
 
 ```text
-Rscript scripts/convert_seurat.R input_path_rds output_path_h5ad
+Rscript scripts/convert_seurat.R input_file_rds output_file_h5ad
+```
+Or using convert2anndata directly
+
+```text
+Rscript -e "convert2anndata::cli_convert()" -i /path/to/input_file.rds -o /path/to/output_file.h5ad
 ```
 
-The name of input_path_rds and output_path_h5ad should be the same.
+NOTE: The name and path of input_file_rds and output_file_h5ad should be the same!
+
+For covid19-pbmc dataset: Needs to use UpdateSeuratObject(seurat_obj) before sce <- convert_seurat_to_sce(seurat_obj)
 
 #### For data preprocessing
 

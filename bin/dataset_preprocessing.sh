@@ -65,14 +65,14 @@ if [ "$data_id" == "cluster" ]
 elif [ "$data_id" == "linear" ]
     then
     data_dir=${root}/data/synthetic/$data_id
-    data_file=${data_dir}/linear_anndata.h5ad
+    data_file=${data_dir}/linear_data_bm.h5ad
     pop_col="celltype"
     out_dir=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
     out_dir_rds=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.rds
 elif [ "$data_id" == "branch" ]
     then
     data_dir=${root}/data/synthetic/$data_id
-    data_file=${data_dir}/branch_anndata.h5ad
+    data_file=${data_dir}/branch_data_bm.h5ad
     out_dir=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
     pop_col="celltype"
     out_dir_rds=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.rds
@@ -86,28 +86,28 @@ elif [ "$data_id" == "aging" ]
 elif [[ "$data_id" == "covid19-pbmc" ]]
     then
     data_dir=${root}/data/real/$data_id
-    data_file=${data_dir}/covid.h5ad
+    data_file=${data_dir}/single-cell-atlas-pbmc-sars-cov2_sce.h5ad
     out_dir=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
     out_dir_rds=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.rds
     pop_col="cell.type.coarse"
 elif [[ "$data_id" == "bcr-xl" ]]
     then
     data_dir=${root}/data/real/$data_id
-    data_file=${data_dir}/bcr_xl_anndata_revised.h5ad
+    data_file=${data_dir}/bcr_xl_preprocessed_sce.h5ad
     out_dir=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
     out_dir_rds=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.rds
     pop_col="cell_type"
 elif [[ "$data_id" == "pancreas" ]]
     then
     data_dir=${root}/data/real/$data_id
-    data_file=${data_dir}/pancreas_anndata_revised.h5ad
+    data_file=${data_dir}/pancreas_preprocessed_sce.h5ad
     out_dir=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
     out_dir_rds=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.rds
-    pop_col="cell_type"
+    pop_col="Factor.Value.inferred.cell.type...authors.labels."
 elif [[ "$data_id" == "levine32" ]]
     then
     data_dir=${root}/data/real/$data_id
-    data_file=${data_dir}/levine32_anndata_revised_deduplicated.h5ad
+    data_file=${data_dir}/levine32_preprocessed_sce.h5ad
     out_dir=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
     out_dir_rds=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.rds
     pop_col="cell_type"
@@ -124,8 +124,16 @@ python data_preprocessing_pipeline.py --file_path "${data_file}" \
     --mode_embedding "${mode_embedding}" \
     --output_dir "${out_dir}"
 
-if [ "$mode_embedding" == "DM" ]; then
-    python anndata_rds_transfer.py --input_file_path "${out_dir}" --output_file_path "${out_dir_rds}"
-fi
+
+python anndata_rds_transfer.py --input_file_path "${out_dir}" --output_file_path "${out_dir_rds}"
+
+
+# if [ "$data_id" == "levine32" ]; then
+#     python anndata_rds_transfer.py --input_file_path "${out_dir}" --output_file_path "${out_dir_rds}"
+# elif [ "$data_id" == "aging" ]; then
+#     python anndata_rds_transfer.py --input_file_path "${out_dir}" --output_file_path "${out_dir_rds}"
+# elif [ "$data_id" == "bcr-xl" ]; then
+#     python anndata_rds_transfer.py --input_file_path "${out_dir}" --output_file_path "${out_dir_rds}"
+# fi
 
 echo "Done"

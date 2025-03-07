@@ -20,6 +20,8 @@ mellon_method=$5
 norm_or_not=$6
 correct=$7
 hyper=$8
+n_dm=$9
+mode_embedding=${10}
 
 script_path="$(readlink -f "$0")"
 script_dir="$(dirname "$script_path")"
@@ -33,7 +35,7 @@ cd ${root}
 if [ "$data_id" == "cluster" ]
     then
     data_dir=${root}/data/synthetic/$data_id
-    data_file=${data_dir}/cluster_data_bm.RDS
+    data_file=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.rds
     pops=$(for p in $(seq 1 1 3); do echo M$p; done)
     R_methods=$(for m in milo daseq cydar louvain; do echo $m; done)
     batch_vec=$(for m in 0 0.75 1 1.25 1.5; do echo $m; done)
@@ -61,11 +63,11 @@ if [ "$data_id" == "cluster" ]
 elif [ "$data_id" == "linear" ]
     then
     data_dir=${root}/data/synthetic/$data_id
-    data_file=${data_dir}/linear_data_bm.RDS
+    data_file=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.rds
     pops=$(for p in $(seq 1 1 7); do echo M$p; done)
     R_methods=$(for m in milo daseq cydar louvain; do echo $m; done)
     #0.75 1 1.25 1.5
-    batch_vec=$(for m in 0 0.75 1 1.25 1.5; do echo $m; done)
+    batch_vec=$(for m in 0; do echo $m; done)
     k=30
     resolution=1
     beta=71
@@ -76,7 +78,7 @@ elif [ "$data_id" == "linear" ]
 elif [ "$data_id" == "branch" ]
     then
     data_dir=${root}/data/synthetic/$data_id
-    data_file=${data_dir}/branch_data_bm.RDS
+    data_file=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.rds
     pops=$(for p in $(seq 1 1 8); do echo M$p; done)
     R_methods=$(for m in milo daseq cydar louvain; do echo $m; done)
     batch_vec=$(for m in 0 0.75 1 1.25 1.5; do echo $m; done)
@@ -90,7 +92,7 @@ elif [ "$data_id" == "branch" ]
 elif [ "$data_id" == "aging" ]
     then
     data_dir=${root}/data/real/$data_id
-    data_file=${data_dir}/aging_hematopiesis.rds
+    data_file=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.rds
     pops=$(for m in CLP Ery_P HSC ILC Immature_B_cell LMPP MBE MKP Mature_B_cell Mono_P Monocyte Myelo_P NK Neutrophil Pre-B_cell T_cell Treg cDC pDC; do echo $m; done)
     #Ery_P HSC ILC Immature_B_cell LMPP MBE MKP Mature_B_cell Mono_P Monocyte Myelo_P NK Neutrophil Pre-B_cell T_cell Treg cDC pDC
     #R_methods=$(for m in mellon mellon_dm mellon_hls milo daseq cydar cna meld louvain milo_batch cna_batch louvain_batch; do echo $m; done)
@@ -111,7 +113,7 @@ elif [ "$data_id" == "aging" ]
 elif [[ "$data_id" == "covid19-pbmc" ]]
     then
     data_dir=${root}/data/real/$data_id
-    data_file=${data_dir}/single-cell-atlas-pbmc-sars-cov2_sce.rds
+    data_file=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.rds
     #RBC B
     pops=$(for m in RBC B PB CD14_Monocyte CD8_T CD4_T Platelet NK Granulocyte CD16_Monocyte gd_T pDC DC; do echo $m; done)
     #R_methods=$(for m in mellon mellon_dm mellon_hls milo daseq cydar cna meld louvain; do echo $m; done)
@@ -127,7 +129,7 @@ elif [[ "$data_id" == "covid19-pbmc" ]]
 elif [[ "$data_id" == "bcr-xl" ]]
     then
     data_dir=${root}/data/real/$data_id
-    data_file=${data_dir}/bcr_xl_preprocessed_sce.rds
+    data_file=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.rds
     pops=$(for m in CD4_T-cells NK_cells CD8_T-cells B-cells_IgM+ monocytes surface- B-cells_IgM- DC; do echo $m; done)
     R_methods=$(for m in milo daseq cydar louvain; do echo $m; done)
     #R_methods=$(for m in mellon mellon_dm mellon_hls milo daseq cydar cna meld louvain; do echo $m; done)
@@ -142,7 +144,7 @@ elif [[ "$data_id" == "bcr-xl" ]]
 elif [[ "$data_id" == "pancreas" ]]
     then
     data_dir=${root}/data/real/$data_id
-    data_file=${data_dir}/pancreas_preprocessed_sce.rds
+    data_file=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.rds
     pops=$(for m in delta_cell alpha_cell gamma_cell acinar_cell beta_cell ductal_cell epsilon_cell; do echo $m; done)
     R_methods=$(for m in milo daseq cydar louvain; do echo $m; done)
     #R_methods=$(for m in milo daseq cydar cna meld louvain; do echo $m; done)
@@ -157,7 +159,7 @@ elif [[ "$data_id" == "pancreas" ]]
 elif [[ "$data_id" == "levine32" ]]
     then
     data_dir=${root}/data/real/$data_id
-    data_file=${data_dir}/deduplicated_levine32.rds
+    data_file=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.rds
     # CD4_T_cells CD8_T_cells Pre_B_cells Mature_B_cells Monocytes Basophils
     pops=$(for m in pDCs CD4_T_cells CD8_T_cells Pre_B_cells Mature_B_cells Monocytes Basophils; do echo $m; done)
     R_methods=$(for m in milo daseq cydar louvain; do echo $m; done)
@@ -231,7 +233,7 @@ echo $job_number
 # Submit a slurm array job
 jobid="benchmarkDA_syn_real_$data_id"
 cmd="sbatch -J '$jobid' --time=$time --partition=$partition \
---mem $mem --out '$root/SlurmLog/${jobid}_%N_%A_%a.out' --array=1-$job_number \
-'$script_path' $1 $2 $3 $4 $5 $6 $7 $8"
+--mem $mem --out '$root/SlurmLog_r_method_pca/${jobid}_%N_%A_%a.out' --array=1-$job_number \
+'$script_path' $1 $2 $3 $4 $5 $6 $7 $8 $9 ${10}"
 echo "$cmd"
 eval "$cmd"

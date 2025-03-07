@@ -34,6 +34,8 @@ mellon_method=$5
 norm_or_not=$6
 correct=$7
 hyper=$8
+n_dm=$9
+mode_embedding=${10}
 # job_number=0
 # M2 M3 M4 M5 M6 M7
 # 44 45
@@ -44,10 +46,10 @@ hyper=$8
 if [ "$data_id" == "cluster" ]
     then
     data_dir=${root}/data/synthetic/$data_id
-    data_file=${data_dir}/cluster_anndata_dm_10.h5ad
+    data_file=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
     pops=$(for p in $(seq 1 1 3); do echo M$p; done)
     #R_methods=$(for m in mellon meld cna mellon_high_ls meld_default; do echo $m; done)
-    R_methods=$(for m in mellon mellon_high_ls; do echo $m; done)
+    R_methods=$(for m in mellon meld cna mellon_high_ls meld_default; do echo $m; done)
     batch_vec=$(for m in 0; do echo $m; done)
     k=30
     resolution=0.2
@@ -72,7 +74,7 @@ if [ "$data_id" == "cluster" ]
 elif [ "$data_id" == "linear" ]
     then
     data_dir=${root}/data/synthetic/$data_id
-    data_file=${data_dir}/linear_anndata_dm_10.h5ad
+    data_file=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
     pops=$(for p in $(seq 1 1 7); do echo M$p; done)
     R_methods=$(for m in mellon meld cna mellon_high_ls meld_default; do echo $m; done)
     #0.75 1 1.25 1.5
@@ -86,7 +88,7 @@ elif [ "$data_id" == "linear" ]
 elif [ "$data_id" == "branch" ]
     then
     data_dir=${root}/data/synthetic/$data_id
-    data_file=${data_dir}/branch_anndata_dm_10.h5ad
+    data_file=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
     pops=$(for p in $(seq 1 1 8); do echo M$p; done)
     R_methods=$(for m in mellon meld cna mellon_high_ls meld_default; do echo $m; done)
     batch_vec=$(for m in 0; do echo $m; done)
@@ -237,7 +239,7 @@ done
 # Submit a slurm array job
 jobid="mellon_syn_real_$data_id"
 cmd="sbatch -J '$jobid' --time=$time --partition=$partition \
---mem 8g --out '$root/SlurmLog/${jobid_2}_%N_%A_%a.out' --array=1-$job_number \
-'$script_path' $1 $2 $3 $4 $5 $6 $7 $8"
+--mem 8g --out '$root/SlurmLog_linear_dm/${jobid_2}_%N_%A_%a.out' --array=1-$job_number \
+'$script_path' $1 $2 $3 $4 $5 $6 $7 $8 $9 ${10}"
 echo "$cmd"
 eval "$cmd"

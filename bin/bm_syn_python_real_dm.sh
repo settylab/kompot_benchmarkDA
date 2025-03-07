@@ -34,6 +34,8 @@ mellon_method=$5
 norm_or_not=$6
 corrected=$7
 hyper=$8
+n_dm=$9
+mode_embedding=${10}
 # job_number=0
 # M2 M3 M4 M5 M6 M7
 # 44 45
@@ -45,7 +47,7 @@ hyper=$8
 if [[ "$data_id" == "covid19-pbmc" ]]
     then
     data_dir=${root}/data/real/$data_id
-    data_file=${data_dir}/covid_dm.h5ad
+    data_file=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
     #RBC B CD14_Monocyte CD8_T CD4_T Platelet NK Granulocyte CD16_Monocyte gd_T pDC DC
     pops=$(for m in PB RBC B CD14_Monocyte CD8_T CD4_T Platelet NK Granulocyte CD16_Monocyte gd_T pDC DC; do echo $m; done)
     #R_methods=$(for m in mellon mellon_dm mellon_hls milo daseq cydar cna meld louvain; do echo $m; done)
@@ -60,7 +62,7 @@ if [[ "$data_id" == "covid19-pbmc" ]]
 elif [ "$data_id" == "aging" ]
     then
     data_dir=${root}/data/real/$data_id
-    data_file=${data_dir}/aging_dm.h5ad
+    data_file=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
     #Ery_P HSC ILC Immature_B_cell LMPP MBE MKP Mature_B_cell Mono_P Monocyte Myelo_P NK Neutrophil Pre-B_cell T_cell Treg cDC pDC
     pops=$(for m in CLP Ery_P HSC ILC Immature_B_cell LMPP MBE MKP Mature_B_cell Mono_P Monocyte Myelo_P NK Neutrophil Pre-B_cell T_cell Treg cDC pDC; do echo $m; done)
     #Ery_P HSC ILC Immature_B_cell LMPP MBE MKP Mature_B_cell Mono_P Monocyte Myelo_P NK Neutrophil Pre-B_cell T_cell Treg cDC pDC
@@ -82,9 +84,9 @@ elif [ "$data_id" == "aging" ]
 elif [[ "$data_id" == "bcr-xl" ]]
     then
     data_dir=${root}/data/real/$data_id
-    data_file=${data_dir}/bcr_xl_anndata_revised.h5ad
+    data_file=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
     pops=$(for m in CD4_T-cells NK_cells CD8_T-cells B-cells_IgM+ monocytes surface- B-cells_IgM- DC; do echo $m; done)
-    R_methods=$(for m in mellon meld cna; do echo $m; done)
+    R_methods=$(for m in mellon meld cna mellon_high_ls meld_default; do echo $m; done)
     #R_methods=$(for m in mellon mellon_dm mellon_hls milo daseq cydar cna meld louvain; do echo $m; done)
     batch_vec=0
     k=30
@@ -96,9 +98,9 @@ elif [[ "$data_id" == "bcr-xl" ]]
 elif [[ "$data_id" == "pancreas" ]]
     then
     data_dir=${root}/data/real/$data_id
-    data_file=${data_dir}/pancreas_dm.h5ad
+    data_file=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
     pops=$(for m in delta_cell alpha_cell gamma_cell acinar_cell beta_cell ductal_cell epsilon_cell; do echo $m; done)
-    R_methods=$(for m in mellon meld cna; do echo $m; done)
+    R_methods=$(for m in mellon meld cna mellon_high_ls meld_default; do echo $m; done)
     #R_methods=$(for m in milo daseq cydar cna meld louvain; do echo $m; done)
     batch_vec=0
     k=30
@@ -106,14 +108,14 @@ elif [[ "$data_id" == "pancreas" ]]
     beta=80
     downsample=3
     mem=8g
-    pop_col="cell_type"
+    pop_col="Factor.Value.inferred.cell.type...authors.labels."
 elif [[ "$data_id" == "levine32" ]]
     then
     data_dir=${root}/data/real/$data_id
-    data_file=${data_dir}/levine32_anndata_revised_deduplicated.h5ad
+    data_file=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
     # CD4_T_cells CD8_T_cells Pre_B_cells Mature_B_cells Monocytes Basophils
     pops=$(for m in pDCs CD4_T_cells CD8_T_cells Pre_B_cells Mature_B_cells Monocytes Basophils; do echo $m; done)
-    R_methods=$(for m in mellon meld cna; do echo $m; done)
+    R_methods=$(for m in mellon meld cna mellon_high_ls meld_default; do echo $m; done)
     #R_methods=$(for m in milo daseq cydar cna meld louvain; do echo $m; done)
     batch_vec=0
     k=30
@@ -266,6 +268,6 @@ done
 jobid="mellon_syn_real_$data_id"
 cmd="sbatch -J '$jobid' --time=$time --partition=$partition \
 --mem 8g --out '$root/SlurmLog/${jobid_2}_%N_%A_%a.out' --array=1-$job_number \
-'$script_path' $1 $2 $3 $4 $5 $6 $7 $8"
+'$script_path' $1 $2 $3 $4 $5 $6 $7 $8 $9 ${10}"
 echo "$cmd"
 eval "$cmd"

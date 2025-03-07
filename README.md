@@ -44,21 +44,14 @@ The R packages list are saved in the renv.lock.
 
 ## Data
 
-- Synthetic datasets and BCR-XL dataset are available under the `data` directory.
-- The COVID-19 PBMC dataset is available at https://www.covid19cellatlas.org/#wilk20.
+- Synthetic datasets are available under the `data` directory.
+- Real datasets are available at:https://drive.google.com/drive/folders/15wWFD5FMe0VdzN1pUnaUUpQ17OXkeebH
 
-But for now, all datasets are labeled with the link where they saved directly in bash scripts.
-- For finding datasets:
-   1. Please open bin/bm_syn_python_real_pca_final.sh or bin/bm_syn_python_synthetic_pca_final.sh for finding datasets with PCA layer saved in h5ad format.
-    2. Please open bin/bm_syn_python_real_dm_final.sh or bin/bm_syn_python_synthetic_dm_final.sh for finding datasets with Diffusion Map layer saved in h5ad format.
-    3. Please open bin/R_method_evaluation_dm.sh for finding datasets with Diffusion Map layer saved in RDS format.
-    4. Please open bin/R_method_evaluation_pca.sh for finding datasets with PCA layer saved in RDS format.
-
-For those datasets which has "dm", it means that its X_pca or PCA has been replaced by diffusion map values.
+## Note about dataset embedding layer information
 
 More note about diffusion map datasets
-- for synthetic datasets, if want dm=30 instead of 10, please delete "_10" in the file name
-- for real datasets, the dm = 30 (only limit to single cell rna seq datasets)
+- for synthetic datasets, I used dm = 10 for running scripts
+- for real datasets, I used the dm = 30 (only limit to single cell rna seq datasets)
 - for CYTOF datasets, the number of features are too small so there is no dimensional reduction applied now. We can put a small diffusion map component number on it later.
 
 ## Usage
@@ -73,29 +66,63 @@ Original scripts from benchmarkDA for benchmarking has been saved at bin/origina
 
 To run a benchmarking job, use the following command:
 
+### Data preprocessing
+
+#### For transfering from rds to anndata:
+
+```text
+Rscript scripts/convert_seurat.R input_file_rds output_file_h5ad
+```
+Or using convert2anndata directly
+
+```text
+Rscript -e "convert2anndata::cli_convert()" -i /path/to/input_file.rds -o /path/to/output_file.h5ad
+```
+
+NOTE: The name and path of input_file_rds and output_file_h5ad should be the same!
+
+For covid19-pbmc dataset: Needs to use UpdateSeuratObject(seurat_obj) before sce <- convert_seurat_to_sce(seurat_obj)
+
+#### For data preprocessing
+
+```sh
+bash bin/dataset_preprocessing.sh $1 $2 $3 $4
+```
+- $1 :dataset name (can be linear, branch, cluster, covid19-pbmc, bcr-xl, pancreas, aging, levine32)
+- $2: name of embedding layer in anndata obsm, if the name of pca layer is X_pca, enter X_pca. 
+- $3: n_dm, number of diffusion map component, if benchmarking on pca, enter 0
+- $4: mode_embedding, if want to benchmarking on pca, enter "PCA"; if want to benchmarking on diffusion map, enter "DM"
+
+Example:
+```sh
+bash bin/dataset_preprocessing.sh linear X_pca 10 DM
+```
+
 ### Generate synthetic labels
 PCA
 ```sh
-bash bin/modified_benchmarkda.sh $1 $2 $3
+bash bin/modified_benchmarkda.sh $1 $2 $3 $4 $5
 ```
 - $1 :dataset name (can be linear, branch, cluster, covid19-pbmc, bcr-xl, pancreas, aging, levine32)
 - $2: for indicating whether analysis is on PCA or Diffuson map, can be any name, but just need to be consistent with further analysis
 - $3: for showing whether the ground truth is balanced or not. Using "No" now.
+- $4: mode_embedding, if want to benchmarking on pca, enter "PCA"; if want to benchmarking on diffusion map, enter "DM"
+- $5: n_dm, number of diffusion map component, if benchmarking on pca, enter 0
 
 Example:
 ```sh
-bash bin/modified_benchmarkda.sh linear pca No
+bash bin/modified_benchmarkda.sh linear pca No PCA 0
 ```
 Diffusion Map
 
 ```sh
-bash bin/modified_benchmarkda_dm_all.sh $1 $2 $3
+bash bin/modified_benchmarkda_dm_all.sh $1 $2 $3 $4 $5
 ```
 - Input similar as PCA
 
 Example:
 ```sh
-bash bin/modified_benchmarkda_dm_all.sh linear dm No
+bash bin/modified_benchmarkda_dm_all.sh linear dm No DM 10
 ```
 
 ### Running benchmarking
@@ -104,17 +131,17 @@ PCA
 Python packages
 - For synthetic datasets
 ```sh
-bash bin/bm_syn_python_synthetic_pca_final.sh $1 $2 $3 $4 $5 $6 $7 $8
+bash bin/bm_syn_python_synthetic_pca_final.sh $1 $2 $3 $4 $5 $6 $7 $8 $9 ${10}
 ```
 - For real datasets
 ```sh
-bash bin/bm_syn_python_real_pca_final.sh $1 $2 $3 $4 $5 $6 $7 $8
+bash bin/bm_syn_python_real_pca_final.sh $1 $2 $3 $4 $5 $6 $7 $8 $9 ${10}
 ```
 
 R packages
 - For all datasets
 ```sh
-bash bin/R_method_evaluation_pca.sh $1 $2 $3 $4 $5 $6 $7 $8
+bash bin/R_method_evaluation_pca.sh $1 $2 $3 $4 $5 $6 $7 $8 $9 ${10}
 ```
 
 - $1 :dataset name (can be linear, branch, cluster, covid19-pbmc, bcr-xl, pancreas, aging, levine32)
@@ -125,18 +152,20 @@ bash bin/R_method_evaluation_pca.sh $1 $2 $3 $4 $5 $6 $7 $8
 - $6: whether Mellon density is normalized or not: Use "No", un-normalized
 - $7: whether apply correction on Mellon density log fold change: Use "No", no correction
 - $8: whether Mellon parameters for density estimation are synchronized: Use "Yes", synchronized.
+- $9: number of diffusion map components, if pca, n_dm = 0; if dm, the n_dm should match with previous dm
+- $10: if benchmarking on pca, enter "PCA"; if benchmarking on dm, enter "DM".
 
 Example:
 ```sh
-bash bin/bm_syn_python_synthetic_pca_final.sh linear pca 0 No fractal No No Yes
+bash bin/bm_syn_python_synthetic_pca_final.sh linear pca 0 No fractal No No Yes 0 PCA
 ```
 
 ```sh
-bash bin/bm_syn_python_real_pca_final.sh covid19-pbmc pca 0 No fractal No No Yes
+bash bin/bm_syn_python_real_pca_final.sh covid19-pbmc pca 0 No fractal No No Yes 0 PCA
 ```
 
 ```sh
-bash bin/R_method_evaluation_pca.sh linear pca 0 No fractal No No Yes
+bash bin/R_method_evaluation_pca.sh linear pca 0 No fractal No No Yes 0 PCA
 ```
 
 
@@ -146,18 +175,25 @@ Diffusion Map
 Python packages
 - For synthetic datasets
 ```sh
-bash bin/bm_syn_python_synthetic_dm.sh $1 $2 $3 $4 $5 $6 $7 $8
+bash bin/bm_syn_python_synthetic_dm.sh $1 $2 $3 $4 $5 $6 $7 $8 $9 ${10}
 ```
 - For real datasets
 ```sh
-bash bin/bm_syn_python_real_pca_dm $1 $2 $3 $4 $5 $6 $7 $8
+bash bin/bm_syn_python_real_pca_dm.sh $1 $2 $3 $4 $5 $6 $7 $8 $9 ${10}
 ```
 
 R packages
 - For all datasets
 ```sh
-bash bin/R_method_evaluation_dm.sh $1 $2 $3 $4 $5 $6 $7 $8
+bash bin/R_method_evaluation_dm.sh $1 $2 $3 $4 $5 $6 $7 $8 $9 ${10}
 ```
+
+Example:
+```sh
+bash bin/bm_syn_python_synthetic_dm.sh linear dm 0 No fractal No No Yes 10 DM
+```
+
+
 The parameter settings are same. Only path for saving results are different. 
 
 For running bash scripts, please make sure that the jobid match (${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-${balance_bool}-${analysis_layer}) with where we save ground truth.

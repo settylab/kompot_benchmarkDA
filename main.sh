@@ -136,82 +136,95 @@ do
 done
 
 # --------------------------------
-# 5. Run benchmarking for Python methods
+# 5. Run benchmarking using the unified script generator
 # --------------------------------
-# This section runs the Python-based differential abundance methods
-# From examining bm_syn_python_*.sh scripts, these run:
-# - MELD (meld_bm.py)
-# - CNA (CNA_bm.py)
-# - Mellon (Mellon_bm.py)
-echo "Running benchmarking for Python methods..."
+# This section runs all differential abundance methods using our unified script approach
+# The new approach uses a single script generator to create and execute benchmark scripts
+# for all method types (Python and R) and embedding types (PCA and DM)
+echo "Running benchmarking with the unified script generator..."
 
 # Parameters for all benchmarking runs
-# The benchmark now has multiple Mellon variants with hardcoded parameters:
-# - Default mellon: No normalization, with synchronization, no correction 
-# - mellon_noNorm: Explicitly no normalization (same as default)
-# - mellon_noSync: No synchronization of parameters
-# - mellon_corr: With correction applied
 ITERATION=0
 BALANCE="No"
 
-# For synthetic datasets with diffusion map
+# Ensure the run_benchmark.py script is executable
+chmod +x bin/run_benchmark.py
+
+# For synthetic datasets with PCA and DM embedding
 for DATASET in linear branch cluster
 do
-    echo "Benchmarking Python methods on $DATASET with diffusion map..."
-    # Each benchmark script submits Slurm jobs with these parameters
-    bash bin/bm_syn_python_synthetic_dm.sh $DATASET dm $ITERATION $BALANCE 10 DM
+    # Generate and run Python method benchmark scripts
+    echo "Generating benchmark script for Python methods on $DATASET with diffusion map..."
+    python bin/run_benchmark.py --dataset $DATASET --method_type python --analysis_layer dm \
+        --iteration_num $ITERATION --balance $BALANCE --n_dm 10 --mode_embedding DM \
+        --output benchmark_${DATASET}_dm_python.sh
+    chmod +x benchmark_${DATASET}_dm_python.sh
+    echo "Running Python methods benchmark on $DATASET with diffusion map..."
+    ./benchmark_${DATASET}_dm_python.sh
     
-    echo "Benchmarking Python methods on $DATASET with PCA..."
-    bash bin/bm_syn_python_synthetic_pca_final.sh $DATASET pca $ITERATION $BALANCE 0 PCA
+    echo "Generating benchmark script for Python methods on $DATASET with PCA..."
+    python bin/run_benchmark.py --dataset $DATASET --method_type python --analysis_layer pca \
+        --iteration_num $ITERATION --balance $BALANCE --n_dm 0 --mode_embedding PCA \
+        --output benchmark_${DATASET}_pca_python.sh
+    chmod +x benchmark_${DATASET}_pca_python.sh
+    echo "Running Python methods benchmark on $DATASET with PCA..."
+    ./benchmark_${DATASET}_pca_python.sh
+    
+    # Generate and run R method benchmark scripts
+    echo "Generating benchmark script for R methods on $DATASET with diffusion map..."
+    python bin/run_benchmark.py --dataset $DATASET --method_type r --analysis_layer dm \
+        --iteration_num $ITERATION --balance $BALANCE --n_dm 10 --mode_embedding DM \
+        --output benchmark_${DATASET}_dm_r.sh
+    chmod +x benchmark_${DATASET}_dm_r.sh
+    echo "Running R methods benchmark on $DATASET with diffusion map..."
+    ./benchmark_${DATASET}_dm_r.sh
+    
+    echo "Generating benchmark script for R methods on $DATASET with PCA..."
+    python bin/run_benchmark.py --dataset $DATASET --method_type r --analysis_layer pca \
+        --iteration_num $ITERATION --balance $BALANCE --n_dm 0 --mode_embedding PCA \
+        --output benchmark_${DATASET}_pca_r.sh
+    chmod +x benchmark_${DATASET}_pca_r.sh
+    echo "Running R methods benchmark on $DATASET with PCA..."
+    ./benchmark_${DATASET}_pca_r.sh
 done
 
 # For real datasets if they exist
 for DATASET in covid19-pbmc bcr-xl levine32 pancreas
 do
     if [ -f "data/real/${DATASET}/${DATASET}.h5ad" ]; then
-        echo "Benchmarking Python methods on $DATASET with diffusion map..."
-        bash bin/bm_syn_python_real_dm.sh $DATASET dm $ITERATION $BALANCE 30 DM
+        # Generate and run Python method benchmark scripts
+        echo "Generating benchmark script for Python methods on $DATASET with diffusion map..."
+        python bin/run_benchmark.py --dataset $DATASET --method_type python --analysis_layer dm \
+            --iteration_num $ITERATION --balance $BALANCE --n_dm 30 --mode_embedding DM \
+            --output benchmark_${DATASET}_dm_python.sh
+        chmod +x benchmark_${DATASET}_dm_python.sh
+        echo "Running Python methods benchmark on $DATASET with diffusion map..."
+        ./benchmark_${DATASET}_dm_python.sh
         
-        echo "Benchmarking Python methods on $DATASET with PCA..."
-        bash bin/bm_syn_python_real_pca_final.sh $DATASET pca $ITERATION $BALANCE 0 PCA
-    else
-        echo "Skipping $DATASET - dataset file not found"
-    fi
-done
-
-# --------------------------------
-# 6. Run benchmarking for R methods
-# --------------------------------
-# This section runs the R-based differential abundance methods
-# From examining R_method_evaluation_*.sh and run_DA.r:
-# - Milo: Neighborhood-based DA method
-# - DAseq: Differential abundance of cell states
-# - CyDAR: Cytometry-based DA method
-# - Louvain: Clustering-based DA analysis
-echo "Running benchmarking for R methods..."
-
-# For synthetic datasets with diffusion map
-for DATASET in linear branch cluster
-do
-    echo "Benchmarking R methods on $DATASET with diffusion map..."
-    # Use same parameters as Python methods for consistency
-    # These scripts call run_DA.r with each method (milo, daseq, cydar, louvain)
-    # Each evaluation script submits Slurm jobs
-    bash bin/R_method_evaluation_dm.sh $DATASET dm $ITERATION $BALANCE 10 DM
-    
-    echo "Benchmarking R methods on $DATASET with PCA..."
-    bash bin/R_method_evaluation_pca.sh $DATASET pca $ITERATION $BALANCE 0 PCA
-done
-
-# For real datasets if they exist
-for DATASET in covid19-pbmc bcr-xl levine32 pancreas
-do
-    if [ -f "data/real/${DATASET}/${DATASET}.h5ad" ]; then
-        echo "Benchmarking R methods on $DATASET with diffusion map..."
-        bash bin/R_method_evaluation_dm.sh $DATASET dm $ITERATION $BALANCE 30 DM
+        echo "Generating benchmark script for Python methods on $DATASET with PCA..."
+        python bin/run_benchmark.py --dataset $DATASET --method_type python --analysis_layer pca \
+            --iteration_num $ITERATION --balance $BALANCE --n_dm 0 --mode_embedding PCA \
+            --output benchmark_${DATASET}_pca_python.sh
+        chmod +x benchmark_${DATASET}_pca_python.sh
+        echo "Running Python methods benchmark on $DATASET with PCA..."
+        ./benchmark_${DATASET}_pca_python.sh
         
-        echo "Benchmarking R methods on $DATASET with PCA..."
-        bash bin/R_method_evaluation_pca.sh $DATASET pca $ITERATION $BALANCE 0 PCA
+        # Generate and run R method benchmark scripts
+        echo "Generating benchmark script for R methods on $DATASET with diffusion map..."
+        python bin/run_benchmark.py --dataset $DATASET --method_type r --analysis_layer dm \
+            --iteration_num $ITERATION --balance $BALANCE --n_dm 30 --mode_embedding DM \
+            --output benchmark_${DATASET}_dm_r.sh
+        chmod +x benchmark_${DATASET}_dm_r.sh
+        echo "Running R methods benchmark on $DATASET with diffusion map..."
+        ./benchmark_${DATASET}_dm_r.sh
+        
+        echo "Generating benchmark script for R methods on $DATASET with PCA..."
+        python bin/run_benchmark.py --dataset $DATASET --method_type r --analysis_layer pca \
+            --iteration_num $ITERATION --balance $BALANCE --n_dm 0 --mode_embedding PCA \
+            --output benchmark_${DATASET}_pca_r.sh
+        chmod +x benchmark_${DATASET}_pca_r.sh
+        echo "Running R methods benchmark on $DATASET with PCA..."
+        ./benchmark_${DATASET}_pca_r.sh
     else
         echo "Skipping $DATASET - dataset file not found"
     fi

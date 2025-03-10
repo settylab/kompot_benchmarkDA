@@ -84,13 +84,23 @@ More note about diffusion map datasets
 
 *Note:* Our implementation can only be used on a cluster with Slurm job scheduler since we need to run thousands of jobs.
 
-The benchmarking scripts are all located in the `bin` drectory.
+### Architecture
 
-```text
-Original scripts from benchmarkDA for benchmarking has been saved at bin/original_bash_scripts_from_benchmarkDA
-```
+The benchmarking implementation has been refactored for improved readability, reliability, and reduced redundancy:
 
-To run a benchmarking job, use the following command:
+1. **Configuration System**:
+   - `config/dataset_config.py`: Central repository for dataset parameters
+   - `config/method_config.py`: Method-specific parameters and command generation
+
+2. **Unified Data Loading**:
+   - `python_method/data_loader.py`: Common data loading patterns for all methods
+
+3. **Standardized Method Implementation**:
+   - Consistent Python method interfaces for Mellon, MELD, and CNA
+   - Parameterized method configuration to reduce duplication
+
+4. **Unified Script Generation**:
+   - `bin/run_benchmark.py`: Single script generator for all benchmark runs
 
 ### Data preprocessing
 
@@ -99,7 +109,7 @@ To run a benchmarking job, use the following command:
 ```text
 Rscript scripts/convert_seurat.R input_file_rds output_file_h5ad
 ```
-Or using convert2anndata directly
+Or using convert2anndata directly:
 
 ```text
 Rscript -e "convert2anndata::cli_convert()" -i /path/to/input_file.rds -o /path/to/output_file.h5ad
@@ -114,7 +124,7 @@ For covid19-pbmc dataset: Needs to use UpdateSeuratObject(seurat_obj) before sce
 ```sh
 bash bin/dataset_preprocessing.sh $1 $2 $3 $4
 ```
-- $1 :dataset name (can be linear, branch, cluster, covid19-pbmc, bcr-xl, pancreas, aging, levine32)
+- $1: dataset name (can be linear, branch, cluster, covid19-pbmc, bcr-xl, pancreas, aging, levine32)
 - $2: name of embedding layer in anndata obsm, if the name of pca layer is X_pca, enter X_pca. 
 - $3: n_dm, number of diffusion map component, if benchmarking on pca, enter 0
 - $4: mode_embedding, if want to benchmarking on pca, enter "PCA"; if want to benchmarking on diffusion map, enter "DM"
@@ -125,11 +135,11 @@ bash bin/dataset_preprocessing.sh linear X_pca 10 DM
 ```
 
 ### Generate synthetic labels
-PCA
+
 ```sh
 bash bin/modified_benchmarkda.sh $1 $2 $3 $4 $5
 ```
-- $1 :dataset name (can be linear, branch, cluster, covid19-pbmc, bcr-xl, pancreas, aging, levine32)
+- $1: dataset name (can be linear, branch, cluster, covid19-pbmc, bcr-xl, pancreas, aging, levine32)
 - $2: for indicating whether analysis is on PCA or Diffuson map, can be any name, but just need to be consistent with further analysis
 - $3: for showing whether the ground truth is balanced or not. Using "No" now.
 - $4: mode_embedding, if want to benchmarking on pca, enter "PCA"; if want to benchmarking on diffusion map, enter "DM"
@@ -137,92 +147,67 @@ bash bin/modified_benchmarkda.sh $1 $2 $3 $4 $5
 
 Example:
 ```sh
+# For PCA
 bash bin/modified_benchmarkda.sh linear pca No PCA 0
-```
-Diffusion Map
 
-```sh
-bash bin/modified_benchmarkda_dm_all.sh $1 $2 $3 $4 $5
-```
-- Input similar as PCA
-
-Example:
-```sh
+# For Diffusion Map
 bash bin/modified_benchmarkda_dm_all.sh linear dm No DM 10
 ```
 
-### Running benchmarking
-PCA
+### Running benchmarks
 
-Python packages
-- For synthetic datasets
-```sh
-bash bin/bm_syn_python_synthetic_pca_final.sh $1 $2 $3 $4 $5 $6 $7 $8 $9 ${10}
-```
-- For real datasets
-```sh
-bash bin/bm_syn_python_real_pca_final.sh $1 $2 $3 $4 $5 $6 $7 $8 $9 ${10}
-```
+The benchmarking process has been simplified using a unified script generator. This allows running benchmark analysis for any combination of dataset, methods, and parameters.
 
-R packages
-- For all datasets
-```sh
-bash bin/R_method_evaluation_pca.sh $1 $2 $3 $4 $5 $6 $7 $8 $9 ${10}
-```
-
-- $1 :dataset name (can be linear, branch, cluster, covid19-pbmc, bcr-xl, pancreas, aging, levine32)
-- $2: for indicating whether analysis is on PCA or Diffuson map, can be any name, need to match with what set in the "Generate synthetic labels" step.
-- $3: iteration number : number of iterations if we select centroid randomly, now just use 0
-- $4: for showing whether the ground truth is balanced or not. Using "No" now.
-- $5: mellon d method: Use "fractal"
-- $6: whether Mellon density is normalized or not: Use "No", un-normalized
-- $7: whether apply correction on Mellon density log fold change: Use "No", no correction
-- $8: whether Mellon parameters for density estimation are synchronized: Use "Yes", synchronized.
-- $9: number of diffusion map components, if pca, n_dm = 0; if dm, the n_dm should match with previous dm
-- $10: if benchmarking on pca, enter "PCA"; if benchmarking on dm, enter "DM".
-
-Example:
-```sh
-bash bin/bm_syn_python_synthetic_pca_final.sh linear pca 0 No fractal No No Yes 0 PCA
-```
+#### Generate a benchmark script
 
 ```sh
-bash bin/bm_syn_python_real_pca_final.sh covid19-pbmc pca 0 No fractal No No Yes 0 PCA
+python bin/run_benchmark.py --dataset linear --method_type python --mode_embedding PCA
 ```
 
+Parameters:
+- `--dataset`: Dataset name (e.g., linear, branch, cluster, covid19-pbmc)
+- `--method_type`: Type of methods to run (python or r)
+- `--analysis_layer`: Analysis layer name (default: pca)
+- `--iteration_num`: Number of iterations (default: 0)
+- `--balance`: Balance flag (default: No)
+- `--n_dm`: Number of diffusion map components (default: 0)
+- `--mode_embedding`: Embedding mode (PCA or DM, default: PCA)
+- `--methods`: Specific methods to run (space-separated list)
+- `--output`: Custom output script path
+
+#### Examples
+
+Generate a script for running Python methods on the linear dataset with PCA embedding:
 ```sh
-bash bin/R_method_evaluation_pca.sh linear pca 0 No fractal No No Yes 0 PCA
+python bin/run_benchmark.py --dataset linear --method_type python --mode_embedding PCA
 ```
 
-
-Diffusion Map
-
-
-Python packages
-- For synthetic datasets
+Generate a script for running R methods on the covid19-pbmc dataset with diffusion map embedding:
 ```sh
-bash bin/bm_syn_python_synthetic_dm.sh $1 $2 $3 $4 $5 $6 $7 $8 $9 ${10}
+python bin/run_benchmark.py --dataset covid19-pbmc --method_type r --mode_embedding DM --n_dm 30
 ```
-- For real datasets
+
+Generate a script for running only the Mellon and MELD methods:
 ```sh
-bash bin/bm_syn_python_real_pca_dm.sh $1 $2 $3 $4 $5 $6 $7 $8 $9 ${10}
+python bin/run_benchmark.py --dataset branch --method_type python --methods mellon meld
 ```
 
-R packages
-- For all datasets
+#### Run the generated script
+
+The script generator will create an executable shell script that can be run directly:
 ```sh
-bash bin/R_method_evaluation_dm.sh $1 $2 $3 $4 $5 $6 $7 $8 $9 ${10}
+bash run_benchmark_linear_pca_python.sh
 ```
 
-Example:
-```sh
-bash bin/bm_syn_python_synthetic_dm.sh linear dm 0 No fractal No No Yes 10 DM
+For all benchmark scripts, ensure that the jobid matches (${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-${balance_bool}-${analysis_layer}) with where the ground truth was saved.
+
+### Legacy Scripts
+
+Original scripts are still available in the `bin` directory for backward compatibility:
+
+```text
+Original scripts from benchmarkDA for benchmarking have been saved at bin/original_bash_scripts_from_benchmarkDA
 ```
-
-
-The parameter settings are same. Only path for saving results are different. 
-
-For running bash scripts, please make sure that the jobid match (${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-${balance_bool}-${analysis_layer}) with where we save ground truth.
 
 ### Helper notebooks
 

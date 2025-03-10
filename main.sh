@@ -146,29 +146,23 @@ done
 echo "Running benchmarking for Python methods..."
 
 # Parameters for all benchmarking runs
-# These parameters were determined by examining the benchmark scripts:
-# - ITERATION=0: Only run one iteration per parameter set
-# - BALANCE="No": Do not force balanced conditions
-# - MELLON_METHOD="fractal": Use fractal-based algorithm for Mellon method
-# - MELLON_NORM="No": Do not normalize Mellon results
-# - MELLON_CORRECTION="No": Do not use correction in Mellon
-# - MELLON_SYNC="Yes": Use synchronization in Mellon
+# The benchmark now has multiple Mellon variants with hardcoded parameters:
+# - Default mellon: No normalization, with synchronization, no correction 
+# - mellon_noNorm: Explicitly no normalization (same as default)
+# - mellon_noSync: No synchronization of parameters
+# - mellon_corr: With correction applied
 ITERATION=0
 BALANCE="No"
-MELLON_METHOD="fractal" 
-MELLON_NORM="No"
-MELLON_CORRECTION="No"
-MELLON_SYNC="Yes"
 
 # For synthetic datasets with diffusion map
 for DATASET in linear branch cluster
 do
     echo "Benchmarking Python methods on $DATASET with diffusion map..."
     # Each benchmark script submits Slurm jobs with these parameters
-    bash bin/bm_syn_python_synthetic_dm.sh $DATASET dm $ITERATION $BALANCE $MELLON_METHOD $MELLON_NORM $MELLON_CORRECTION $MELLON_SYNC 10 DM
+    bash bin/bm_syn_python_synthetic_dm.sh $DATASET dm $ITERATION $BALANCE 10 DM
     
     echo "Benchmarking Python methods on $DATASET with PCA..."
-    bash bin/bm_syn_python_synthetic_pca_final.sh $DATASET pca $ITERATION $BALANCE $MELLON_METHOD $MELLON_NORM $MELLON_CORRECTION $MELLON_SYNC 0 PCA
+    bash bin/bm_syn_python_synthetic_pca_final.sh $DATASET pca $ITERATION $BALANCE 0 PCA
 done
 
 # For real datasets if they exist
@@ -176,10 +170,10 @@ for DATASET in covid19-pbmc bcr-xl levine32 pancreas
 do
     if [ -f "data/real/${DATASET}/${DATASET}.h5ad" ]; then
         echo "Benchmarking Python methods on $DATASET with diffusion map..."
-        bash bin/bm_syn_python_real_dm.sh $DATASET dm $ITERATION $BALANCE $MELLON_METHOD $MELLON_NORM $MELLON_CORRECTION $MELLON_SYNC 30 DM
+        bash bin/bm_syn_python_real_dm.sh $DATASET dm $ITERATION $BALANCE 30 DM
         
         echo "Benchmarking Python methods on $DATASET with PCA..."
-        bash bin/bm_syn_python_real_pca_final.sh $DATASET pca $ITERATION $BALANCE $MELLON_METHOD $MELLON_NORM $MELLON_CORRECTION $MELLON_SYNC 0 PCA
+        bash bin/bm_syn_python_real_pca_final.sh $DATASET pca $ITERATION $BALANCE 0 PCA
     else
         echo "Skipping $DATASET - dataset file not found"
     fi
@@ -203,10 +197,10 @@ do
     # Use same parameters as Python methods for consistency
     # These scripts call run_DA.r with each method (milo, daseq, cydar, louvain)
     # Each evaluation script submits Slurm jobs
-    bash bin/R_method_evaluation_dm.sh $DATASET dm $ITERATION $BALANCE $MELLON_METHOD $MELLON_NORM $MELLON_CORRECTION $MELLON_SYNC 10 DM
+    bash bin/R_method_evaluation_dm.sh $DATASET dm $ITERATION $BALANCE 10 DM
     
     echo "Benchmarking R methods on $DATASET with PCA..."
-    bash bin/R_method_evaluation_pca.sh $DATASET pca $ITERATION $BALANCE $MELLON_METHOD $MELLON_NORM $MELLON_CORRECTION $MELLON_SYNC 0 PCA
+    bash bin/R_method_evaluation_pca.sh $DATASET pca $ITERATION $BALANCE 0 PCA
 done
 
 # For real datasets if they exist
@@ -214,10 +208,10 @@ for DATASET in covid19-pbmc bcr-xl levine32 pancreas
 do
     if [ -f "data/real/${DATASET}/${DATASET}.h5ad" ]; then
         echo "Benchmarking R methods on $DATASET with diffusion map..."
-        bash bin/R_method_evaluation_dm.sh $DATASET dm $ITERATION $BALANCE $MELLON_METHOD $MELLON_NORM $MELLON_CORRECTION $MELLON_SYNC 30 DM
+        bash bin/R_method_evaluation_dm.sh $DATASET dm $ITERATION $BALANCE 30 DM
         
         echo "Benchmarking R methods on $DATASET with PCA..."
-        bash bin/R_method_evaluation_pca.sh $DATASET pca $ITERATION $BALANCE $MELLON_METHOD $MELLON_NORM $MELLON_CORRECTION $MELLON_SYNC 0 PCA
+        bash bin/R_method_evaluation_pca.sh $DATASET pca $ITERATION $BALANCE 0 PCA
     else
         echo "Skipping $DATASET - dataset file not found"
     fi

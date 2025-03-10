@@ -16,12 +16,8 @@ data_id=$1
 analysis_layer=$2
 iteration_num=$3
 balance_bool=$4
-mellon_method=$5
-norm_or_not=$6
-correct=$7
-hyper=$8
-n_dm=$9
-mode_embedding=${10}
+n_dm=$5
+mode_embedding=$6
 
 script_path="$(readlink -f "$0")"
 script_dir="$(dirname "$script_path")"
@@ -201,7 +197,7 @@ for pop in $pops
                         if [ -z "$SLURM_ARRAY_TASK_ID" ] || [ "$job_number" -ne "$SLURM_ARRAY_TASK_ID" ]; then
                             continue
                         fi
-                        jobid_2=${data_id}-${pop}-${pop_enr}-${seed}-${batch_sd}-${balance_bool}-${analysis_layer}-${mellon_method}-${norm_or_not}-${hyper}-${correct}
+                        jobid_2=${data_id}-${pop}-${pop_enr}-${seed}-${batch_sd}-${balance_bool}-${analysis_layer}
 
                         jobid_old=${data_id}-${pop}-${pop_enr}-${seed}-${batch_sd}-${balance_bool}-${analysis_layer}
                         echo "Doing $jobid ..."
@@ -234,6 +230,6 @@ echo $job_number
 jobid="benchmarkDA_syn_real_$data_id"
 cmd="sbatch -J '$jobid' --time=$time --partition=$partition \
 --mem $mem --out '$root/SlurmLog/${jobid}_%N_%A_%a.out' --array=1-$job_number \
-'$script_path' $1 $2 $3 $4 $5 $6 $7 $8 $9 ${10}"
+'$script_path' $1 $2 $3 $4 $5 $6"
 echo "$cmd"
 eval "$cmd"

@@ -30,12 +30,8 @@ data_id=$1
 analysis_layer=$2
 iteration_num=$3
 balance_bool=$4
-mellon_method=$5
-norm_or_not=$6
-corrected=$7
-hyper=$8
-n_dm=$9
-mode_embedding=${10}
+n_dm=$5
+mode_embedding=$6
 # job_number=0
 # M2 M3 M4 M5 M6 M7
 # 44 45
@@ -53,7 +49,7 @@ if [ "$data_id" == "aging" ]
     #R_methods=$(for m in mellon mellon_dm mellon_hls milo daseq cydar cna meld louvain milo_batch cna_batch louvain_batch; do echo $m; done)
     #0.75 1 1.25 1.5
     #$(for m in $(seq 0 0.1 1) $(seq 1 0.25 1.75) 20; do echo $m; done)
-    R_methods=$(for m in mellon meld cna meld_default; do echo $m; done)
+    R_methods=$(for m in mellon mellon_noNorm mellon_noSync mellon_corr meld cna meld_default; do echo $m; done)
     #R_methods=$(for m in mellon meld cna; do echo $m; done)
     #batch_vec=$(for m in $(seq 0 0.1 1); do echo $m; done)
     batch_vec=$(for m in 0.0; do echo $m; done)
@@ -71,7 +67,7 @@ elif [[ "$data_id" == "covid19-pbmc" ]]
     data_file=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
     pops=$(for m in RBC B PB CD14_Monocyte CD8_T CD4_T Platelet NK Granulocyte CD16_Monocyte gd_T pDC DC; do echo $m; done)
     #R_methods=$(for m in mellon mellon_dm mellon_hls milo daseq cydar cna meld louvain; do echo $m; done)
-    R_methods=$(for m in mellon meld cna meld_default; do echo $m; done)
+    R_methods=$(for m in mellon mellon_noNorm mellon_noSync mellon_corr meld cna meld_default; do echo $m; done)
     batch_vec=0
     k=30
     resolution=0.5
@@ -84,7 +80,7 @@ elif [[ "$data_id" == "bcr-xl" ]]
     data_dir=${root}/data/real/$data_id
     data_file=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
     pops=$(for m in CD4_T-cells NK_cells CD8_T-cells B-cells_IgM+ monocytes surface- B-cells_IgM- DC; do echo $m; done)
-    R_methods=$(for m in mellon meld cna meld_default; do echo $m; done)
+    R_methods=$(for m in mellon mellon_noNorm mellon_noSync mellon_corr meld cna meld_default; do echo $m; done)
     #R_methods=$(for m in mellon mellon_dm mellon_hls milo daseq cydar cna meld louvain; do echo $m; done)
     batch_vec=0
     k=30
@@ -98,7 +94,7 @@ elif [[ "$data_id" == "pancreas" ]]
     data_dir=${root}/data/real/$data_id
     data_file=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
     pops=$(for m in delta_cell alpha_cell gamma_cell acinar_cell beta_cell ductal_cell epsilon_cell; do echo $m; done)
-    R_methods=$(for m in mellon meld cna meld_default; do echo $m; done)
+    R_methods=$(for m in mellon mellon_noNorm mellon_noSync mellon_corr meld cna meld_default; do echo $m; done)
     #R_methods=$(for m in milo daseq cydar cna meld louvain; do echo $m; done)
     batch_vec=0
     k=30
@@ -113,7 +109,7 @@ elif [[ "$data_id" == "levine32" ]]
     data_file=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
     # CD4_T_cells CD8_T_cells Pre_B_cells Mature_B_cells Monocytes Basophils
     pops=$(for m in pDCs CD4_T_cells CD8_T_cells Pre_B_cells Mature_B_cells Monocytes Basophils; do echo $m; done)
-    R_methods=$(for m in mellon meld cna meld_default; do echo $m; done)
+    R_methods=$(for m in mellon mellon_noNorm mellon_noSync mellon_corr meld cna meld_default; do echo $m; done)
     #R_methods=$(for m in milo daseq cydar cna meld louvain; do echo $m; done)
     batch_vec=0
     k=30
@@ -147,7 +143,7 @@ for p in $pops;
                                 continue
                             fi
                             jobid=${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-${balance_bool}-${analysis_layer}
-                            jobid_2=${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-${balance_bool}-${analysis_layer}-${mellon_method}-${norm_or_not}-${hyper}-${corrected}
+                            jobid_2=${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-${balance_bool}-${analysis_layer}
 
                             save_path=${root}/benchmark_pca/real/$data_id/${jobid_2}
                             save_path_iteration=${root}/benchmark_pca/real/$data_id/${jobid_2}/iteration_${iteration}
@@ -169,15 +165,84 @@ for p in $pops;
                                     --seed ${seed} \
                                     --layer_embedding X_pca \
                                     --n_dm 0 \
-                                    --mellon_d_method ${mellon_method} \
-                                    --norm_density ${norm_or_not} \
-                                    --hyperparameter ${hyper} \
-                                    --corrected ${corrected} \
+                                    --mellon_d_method "fractal" \
+                                    --norm_density "No" \
+                                    --hyperparameter "Yes" \
+                                    --corrected "No" \
                                     --ls_factor 1.5 \
                                     --ls_mode PCA \
                                     --output_dir $save_path/
                                 exit $!
                             
+                            elif [[ "$method" == "mellon_noNorm" ]]; then
+                                conda deactivate
+                                conda activate DiffAbundance
+                                python Mellon_bm.py \
+                                    --file_path ${data_file} \
+                                    --pop ${p} \
+                                    --pop_enr $enr \
+                                    --pop_column ${pop_col} \
+                                    --ds_type $data_id \
+                                    --batch_sd ${batch_sd_num} \
+                                    --input_file $data_dir/${jobid}/ \
+                                    --package $method \
+                                    --seed ${seed} \
+                                    --layer_embedding X_pca \
+                                    --n_dm 0 \
+                                    --mellon_d_method ${mellon_method} \
+                                    --norm_density "No" \
+                                    --hyperparameter "Yes" \
+                                    --corrected "No" \
+                                    --ls_factor 1.5 \
+                                    --ls_mode PCA \
+                                    --output_dir $save_path/
+                                exit $!
+                            elif [[ "$method" == "mellon_noSync" ]]; then
+                                conda deactivate
+                                conda activate DiffAbundance
+                                python Mellon_bm.py \
+                                    --file_path ${data_file} \
+                                    --pop ${p} \
+                                    --pop_enr $enr \
+                                    --pop_column ${pop_col} \
+                                    --ds_type $data_id \
+                                    --batch_sd ${batch_sd_num} \
+                                    --input_file $data_dir/${jobid}/ \
+                                    --package $method \
+                                    --seed ${seed} \
+                                    --layer_embedding X_pca \
+                                    --n_dm 0 \
+                                    --mellon_d_method ${mellon_method} \
+                                    --norm_density "No" \
+                                    --hyperparameter "No" \
+                                    --corrected "No" \
+                                    --ls_factor 1.5 \
+                                    --ls_mode PCA \
+                                    --output_dir $save_path/
+                                exit $!
+                            elif [[ "$method" == "mellon_corr" ]]; then
+                                conda deactivate
+                                conda activate DiffAbundance
+                                python Mellon_bm.py \
+                                    --file_path ${data_file} \
+                                    --pop ${p} \
+                                    --pop_enr $enr \
+                                    --pop_column ${pop_col} \
+                                    --ds_type $data_id \
+                                    --batch_sd ${batch_sd_num} \
+                                    --input_file $data_dir/${jobid}/ \
+                                    --package $method \
+                                    --seed ${seed} \
+                                    --layer_embedding X_pca \
+                                    --n_dm 0 \
+                                    --mellon_d_method ${mellon_method} \
+                                    --norm_density "No" \
+                                    --hyperparameter "Yes" \
+                                    --corrected "Yes" \
+                                    --ls_factor 1.5 \
+                                    --ls_mode PCA \
+                                    --output_dir $save_path/
+                                exit $!
                             elif [[ "$method" == "meld" ]]; then
                                 conda deactivate
                                 conda activate DiffAbundance
@@ -245,6 +310,6 @@ done
 jobid="mellon_syn_real_$data_id"
 cmd="sbatch -J '$jobid' --time=$time --partition=$partition \
 --mem 8g --out '$root/SlurmLog/${jobid_2}_%N_%A_%a.out' --array=1-$job_number \
-'$script_path' $1 $2 $3 $4 $5 $6 $7 $8 $9 ${10}"
+'$script_path' $1 $2 $3 $4 $5 $6"
 echo "$cmd"
 eval "$cmd"

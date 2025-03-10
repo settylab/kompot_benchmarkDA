@@ -42,6 +42,32 @@ The python packages list are saved in the differential_abundance_env_list.yml fo
 The R packages list are saved in the renv.lock.
 - Use module load R/4.3.1-gfbf-2022b first and then open R to create the renv environemnt by renv::restore()
 
+## Environment Setup
+
+### Using Micromamba (Recommended)
+The project now supports using micromamba instead of conda for environment management. Micromamba is a tiny version of mamba, which is a fast, robust package manager compatible with conda packages.
+
+1. Install micromamba:
+   ```
+   curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xj bin/micromamba
+   ```
+
+2. Create the environment:
+   ```
+   eval "$(micromamba shell hook --shell bash)"
+   micromamba create -f differential_abundance_env_list.yml -n DiffAbundance
+   ```
+
+3. Activate the environment:
+   ```
+   micromamba activate DiffAbundance
+   ```
+
+Note: When running jobs on a cluster, make sure to load required modules before activating the micromamba environment, e.g.:
+```
+module load cuDNN/8.4.1.50-CUDA-11.7.0
+```
+
 ## Data
 
 - Synthetic datasets are available under the `data` directory.

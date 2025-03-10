@@ -5,7 +5,8 @@ module purge
 module load ImageMagick/7.1.0-53-GCCcore-12.2.0
 module load GSL/2.7-GCCcore-12.2.0
 module load cuDNN/8.4.1.50-CUDA-11.7.0
-eval "$(conda shell.bash hook)"
+# Initialize micromamba
+eval "$(micromamba shell hook --shell=bash)"
 
 # set slurm parameters
 time=1-00:00:00

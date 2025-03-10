@@ -5,7 +5,8 @@ module purge
 module load ImageMagick/7.1.0-53-GCCcore-12.2.0
 module load GSL/2.7-GCCcore-12.2.0
 module load cuDNN/8.4.1.50-CUDA-11.7.0
-eval "$(conda shell.bash hook)"
+# Initialize micromamba
+eval "$(micromamba shell hook --shell=bash)"
 
 # set slurm parameters
 time=1-00:00:00
@@ -128,8 +129,8 @@ for p in $pops;
                             echo "Doing $jobid ..."
                             if [[ "$method" == "mellon" ]]; then
 
-                                conda deactivate
-                                conda activate DiffAbundance
+                                micromamba deactivate
+                                micromamba activate DiffAbundance
                                 python Mellon_bm.py \
                                     --file_path ${data_file} \
                                     --pop ${p} \
@@ -151,8 +152,8 @@ for p in $pops;
                                     --output_dir $save_path/
                                 exit $!
                             elif [[ "$method" == "mellon_high_ls" ]]; then
-                                conda deactivate
-                                conda activate DiffAbundance
+                                micromamba deactivate
+                                micromamba activate DiffAbundance
                                 python Mellon_bm.py \
                                     --file_path ${data_file} \
                                     --pop ${p} \
@@ -174,8 +175,8 @@ for p in $pops;
                                     --output_dir $save_path/
                                 exit $!
                             elif [[ "$method" == "mellon_noNorm" ]]; then
-                                conda deactivate
-                                conda activate DiffAbundance
+                                micromamba deactivate
+                                micromamba activate DiffAbundance
                                 python Mellon_bm.py \
                                     --file_path ${data_file} \
                                     --pop ${p} \
@@ -197,8 +198,8 @@ for p in $pops;
                                     --output_dir $save_path/
                                 exit $!
                             elif [[ "$method" == "mellon_noSync" ]]; then
-                                conda deactivate
-                                conda activate DiffAbundance
+                                micromamba deactivate
+                                micromamba activate DiffAbundance
                                 python Mellon_bm.py \
                                     --file_path ${data_file} \
                                     --pop ${p} \
@@ -220,8 +221,8 @@ for p in $pops;
                                     --output_dir $save_path/
                                 exit $!
                             elif [[ "$method" == "mellon_corr" ]]; then
-                                conda deactivate
-                                conda activate DiffAbundance
+                                micromamba deactivate
+                                micromamba activate DiffAbundance
                                 python Mellon_bm.py \
                                     --file_path ${data_file} \
                                     --pop ${p} \
@@ -243,8 +244,8 @@ for p in $pops;
                                     --output_dir $save_path/
                                 exit $!
                             elif [[ "$method" == "meld" ]]; then
-                                conda deactivate
-                                conda activate DiffAbundance
+                                micromamba deactivate
+                                micromamba activate DiffAbundance
                                 python meld_bm.py \
                                     --file_path ${data_file} \
                                     --pop ${p} \
@@ -277,8 +278,8 @@ for p in $pops;
                                     --output_dir $save_path/
                                 exit $!
                             elif [[ "$method" == "cna" ]]; then
-                                conda deactivate
-                                conda activate DiffAbundance
+                                micromamba deactivate
+                                micromamba activate DiffAbundance
                                 python CNA_bm.py \
                                     --file_path ${data_file} \
                                     --pop ${p} \

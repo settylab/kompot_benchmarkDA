@@ -146,7 +146,7 @@ def main():
     pandas2ri.activate()
     
 
-    adata = read_file.read_dataset(file_path)
+    adata = read_file.read_dataset(file_path,layer_embedding)
     output_dir = Path(output_dir)
     print(ds_type)
     print(output_dir)

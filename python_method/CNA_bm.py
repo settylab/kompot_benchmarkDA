@@ -44,7 +44,6 @@ def main():
     for i in range(1):
         iteration_directory = input_file / f'iteration_{i}'
         output_dir_i = output_dir / f'iteration_{i}'
-        
         # Load dataset
         adata = data_loader.load_dataset(
             args.file_path, 

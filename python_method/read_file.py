@@ -12,7 +12,7 @@ import palantir
 
 ## Read anndata. For RDS, need to transfer it from SingleCellExperiment object 
 
-def read_dataset(filepath):
+def read_dataset(filepath,layer_embedding):
     """
     read adata
     Parameters:
@@ -26,6 +26,14 @@ def read_dataset(filepath):
 
     """
     adata = sc.read_h5ad(filepath)
+    if adata.n_vars <= 50:
+        if "X_x" in adata.obsm:
+            adata.obsm[layer_embedding] = adata.obsm["X_x"]
+        else:
+            if not isinstance(adata.X, np.ndarray):
+                adata.obsm[layer_embedding] = adata.X.toarray()
+            else:
+                adata.obsm[layer_embedding] = adata.X
     
     return adata
 

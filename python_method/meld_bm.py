@@ -80,7 +80,7 @@ def main():
     for i in range(1):
         iteration_directory = input_file / f'iteration_{i}'
         output_dir_i = output_dir / f'iteration_{i}'
-        adata = read_file.read_dataset(file_path)
+        adata = read_file.read_dataset(file_path,layer_embedding)
 
         adata.obsm[f"{layer_embedding}_batch"] = np.array(pd.read_csv(iteration_directory/f'benchmark_{ds_type}_pop_{pop}_enr{pop_enr}_seed{seed}_batchEffect{int_batch}.emb.csv', index_col=0))
 

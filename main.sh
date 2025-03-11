@@ -9,7 +9,7 @@ set -e
 # 2. Prepare datasets (download or synthetic generation)
 # 3. Preprocess datasets with PCA and diffusion maps
 # 4. Generate synthetic condition labels for benchmarking
-# 5. Execute all DA methods on all datasets using Slurm
+# 5. Execute all DA methods on all datasets
 
 echo "Starting BenchmarkDA workflow..."
 
@@ -21,12 +21,25 @@ mkdir -p SlurmLog
 # ====================================================================
 echo "Setting up computational environments..."
 
+# Environment Options
+#  - environment_full.yml: Complete environment with exact versions (recommended for full reproducibility)
+#  - environment_minimal.yml: Minimal environment with flexible versioning (for compatibility on different platforms)
+#  - differential_abundance_env_list.yml: Original environment specification with full dependency tree (Linux-specific)
+ENV_FILE="environment_full.yml"
+
 # Set up micromamba if available
 if command -v micromamba &> /dev/null; then
     # Python environment (for MELD, CNA, Mellon methods)
     if ! micromamba env list | grep -q "diffabundance"; then
         echo "Creating Python environment with micromamba..."
-        micromamba create -n diffabundance -f differential_abundance_env_list.yml -y
+        echo "Using environment file: $ENV_FILE"
+        echo ""
+        echo "NOTE: Environment setup options:"
+        echo "  - For full reproducibility (exact versions): environment_full.yml"
+        echo "  - For better platform compatibility (flexible versions): environment_minimal.yml"
+        echo "  - To customize, edit main.sh and change ENV_FILE variable"
+        echo ""
+        micromamba create -n diffabundance -f $ENV_FILE -y
     fi
 
     eval "$(micromamba shell hook --shell bash 2>/dev/null)"
@@ -34,6 +47,12 @@ if command -v micromamba &> /dev/null; then
 else
     echo "WARNING: micromamba not found. Assuming you are running in a pre-configured environment."
     echo "Make sure all required dependencies are installed."
+    echo ""
+    echo "Required dependencies include:"
+    echo "  - Python packages: numpy, pandas, scanpy, meld, cna, palantir, anndata2ri"
+    echo "  - R packages: managed through renv"
+    echo ""
+    echo "To install micromamba, see: https://mamba.readthedocs.io/en/latest/installation.html"
 fi
 
 # R environment (for Milo, DAseq, CyDAR methods)
@@ -128,7 +147,7 @@ done
 # ====================================================================
 # 5. Run Benchmarking with Unified Script Generator
 # ====================================================================
-echo "Submitting benchmark jobs to Slurm..."
+echo "Generating and executing benchmark scripts..."
 
 # Common parameters
 ITERATION=0
@@ -164,8 +183,16 @@ run_benchmark() {
     
     chmod +x $script_name
     
-    echo "Submitting $script_name to Slurm..."
-    ./$script_name
+    # Check if we're running in a Slurm environment
+    if command -v sbatch &> /dev/null; then
+        echo "Submitting $script_name to Slurm..."
+        sbatch $script_name
+    else
+        echo "Executing $script_name locally (no Slurm detected)..."
+        # If not running on Slurm, we'll execute directly
+        # Note: This may take a long time as it runs sequentially
+        ./$script_name
+    fi
 }
 
 # Process synthetic datasets
@@ -193,13 +220,27 @@ for DATASET in covid19-pbmc bcr-xl levine32 pancreas; do
 done
 
 echo "====================================================================================="
-echo "Benchmark jobs submitted to Slurm"
+echo "Benchmark process completed"
 echo "====================================================================================="
-echo "EXPLANATION:"
-echo "1. Runtime-generated scripts are stored in the '$TEMP_DIR' directory"
-echo "2. Each script submits an array job to Slurm with all parameter combinations"
-echo "3. Job logs will be saved to 'SlurmLog/[jobname]_[node]_[jobid]_[taskid].out'"
-echo "4. Results will be saved to 'benchmark/[embedding]/[dataset]/[parameters]/'"
+echo "ENVIRONMENT SETUP:"
+echo "  - Two environment files are provided:"
+echo "    1. environment_full.yml: Complete environment with exact versions"
+echo "    2. environment_minimal.yml: Minimal environment with flexible versioning"
+echo "  - The environment file used was: $ENV_FILE"
+echo "  - When running on a different platform, try environment_minimal.yml if you"
+echo "    encounter compatibility issues"
 echo ""
-echo "Check job status with: squeue -u $USER"
+echo "EXECUTION MODE:"
+if command -v sbatch &> /dev/null; then
+    echo "  - Slurm job scheduler detected: Jobs have been submitted to Slurm"
+    echo "  - Check job status with: squeue -u $USER"
+    echo "  - Job logs will be saved to 'SlurmLog/[jobname]_[node]_[jobid]_[taskid].out'"
+else
+    echo "  - No Slurm detected: Jobs are running sequentially (this may take a long time)"
+    echo "  - Consider running on a system with Slurm for parallel execution"
+fi
+echo ""
+echo "OUTPUT LOCATION:"
+echo "  - Runtime-generated scripts are stored in the '$TEMP_DIR' directory"
+echo "  - Results will be saved to 'benchmark/[embedding]/[dataset]/[parameters]/'"
 echo "====================================================================================="

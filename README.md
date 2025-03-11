@@ -31,7 +31,10 @@ Our implementation requires a Slurm job scheduler since we need to run thousands
 
 - **Python environment** (for Python methods):
   - Managed with micromamba
-  - Configuration in `differential_abundance_env_list.yml`
+  - Two environment file options:
+    - `environment_full.yml`: Complete environment with exact versions (recommended for reproducibility)
+    - `environment_minimal.yml`: Minimal environment with flexible versioning (for cross-platform compatibility)
+  - Original configuration in `differential_abundance_env_list.yml` (Linux-specific, kept for reference)
 
 - **R environment** (for R methods):
   - Managed with renv

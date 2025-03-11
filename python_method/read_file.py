@@ -5,9 +5,7 @@ import scanpy as sc
 import anndata as ad
 
 import sys
-
 import os
-
 import re
 
 import palantir

@@ -1,0 +1,26 @@
+name: diffabundance
+channels:
+  - conda-forge
+  - bioconda
+  - nodefaults
+dependencies:
+  - python>=3.9
+  - numpy
+  - pandas
+  - scanpy
+  - scikit-learn
+  - matplotlib
+  - anndata
+  - h5py
+  - rpy2
+  - r-base
+  - jupyterlab
+  - tqdm
+  - pip
+  - graphtools
+  - pip:
+    - meld
+    - cna
+    - multianndata
+    - palantir
+    - anndata2ri

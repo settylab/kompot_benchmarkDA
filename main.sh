@@ -1,238 +1,199 @@
 #!/bin/bash
 set -e
 
-# Comprehensive script for benchmarkDA setup and execution
-# This script automates the entire benchmark process from environment setup to result generation
-# Based on examining the project structure and individual scripts in bin/
+# ====================================================================
+# BenchmarkDA: Benchmarking Differential Abundance Methods in Single-Cell Data
+# ====================================================================
+# This master script orchestrates the entire workflow:
+# 1. Setup environments for Python and R methods
+# 2. Prepare datasets (download or synthetic generation)
+# 3. Preprocess datasets with PCA and diffusion maps
+# 4. Generate synthetic condition labels for benchmarking
+# 5. Execute all DA methods on all datasets using Slurm
 
-echo "Starting benchmarkDA setup and execution..."
+echo "Starting BenchmarkDA workflow..."
 
-# --------------------------------
+# Create logs directory for Slurm output
+mkdir -p SlurmLog
+
+# ====================================================================
 # 1. Environment Setup
-# --------------------------------
-# This section creates and activates the necessary Python and R environments
-# Python methods (MELD, CNA, Mellon) need the micromamba environment
-# R methods (Milo, DAseq, CyDAR) need the renv environment
-echo "Setting up environment..."
+# ====================================================================
+echo "Setting up computational environments..."
 
-# Create micromamba environment for Python dependencies
-# The differential_abundance_env_list.yml file contains all required Python packages
-micromamba create -n diffabundance -f differential_abundance_env_list.yml -y
+# Python environment (for MELD, CNA, Mellon methods)
+if ! micromamba env list | grep -q "diffabundance"; then
+    echo "Creating Python environment with micromamba..."
+    micromamba create -n diffabundance -f differential_abundance_env_list.yml -y
+fi
+
 eval "$(micromamba shell hook --shell bash)"
 micromamba activate diffabundance
 
-# Set up R environment using renv
-# renv.lock contains all required R packages including Milo, DAseq, and CyDAR
+# R environment (for Milo, DAseq, CyDAR methods)
+echo "Setting up R environment..."
 mkdir -p .Renviron
 echo "R_LIBS_USER=./renv/library" > .Renviron
 Rscript -e "if (!requireNamespace('renv', quietly = TRUE)) install.packages('renv', repos = 'https://cloud.r-project.org/'); renv::restore()"
 
-# --------------------------------
-# 2. Download datasets
-# --------------------------------
-# This section creates the data directory and prompts for downloading real datasets
-# Real datasets (bcr-xl, covid19-pbmc, levine32, and pancreas) need to be downloaded manually
-# From examining R_method_evaluation_dm.sh and modified_benchmarkda.sh:
-# - bcr-xl should be in data/real/bcr-xl/ directory
-# - covid19-pbmc should be in data/real/covid19-pbmc/ directory
-# - levine32 should be in data/real/levine32/ directory
-# - pancreas should be in data/real/pancreas/ directory
-echo "Setting up data directories..."
+# ====================================================================
+# 2. Dataset Preparation
+# ====================================================================
+echo "Setting up dataset directories..."
 
-# Create data directory if it doesn't exist
-mkdir -p data
+# Create directories for all datasets
+mkdir -p data/synthetic
 mkdir -p data/real/bcr-xl
 mkdir -p data/real/covid19-pbmc
 mkdir -p data/real/levine32
 mkdir -p data/real/pancreas
 
-# For real datasets, you need to download them manually from Google Drive
-echo "Please download real datasets from: https://drive.google.com/drive/folders/15wWFD5FMe0VdzN1pUnaUUpQ17OXkeebH"
-echo "and place them in the correct directories:"
-echo "- bcr-xl dataset in data/real/bcr-xl/"
-echo "- covid19-pbmc dataset in data/real/covid19-pbmc/"
-echo "- levine32 dataset in data/real/levine32/"
-echo "- pancreas dataset in data/real/pancreas/"
-echo "Press Enter when done or if you want to skip real datasets and only use synthetic ones"
+# Prompt for real datasets (these must be downloaded separately)
+echo "IMPORTANT: Real datasets must be downloaded manually"
+echo "Download from: https://drive.google.com/drive/folders/15wWFD5FMe0VdzN1pUnaUUpQ17OXkeebH"
+echo "Place files in these directories:"
+echo "  - data/real/bcr-xl/"
+echo "  - data/real/covid19-pbmc/"
+echo "  - data/real/levine32/"
+echo "  - data/real/pancreas/"
+echo "Press Enter to continue (or Ctrl+C to cancel)..."
 read -r
 
-# --------------------------------
-# 3. Dataset preprocessing
-# --------------------------------
-# This section converts raw datasets into preprocessed formats with both
-# diffusion map (DM) and principal component analysis (PCA) representations
-# From examining dataset_preprocessing.sh and the benchmark scripts:
-# - Synthetic datasets use 10 diffusion components
-# - Real datasets use 30 diffusion components
-# - PCA uses all components (n_dm = 0)
-# - X_pca is the dataset layer containing PCA embeddings
-echo "Starting dataset preprocessing..."
+# ====================================================================
+# 3. Dataset Preprocessing
+# ====================================================================
+echo "Preprocessing datasets..."
 
-# Process synthetic datasets with diffusion map and PCA
-# Looking at bin/modified_benchmarkda.sh, synthetic datasets are in data/synthetic/
-for DATASET in linear branch cluster
-do
-    echo "Preprocessing $DATASET dataset with diffusion map..."
-    # Arguments: dataset_name, embedding_layer, n_components, embedding_type
+# Process synthetic datasets
+for DATASET in linear branch cluster; do
+    # Create diffusion map embeddings (10 components)
+    echo "Creating diffusion map for $DATASET..."
     bash bin/dataset_preprocessing.sh $DATASET X_pca 10 DM
     
-    echo "Preprocessing $DATASET dataset with PCA..."
-    # For PCA, n_components=0 means use all components
+    # Create PCA embeddings
+    echo "Creating PCA for $DATASET..."
     bash bin/dataset_preprocessing.sh $DATASET X_pca 0 PCA
 done
 
-# Process real datasets if they exist
-# Looking at bin/R_method_evaluation_dm.sh, real datasets require specific paths
-for DATASET in covid19-pbmc bcr-xl levine32 pancreas
-do
-    # Check correct path based on script examination
-    if [ -f "data/real/${DATASET}/${DATASET}.h5ad" ]; then
-        echo "Preprocessing $DATASET dataset with diffusion map..."
+# Process real datasets if available
+for DATASET in covid19-pbmc bcr-xl levine32 pancreas; do
+    DATASET_PATH="data/real/${DATASET}/${DATASET}.h5ad"
+    if [ -f "$DATASET_PATH" ]; then
+        echo "Processing real dataset: $DATASET"
+        
         # Real datasets use 30 diffusion components
+        echo "Creating diffusion map for $DATASET..."
         bash bin/dataset_preprocessing.sh $DATASET X_pca 30 DM
         
-        echo "Preprocessing $DATASET dataset with PCA..."
+        echo "Creating PCA for $DATASET..."
         bash bin/dataset_preprocessing.sh $DATASET X_pca 0 PCA
     else
-        echo "Skipping $DATASET - dataset file not found at data/real/${DATASET}/${DATASET}.h5ad"
+        echo "Skipping $DATASET (file not found: $DATASET_PATH)"
     fi
 done
 
-# --------------------------------
-# 4. Generate synthetic labels
-# --------------------------------
-# This section creates synthetic differential abundance labels for benchmarking
-# From examining modified_benchmarkda.sh and modified_benchmarkda_dm_all.sh:
-# - These scripts generate synthetic condition labels using different parameters
-# - "No" argument refers to BALANCE parameter (no balancing between conditions)
-# - The scripts submit Slurm jobs for each parameter combination
-# - Specifically, they run generate_bm_data.py to create synthetic labels
-echo "Generating synthetic labels..."
+# ====================================================================
+# 4. Generate Synthetic Labels
+# ====================================================================
+echo "Generating condition labels for benchmarking..."
 
-# For synthetic datasets with diffusion map
-for DATASET in linear branch cluster
-do
-    echo "Generating synthetic labels for $DATASET with diffusion map..."
-    # Arguments: dataset_name, analysis_layer, balance_bool, mode_embedding, n_dm
+# For synthetic datasets
+for DATASET in linear branch cluster; do
+    # Generate labels for diffusion map embeddings
+    echo "Generating labels for $DATASET with diffusion map..."
     bash bin/modified_benchmarkda_dm_all.sh $DATASET dm No DM 10
     
-    echo "Generating synthetic labels for $DATASET with PCA..."
+    # Generate labels for PCA embeddings
+    echo "Generating labels for $DATASET with PCA..."
     bash bin/modified_benchmarkda.sh $DATASET pca No PCA 0
 done
 
-# For real datasets with diffusion map if they exist
-for DATASET in covid19-pbmc bcr-xl levine32 pancreas
-do
+# For real datasets if available
+for DATASET in covid19-pbmc bcr-xl levine32 pancreas; do
     if [ -f "data/real/${DATASET}/${DATASET}.h5ad" ]; then
-        echo "Generating synthetic labels for $DATASET with diffusion map..."
-        # Real datasets use 30 diffusion components
+        echo "Generating labels for $DATASET with diffusion map..."
         bash bin/modified_benchmarkda_dm_all.sh $DATASET dm No DM 30
         
-        echo "Generating synthetic labels for $DATASET with PCA..."
+        echo "Generating labels for $DATASET with PCA..."
         bash bin/modified_benchmarkda.sh $DATASET pca No PCA 0
-    else
-        echo "Skipping $DATASET - dataset file not found"
     fi
 done
 
-# --------------------------------
-# 5. Run benchmarking using the unified script generator
-# --------------------------------
-# This section runs all differential abundance methods using our unified script approach
-# The new approach uses a single script generator to create and execute benchmark scripts
-# for all method types (Python and R) and embedding types (PCA and DM)
-echo "Running benchmarking with the unified script generator..."
+# ====================================================================
+# 5. Run Benchmarking with Unified Script Generator
+# ====================================================================
+echo "Submitting benchmark jobs to Slurm..."
 
-# Parameters for all benchmarking runs
+# Common parameters
 ITERATION=0
 BALANCE="No"
+TEMP_DIR="benchmark_scripts"
 
-# Ensure the run_benchmark.py script is executable
-chmod +x bin/run_benchmark.py
+# Create temporary directory for generated scripts
+mkdir -p $TEMP_DIR
 
-# For synthetic datasets with PCA and DM embedding
-for DATASET in linear branch cluster
-do
-    # Generate and run Python method benchmark scripts
-    echo "Generating benchmark script for Python methods on $DATASET with diffusion map..."
-    python bin/run_benchmark.py --dataset $DATASET --method_type python --analysis_layer dm \
-        --iteration_num $ITERATION --balance $BALANCE --n_dm 10 --mode_embedding DM \
-        --output benchmark_${DATASET}_dm_python.sh
-    chmod +x benchmark_${DATASET}_dm_python.sh
-    echo "Running Python methods benchmark on $DATASET with diffusion map..."
-    ./benchmark_${DATASET}_dm_python.sh
+# Function to generate and submit benchmark job
+run_benchmark() {
+    local dataset=$1
+    local method_type=$2
+    local analysis_layer=$3
+    local n_dm=$4
+    local mode_embedding=$5
     
-    echo "Generating benchmark script for Python methods on $DATASET with PCA..."
-    python bin/run_benchmark.py --dataset $DATASET --method_type python --analysis_layer pca \
-        --iteration_num $ITERATION --balance $BALANCE --n_dm 0 --mode_embedding PCA \
-        --output benchmark_${DATASET}_pca_python.sh
-    chmod +x benchmark_${DATASET}_pca_python.sh
-    echo "Running Python methods benchmark on $DATASET with PCA..."
-    ./benchmark_${DATASET}_pca_python.sh
+    # Create descriptive script name
+    local script_name="${TEMP_DIR}/benchmark_${dataset}_${mode_embedding,,}_${method_type}.sh"
     
-    # Generate and run R method benchmark scripts
-    echo "Generating benchmark script for R methods on $DATASET with diffusion map..."
-    python bin/run_benchmark.py --dataset $DATASET --method_type r --analysis_layer dm \
-        --iteration_num $ITERATION --balance $BALANCE --n_dm 10 --mode_embedding DM \
-        --output benchmark_${DATASET}_dm_r.sh
-    chmod +x benchmark_${DATASET}_dm_r.sh
-    echo "Running R methods benchmark on $DATASET with diffusion map..."
-    ./benchmark_${DATASET}_dm_r.sh
+    echo "Generating script for $dataset ($mode_embedding embedding) with $method_type methods..."
     
-    echo "Generating benchmark script for R methods on $DATASET with PCA..."
-    python bin/run_benchmark.py --dataset $DATASET --method_type r --analysis_layer pca \
-        --iteration_num $ITERATION --balance $BALANCE --n_dm 0 --mode_embedding PCA \
-        --output benchmark_${DATASET}_pca_r.sh
-    chmod +x benchmark_${DATASET}_pca_r.sh
-    echo "Running R methods benchmark on $DATASET with PCA..."
-    ./benchmark_${DATASET}_pca_r.sh
+    # Generate the benchmark script
+    python bin/run_benchmark.py \
+        --dataset $dataset \
+        --method_type $method_type \
+        --analysis_layer $analysis_layer \
+        --iteration_num $ITERATION \
+        --balance $BALANCE \
+        --n_dm $n_dm \
+        --mode_embedding $mode_embedding \
+        --output $script_name
+    
+    chmod +x $script_name
+    
+    echo "Submitting $script_name to Slurm..."
+    ./$script_name
+}
+
+# Process synthetic datasets
+for DATASET in linear branch cluster; do
+    # Python methods
+    run_benchmark $DATASET "python" "dm" 10 "DM"
+    run_benchmark $DATASET "python" "pca" 0 "PCA"
+    
+    # R methods
+    run_benchmark $DATASET "r" "dm" 10 "DM"
+    run_benchmark $DATASET "r" "pca" 0 "PCA"
 done
 
-# For real datasets if they exist
-for DATASET in covid19-pbmc bcr-xl levine32 pancreas
-do
+# Process real datasets if available
+for DATASET in covid19-pbmc bcr-xl levine32 pancreas; do
     if [ -f "data/real/${DATASET}/${DATASET}.h5ad" ]; then
-        # Generate and run Python method benchmark scripts
-        echo "Generating benchmark script for Python methods on $DATASET with diffusion map..."
-        python bin/run_benchmark.py --dataset $DATASET --method_type python --analysis_layer dm \
-            --iteration_num $ITERATION --balance $BALANCE --n_dm 30 --mode_embedding DM \
-            --output benchmark_${DATASET}_dm_python.sh
-        chmod +x benchmark_${DATASET}_dm_python.sh
-        echo "Running Python methods benchmark on $DATASET with diffusion map..."
-        ./benchmark_${DATASET}_dm_python.sh
+        # Python methods
+        run_benchmark $DATASET "python" "dm" 30 "DM"
+        run_benchmark $DATASET "python" "pca" 0 "PCA"
         
-        echo "Generating benchmark script for Python methods on $DATASET with PCA..."
-        python bin/run_benchmark.py --dataset $DATASET --method_type python --analysis_layer pca \
-            --iteration_num $ITERATION --balance $BALANCE --n_dm 0 --mode_embedding PCA \
-            --output benchmark_${DATASET}_pca_python.sh
-        chmod +x benchmark_${DATASET}_pca_python.sh
-        echo "Running Python methods benchmark on $DATASET with PCA..."
-        ./benchmark_${DATASET}_pca_python.sh
-        
-        # Generate and run R method benchmark scripts
-        echo "Generating benchmark script for R methods on $DATASET with diffusion map..."
-        python bin/run_benchmark.py --dataset $DATASET --method_type r --analysis_layer dm \
-            --iteration_num $ITERATION --balance $BALANCE --n_dm 30 --mode_embedding DM \
-            --output benchmark_${DATASET}_dm_r.sh
-        chmod +x benchmark_${DATASET}_dm_r.sh
-        echo "Running R methods benchmark on $DATASET with diffusion map..."
-        ./benchmark_${DATASET}_dm_r.sh
-        
-        echo "Generating benchmark script for R methods on $DATASET with PCA..."
-        python bin/run_benchmark.py --dataset $DATASET --method_type r --analysis_layer pca \
-            --iteration_num $ITERATION --balance $BALANCE --n_dm 0 --mode_embedding PCA \
-            --output benchmark_${DATASET}_pca_r.sh
-        chmod +x benchmark_${DATASET}_pca_r.sh
-        echo "Running R methods benchmark on $DATASET with PCA..."
-        ./benchmark_${DATASET}_pca_r.sh
-    else
-        echo "Skipping $DATASET - dataset file not found"
+        # R methods
+        run_benchmark $DATASET "r" "dm" 30 "DM"
+        run_benchmark $DATASET "r" "pca" 0 "PCA"
     fi
 done
 
-# All benchmarking scripts submit Slurm jobs with the sbatch command
-# Jobs are logged to the SlurmLog/ directory
-# Results are saved to benchmark/ directory for each dataset and method
-
-echo "Benchmark execution completed!"
-echo "Results can be found in the benchmark/ directory"
+echo "====================================================================================="
+echo "Benchmark jobs submitted to Slurm"
+echo "====================================================================================="
+echo "EXPLANATION:"
+echo "1. Runtime-generated scripts are stored in the '$TEMP_DIR' directory"
+echo "2. Each script submits an array job to Slurm with all parameter combinations"
+echo "3. Job logs will be saved to 'SlurmLog/[jobname]_[node]_[jobid]_[taskid].out'"
+echo "4. Results will be saved to 'benchmark/[embedding]/[dataset]/[parameters]/'"
+echo ""
+echo "Check job status with: squeue -u $USER"
+echo "====================================================================================="

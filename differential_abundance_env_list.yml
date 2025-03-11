@@ -1,4 +1,4 @@
-name: base
+name: diffabundance
 channels:
   - bioconda
   - conda-forge
@@ -587,4 +587,4 @@ dependencies:
       - xlsxwriter==3.2.0
       - yarl==1.13.1
       - zarr==2.18.3
-prefix: /home/ryang/.conda/envs/DiffAbundance
+# Environment name: diffabundance

@@ -14,10 +14,7 @@ import palantir
 
 def calculate_dm(adata,embedding_layer,n_dm):
     if adata.n_vars <= 50:
-        if not isinstance(adata.X, np.ndarray):
-            adata.obsm[embedding_layer] = adata.X.toarray()
-        else:
-            adata.obsm[embedding_layer] = adata.X
+        adata.obsm[embedding_layer] = adata.X
     else:
         if embedding_layer not in adata.obsm:
             raise Exception("There is no embedding layer as input, please check your data.")

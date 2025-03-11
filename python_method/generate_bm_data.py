@@ -104,8 +104,8 @@ def main():
     env_path = os.path.dirname(os.path.dirname(python_executable_path))
 
     print(
-            f"Conda env path: {env_path}\n"
-            "Please make sure you have R installed in the conda environment."
+            f"Micromamba env path: {env_path}\n"
+            "Please make sure you have R installed in the micromamba environment."
         )
     print(env_path)
     os.environ['R_HOME'] = os.path.join(env_path, 'lib', 'R')
@@ -146,7 +146,7 @@ def main():
     pandas2ri.activate()
     
 
-    adata = read_file.read_dataset(file_path,layer_embedding)
+    adata = read_file.read_dataset(file_path)
     output_dir = Path(output_dir)
     print(ds_type)
     print(output_dir)

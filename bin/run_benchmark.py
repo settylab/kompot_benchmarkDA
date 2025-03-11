@@ -25,11 +25,16 @@ def generate_benchmark_script(args):
     # Base script content with environment setup
     script_content = """#!/bin/bash
 
-module purge
-module load ImageMagick/7.1.0-53-GCCcore-12.2.0
-module load GSL/2.7-GCCcore-12.2.0
-module load cuDNN/8.4.1.50-CUDA-11.7.0
-eval "$(micromamba shell hook --shell bash)"
+# Check if module command is available and load modules on systems that support it
+if command -v module &> /dev/null; then
+    module purge
+    module load ImageMagick/7.1.0-53-GCCcore-12.2.0 || true
+    module load GSL/2.7-GCCcore-12.2.0 || true
+    module load cuDNN/8.4.1.50-CUDA-11.7.0 || true
+fi
+
+# Set up micromamba environment
+eval "$(micromamba shell hook --shell bash 2>/dev/null)" || echo "micromamba not available, assuming environment is already activated"
 
 # Set slurm parameters
 time=1-00:00:00
@@ -125,9 +130,9 @@ for p in $pops; do
     # Method-specific commands
     if args.method_type == "python":
         script_content += """                        
-                        # Activate environment
-                        micromamba deactivate
-                        micromamba activate DiffAbundance
+                        # Activate environment (with error handling for non-slurm environments)
+                        micromamba deactivate 2>/dev/null || true
+                        micromamba activate diffabundance 2>/dev/null || echo "Using existing environment"
                         
                         # Execute the appropriate method based on selection
 """
@@ -141,7 +146,9 @@ for p in $pops; do
     else:
         script_content += """
                         # Load R environment
-                        module load R/4.3.1-gfbf-2022b
+                        if command -v module &> /dev/null; then
+                            module load R/4.3.1-gfbf-2022b || true
+                        fi
                         
                         # Execute R method
 """

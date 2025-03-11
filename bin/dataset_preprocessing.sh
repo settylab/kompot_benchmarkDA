@@ -1,11 +1,16 @@
 #!/bin/bash
 
-# module purge
-# #module load R/4.3.1-gfbf-2022b
-# module load ImageMagick/7.1.0-53-GCCcore-12.2.0
-# module load GSL/2.7-GCCcore-12.2.0
-# module load cuDNN/8.4.1.50-CUDA-11.7.0
-# eval "$(conda shell.bash hook)"
+# Check if module command is available and load modules on systems that support it
+if command -v module &> /dev/null; then
+    module purge
+    #module load R/4.3.1-gfbf-2022b
+    module load ImageMagick/7.1.0-53-GCCcore-12.2.0 || true
+    module load GSL/2.7-GCCcore-12.2.0 || true
+    module load cuDNN/8.4.1.50-CUDA-11.7.0 || true
+fi
+
+# Set up micromamba environment if needed
+eval "$(micromamba shell hook --shell bash 2>/dev/null)" || echo "micromamba not available, assuming environment is already activated"
 
 
 

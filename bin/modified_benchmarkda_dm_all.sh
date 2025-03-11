@@ -1,11 +1,16 @@
 #!/bin/bash
 
-module purge
-#module load R/4.3.1-gfbf-2022b
-module load ImageMagick/7.1.0-53-GCCcore-12.2.0
-module load GSL/2.7-GCCcore-12.2.0
-module load cuDNN/8.4.1.50-CUDA-11.7.0
-eval "$(conda shell.bash hook)"
+# Check if module command is available and load modules on systems that support it
+if command -v module &> /dev/null; then
+    module purge
+    #module load R/4.3.1-gfbf-2022b
+    module load ImageMagick/7.1.0-53-GCCcore-12.2.0 || true
+    module load GSL/2.7-GCCcore-12.2.0 || true
+    module load cuDNN/8.4.1.50-CUDA-11.7.0 || true
+fi
+
+# Set up micromamba environment
+eval "$(micromamba shell hook --shell bash 2>/dev/null)" || echo "micromamba not available, assuming environment is already activated"
 
 # set slurm parameters
 time=1-00:00:00
@@ -188,8 +193,8 @@ for p in $pops;
                     ## please regulate the jobid name for saving them without replaceing the previous data !
 					jobid=${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-${balance_bool}-${analysis_layer}
 					echo "Doing $jobid ..."
-                    conda deactivate
-                    conda activate DiffAbundance
+                    micromamba deactivate 2>/dev/null || true
+                    micromamba activate diffabundance 2>/dev/null || echo "Using existing environment"
                     DIRECTORY=$data_dir/${jobid}/
                     mkdir "$DIRECTORY"
                     python generate_bm_data.py \

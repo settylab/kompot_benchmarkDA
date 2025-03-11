@@ -21,14 +21,20 @@ mkdir -p SlurmLog
 # ====================================================================
 echo "Setting up computational environments..."
 
-# Python environment (for MELD, CNA, Mellon methods)
-if ! micromamba env list | grep -q "diffabundance"; then
-    echo "Creating Python environment with micromamba..."
-    micromamba create -n diffabundance -f differential_abundance_env_list.yml -y
-fi
+# Set up micromamba if available
+if command -v micromamba &> /dev/null; then
+    # Python environment (for MELD, CNA, Mellon methods)
+    if ! micromamba env list | grep -q "diffabundance"; then
+        echo "Creating Python environment with micromamba..."
+        micromamba create -n diffabundance -f differential_abundance_env_list.yml -y
+    fi
 
-eval "$(micromamba shell hook --shell bash)"
-micromamba activate diffabundance
+    eval "$(micromamba shell hook --shell bash 2>/dev/null)"
+    micromamba activate diffabundance 2>/dev/null
+else
+    echo "WARNING: micromamba not found. Assuming you are running in a pre-configured environment."
+    echo "Make sure all required dependencies are installed."
+fi
 
 # R environment (for Milo, DAseq, CyDAR methods)
 echo "Setting up R environment..."

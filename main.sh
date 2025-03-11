@@ -213,16 +213,8 @@ run_benchmark() {
     
     chmod +x $script_name
     
-    # Check if we're running in a Slurm environment
-    if command -v sbatch &> /dev/null; then
-        echo "Submitting $script_name to Slurm..."
-        sbatch $script_name
-    else
-        echo "Executing $script_name locally (no Slurm detected)..."
-        # If not running on Slurm, we'll execute directly
-        # Note: This may take a long time as it runs sequentially
-        ./$script_name
-    fi
+    echo "Executing $script_name ..."
+    ./$script_name
 }
 
 # Process synthetic datasets

@@ -48,7 +48,7 @@ echo "$mode_embedding"
 if [ "$data_id" == "cluster" ]
     then
     data_dir=${root}/data/synthetic/$data_id
-    data_file=${data_dir}/cluster_anndata.h5ad
+    data_file=${data_dir}/cluster_data_bm.h5ad
     pop_col="celltype"
     out_dir=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
     out_dir_rds=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.rds
@@ -122,15 +122,21 @@ fi
 #PB CD14_Monocyte CD8_T CD4_T Platelet NK Granulocyte CD16_Monocyte gd_T pDC DC
 echo "data_dir is $data_dir" 
 
-python data_preprocessing_pipeline.py --file_path "${data_file}" \
-    --embedding_layer "${embedding_layer}" \
-    --n_dm "${n_dm}" \
-    --pop_col "${pop_col}" \
-    --mode_embedding "${mode_embedding}" \
-    --output_dir "${out_dir}"
 
+if [ -f "$data_file" ]; then
+    python data_preprocessing_pipeline.py --file_path "${data_file}" \
+        --embedding_layer "${embedding_layer}" \
+        --n_dm "${n_dm}" \
+        --pop_col "${pop_col}" \
+        --mode_embedding "${mode_embedding}" \
+        --output_dir "${out_dir}"
+    
 
-python anndata_rds_transfer.py --input_file_path "${out_dir}" --output_file_path "${out_dir_rds}"
+    python anndata_rds_transfer.py --input_file_path "${out_dir}" --output_file_path "${out_dir_rds}"
+
+else
+     echo "Skipping $data_id - dataset file not found at $data_file"
+fi
 
 
 # if [ "$data_id" == "levine32" ]; then

@@ -12,8 +12,8 @@ suppressPackageStartupMessages(
         library(cydar)
         library(pdist)
         library(reshape2)
-        library(monocle3)
-        library(scLCA)
+        #library(monocle3)
+        #library(scLCA)
         library(gtools)
     }
 )

@@ -36,6 +36,7 @@ analysis_layer=$2
 balance_bool=$3
 mode_embedding=$4
 n_dm=$5
+layer_embedding=$6
 
 # job_number=0
 # M2 M3 M4 M5 M6 M7
@@ -176,53 +177,61 @@ fi
 echo "data_dir is $data_dir" 
 job_number=0
 
-for p in $pops;
-    do
-    for seed in 43 44 45
+if [ -f "$data_file" ]; then
+    echo "$data_file exists, start to generate the synthetic labels for the dataset"
+    for p in $pops;
         do
-        for enr in $(seq 0.75 0.1 0.95)
-        	do
-			for batch_sd_num in $batch_vec
+        for seed in 43 44 45
+            do
+            for enr in $(seq 0.75 0.1 0.95)
                 do
-                    ((job_number++))
-                    if [ -z "$SLURM_ARRAY_TASK_ID" ] || [ "$job_number" -ne "$SLURM_ARRAY_TASK_ID" ]; then
-                        continue
-                    fi
-					jobid=${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-${balance_bool}-${analysis_layer}
-					echo "Doing $jobid ..."
-                    micromamba deactivate 2>/dev/null || true
-                    micromamba activate diffabundance 2>/dev/null || echo "Using existing environment"
-                    DIRECTORY=$data_dir/${jobid}/
-                    mkdir "$DIRECTORY"
-                    python generate_bm_data.py \
-                        --file_path ${data_file} \
-                        --pop ${p} \
-                        --pop_enr $enr \
-                        --pop_column ${pop_col} \
-                        --ds_type $data_id \
-                        --batch_sd ${batch_sd_num} \
-                        --n_conditions 2 \
-                        --n_replicates 3 \
-                        --n_batches 2 \
-                        --seed ${seed} \
-                        --condition_balance 1 \
-                        --m 2 \
-                        --a_logit 0.5 \
-                        --mode_embedding PCA \
-                        --layer_embedding X_pca \
-                        --balance $balance_bool \
-                        --output_dir $DIRECTORY/
-                    exit $!					
-
-			done
+                for batch_sd_num in $batch_vec
+                    do
+                        ((job_number++))
+                        if [ -z "$SLURM_ARRAY_TASK_ID" ] || [ "$job_number" -ne "$SLURM_ARRAY_TASK_ID" ]; then
+                            continue
+                        fi
+                        jobid=${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-${balance_bool}-${analysis_layer}
+                        echo "Doing $jobid ..."
+                        micromamba deactivate 2>/dev/null || true
+                        micromamba activate diffabundance 2>/dev/null || echo "Using existing environment"
+                        DIRECTORY=$data_dir/${jobid}/
+                        mkdir "$DIRECTORY"
+                        python generate_bm_data.py \
+                            --file_path ${data_file} \
+                            --pop ${p} \
+                            --pop_enr $enr \
+                            --pop_column ${pop_col} \
+                            --ds_type $data_id \
+                            --batch_sd ${batch_sd_num} \
+                            --n_conditions 2 \
+                            --n_replicates 3 \
+                            --n_batches 2 \
+                            --seed ${seed} \
+                            --condition_balance 1 \
+                            --m 2 \
+                            --a_logit 0.5 \
+                            --mode_embedding $mode_embedding \
+                            --layer_embedding $layer_embedding \
+                            --balance $balance_bool \
+                            --output_dir $DIRECTORY/
+                        exit $!					
+                done
+            done
         done
     done
-done
+else
+    echo "$data_file is not existed, skip for this dataset"
+fi
+
 
 # Submit a slurm array job
 jobid="mellon_syn_real_$data_id"
 cmd="sbatch -J '$jobid' --time=$time --partition=$partition \
 --mem 8g --out '$root/SlurmLog/${jobid}_%N_%A_%a.out' --array=1-$job_number \
-'$script_path' $1 $2 $3 $4 $5"
+'$script_path' $1 $2 $3 $4 $5 $6"
 echo "$cmd"
-eval "$cmd"
+job_output=$(eval "$cmd")
+echo "$job_output"
+job_id=$(echo "$job_output" | awk '{print $NF}')
+echo "$job_id" > prev_job_id_${data_id}_${mode_embedding}.txt

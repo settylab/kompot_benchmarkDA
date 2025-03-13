@@ -45,12 +45,17 @@ def runMELLON(
             X = adata.obsm["DM_EigenVectors"]
             cov_func_curry = mellon.cov.Matern52
     else:
-
         X = adata.obsm[f"{layer_embedding}_batch"]
         if not isinstance(X, np.ndarray):
             X = X.to_numpy() 
-        ls_factor *= 2
+        if ls_mode == "DM":
+            ls_factor = ls_factor
+            logger.info(f"ls_factor large, not change,ls_factor={ls_factor}")
+        elif ls_mode == "PCA":
+            ls_factor *= 2
+            logger.info(f"ls_factor small, ls_factor={ls_factor}")
         cov_func_curry = mellon.cov.Matern52
+    # X = adata.obsm["X_pca"]
     # X = adata.obsm["X_pca"]
 
     densities = list()

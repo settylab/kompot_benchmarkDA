@@ -45,16 +45,20 @@ def main():
     
 
 
-    adata = read_file.read_dataset(file_path)
+    adata = read_file.read_dataset(file_path,embedding_layer)
     print(file_path)
     ## detecting whether there is the space inside the cell names string, replace the space with the underline.
     adata = preprocessing.replace_space_in_string(adata, pop_col)
+
 
     if mode_embedding == "DM":
         print("start to calculate Diffusion Map")
         adata = calculate_diffusion_map.calculate_dm(adata,embedding_layer,n_dm)
     elif mode_embedding != "DM":
-        adata = adata
+        if embedding_layer not in adata.obsm:
+            raise Exception("There is no embedding layer as input, please check your data.")
+        else:
+            adata = adata
     
     if preprocessing.has_duplicate_rows(adata) == True:
         print("Start de-duplication")

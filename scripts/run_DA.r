@@ -10,7 +10,7 @@ suppressPackageStartupMessages(
     }
 )
 
-source('scripts/benchmark_utils.R')
+source('benchmark_utils.R')
 options(dplyr.summarise.inform = FALSE)
 
 parser <- ArgumentParser()

@@ -50,7 +50,7 @@ def main():
     parser.add_argument('--m', type=float, help='M value')
     parser.add_argument('--a_logit', type=float, help='A_logit value')
     
-    parser.add_argument('--mode_embedding', type=str, help='Embedding mode ,PCA or DiffusionMap')
+    parser.add_argument('--batch_sd_mode', type=str, help='Indicate which types of the simulation of batch effect is added, can be orig (same as benchmarkDA) or modified')
     parser.add_argument('--layer_embedding', type=str, help='Layer embedding, X_pca or DM_EigenVectors')
     #parser.add_argument('--n_dm', type=int, help='Number of diffusion component for Mellon value')
     parser.add_argument('--balance', type=str, help='whether we want to balance number of cells in each condition manually')
@@ -74,7 +74,7 @@ def main():
     m = args.m
     a_logit = args.a_logit
     cap_enr = None  # remains unchanged
-    mode_embedding = args.mode_embedding
+    batch_sd_mode = args.batch_sd_mode
     layer_embedding = args.layer_embedding
     #n_dm = args.n_dm
     balance = args.balance
@@ -203,16 +203,17 @@ def main():
             elif balance == "No":
                 adata = synth_labels.quantile_assign_label_old(adata,pop_column,pop_enr,pop)
             
-            if mode_embedding == "PCA":
-                adata = synth_labels.add_batch_effect_pca(adata,layer_embedding, batch_col="synth_batches", norm_sd=batch_sd,seed = seed)
+            if batch_sd_mode == "orig":
+                adata = synth_labels.add_batch_effect_orig(adata,layer_embedding, batch_col="synth_batches", norm_sd=batch_sd,seed = seed)
                 X_pca = pd.DataFrame(adata.obsm[f"{layer_embedding}_batch"],index=adata.obs_names)
                 print("done")
             #else mode_embedding == "DM":
                 # adata = synth_labels.add_batch_effect_dm(adata, batch_col="synth_batches", norm_sd=batch_sd,seed = seed)
                 #X_DM = pd.DataFrame(adata.obsm["X_DM_batch"],index=adata.obs_names)
-            else:
-                adata = synth_labels.add_batch_effect_pca(adata,layer_embedding, batch_col="synth_batches", norm_sd=batch_sd,seed = seed)
+            elif batch_sd_mode == "modified":
+                adata = synth_labels.add_batch_effect_modified(adata,layer_embedding, batch_col="synth_batches", norm_sd=batch_sd,seed = seed)
                 X_pca = pd.DataFrame(adata.obsm[f"{layer_embedding}_batch"],index=adata.obs_names)
+                print("done with modified simulation method of batch effect")
             
 
             # Assuming `adata` is your AnnData object
@@ -248,15 +249,16 @@ def main():
         elif balance == "No":
             adata = cluster_dataset_synth_labels.quantile_assign_label_old(adata,pop_column,pop_enr,pop)
                                         
-        if mode_embedding == "PCA":
-            adata = cluster_dataset_synth_labels.add_batch_effect_pca(adata, layer_embedding,batch_col="synth_batches", norm_sd=batch_sd,seed = seed)
+        if batch_sd_mode == "orig":
+            adata = cluster_dataset_synth_labels.add_batch_effect_orig(adata, layer_embedding,batch_col="synth_batches", norm_sd=batch_sd,seed = seed)
             X_pca = pd.DataFrame(adata.obsm[f"{layer_embedding}_batch"],index=adata.obs_names)
             #else mode_embedding == "DM":
                 # adata = synth_labels.add_batch_effect_dm(adata, batch_col="synth_batches", norm_sd=batch_sd,seed = seed)
                 #X_DM = pd.DataFrame(adata.obsm["X_DM_batch"],index=adata.obs_names)
-        else:
-            adata = cluster_dataset_synth_labels.add_batch_effect_pca(adata,layer_embedding, batch_col="synth_batches", norm_sd=batch_sd,seed = seed)
+        elif batch_sd_mode == "modified":
+            adata = cluster_dataset_synth_labels.add_batch_effect_modified(adata,layer_embedding, batch_col="synth_batches", norm_sd=batch_sd,seed = seed)
             X_pca = pd.DataFrame(adata.obsm[f"{layer_embedding}_batch"],index=adata.obs_names)
+            print("done with modified simulation method of batch effect")
 
         obs_df = adata.obs.copy()
 

@@ -3,6 +3,7 @@ Method configuration for the benchmarkDA project.
 Contains method-specific parameters and command templates.
 """
 
+
 # Python method configurations
 PYTHON_METHODS = {
     "mellon": {
@@ -47,12 +48,26 @@ PYTHON_METHODS = {
     },
     "meld": {
         "script": "meld_bm.py",
-        "params": {}
+        "params": {
+            "beta":{"cluster":33,
+                    "linear":71,
+                    "branch":65,
+                    "covid19-pbmc":25,
+                    "bcr-xl":23,
+                    "pancreas":80,
+                    "levine32":36}
+        }
     },
     "meld_default": {
         "script": "meld_bm.py",
         "params": {
-            "beta": 40
+            "beta": {"cluster":40,
+                    "linear":40,
+                    "branch":40,
+                    "covid19-pbmc":40,
+                    "bcr-xl":40,
+                    "pancreas":40,
+                    "levine32":40}
         }
     },
     "cna": {

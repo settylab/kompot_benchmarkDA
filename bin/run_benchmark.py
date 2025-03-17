@@ -79,6 +79,7 @@ balance_bool="{args.balance}"
 n_dm={args.n_dm}
 mode_embedding="{args.mode_embedding}"
 layer_embedding="{args.layer_embedding}"
+batch_sd_mode="{args.batch_sd_mode}"
 
 """
     
@@ -87,7 +88,7 @@ layer_embedding="{args.layer_embedding}"
 data_dir="${{root}}/data/{('synthetic/' + args.dataset) if args.dataset in ['linear', 'branch', 'cluster'] else ('real/' + args.dataset)}"
 data_file_name="${{data_dir}}/{args.dataset}_{args.mode_embedding}_{args.n_dm}"
 pops="{' '.join(dataset_config['pops'])}"
-batch_vec="{' '.join(map(str, dataset_config['batch_vec']))}"
+batch_vec="{' '.join(map(str, dataset_config['batch_vec_'+args.batch_sd_mode]))}"
 k={dataset_config['k']}
 resolution={dataset_config['resolution']}
 beta={dataset_config['beta']}
@@ -155,7 +156,7 @@ ENR_OUTPUT=$(python -c "ENRICHMENT_VALUES = $enr_prob; print(' '.join(map(str, E
         --ls_mode ${{mode_embedding}}"""
             elif method_config["script"] == "meld_bm.py":
                 params = method_config["params"]
-                beta_value = params.get('beta', "{{beta}}")
+                beta_value = params.get('beta')[args.dataset]
                 script_content += f""" \\
         --beta {beta_value} \\
         --k_meld ${{k}}"""
@@ -249,12 +250,26 @@ if [ -f "$data_file" ]; then
         prev_job_id=$(cat "${root}/python_method/prev_job_id_${data_id}_${mode_embedding}.txt")
         echo "Child2: Found dependency job ID $prev_job_id"
     fi
-    prev_status=$(sacct -j "$prev_job_id" --format=State --noheader | head -n 1 | tr -d ' ')
-    if [[ "$prev_status" == "COMPLETED" || "$prev_status" == "FAILED" || "$prev_status" == "CANCELLED" ]]; then
-        echo "Previous job ($prev_job_id) is finished. Submitting without dependency."
+    all_statuses=$(sacct -j "$prev_job_id" --format=State --noheader | tr -d ' ')
+
+    # Check if any job info exists for that job id
+    if [ -z "$all_statuses" ]; then
+        echo "No job found for ID $prev_job_id in Slurm. Submitting without dependency."
         dependency_flag=""
     else
-        dependency_flag="--dependency=afterok:$prev_job_id"
+        # Remove any empty lines (if any)
+        all_statuses=$(echo "$all_statuses" | grep -v '^$')
+        
+        # Check for unfinished jobs (i.e. statuses other than COMPLETED, FAILED, or CANCELLED)
+        unfinished=$(echo "$all_statuses" | grep -v -E '^(COMPLETED|FAILED|CANCELLED)$')
+        
+        if [ -z "$unfinished" ]; then
+            echo "All dependent jobs ($prev_job_id) are finished. Submitting without dependency."
+            dependency_flag=""
+        else
+            echo "Some dependent jobs are still running or pending."
+            dependency_flag="--dependency=afterany:$prev_job_id"
+        fi
     fi
 
     if [ -z "$SLURM_JOB_ID" ]; then
@@ -306,12 +321,28 @@ fi
         prev_job_id=$(cat "${root}/python_method/prev_job_id_${data_id}_${mode_embedding}.txt")
         echo "Child2: Found dependency job ID $prev_job_id"
     fi
-    prev_status=$(sacct -j "$prev_job_id" --format=State --noheader | head -n 1 | tr -d ' ')
-    if [[ "$prev_status" == "COMPLETED" || "$prev_status" == "FAILED" || "$prev_status" == "CANCELLED" ]]; then
-        echo "Previous job ($prev_job_id) is finished. Submitting without dependency."
+
+        # Retrieve all job statuses associated with $prev_job_id
+    all_statuses=$(sacct -j "$prev_job_id" --format=State --noheader | tr -d ' ')
+
+    # Check if any job info exists for that job id
+    if [ -z "$all_statuses" ]; then
+        echo "No job found for ID $prev_job_id in Slurm. Submitting without dependency."
         dependency_flag=""
     else
-        dependency_flag="--dependency=afterok:$prev_job_id"
+        # Remove any empty lines (if any)
+        all_statuses=$(echo "$all_statuses" | grep -v '^$')
+        
+        # Check for unfinished jobs (i.e. statuses other than COMPLETED, FAILED, or CANCELLED)
+        unfinished=$(echo "$all_statuses" | grep -v -E '^(COMPLETED|FAILED|CANCELLED)$')
+        
+        if [ -z "$unfinished" ]; then
+            echo "All dependent jobs ($prev_job_id) are finished. Submitting without dependency."
+            dependency_flag=""
+        else
+            echo "Some dependent jobs are still running or pending."
+            dependency_flag="--dependency=afterany:$prev_job_id"
+        fi
     fi
 
     if [ -z "$SLURM_JOB_ID" ]; then
@@ -350,6 +381,7 @@ def main():
     parser.add_argument("--mode_embedding", type=str, default="PCA", choices=["PCA", "DM"], help="Embedding mode (default: PCA)")
     parser.add_argument("--methods", type=str, nargs="+", help="Methods to run (space-separated list)")
     parser.add_argument("--layer_embedding", type=str, default="X_pca", help="the obsm layer for embedding")
+    parser.add_argument("--batch_sd_mode", type=str, choices=["modified", "orig"],help="decide whether we want to use the original simulation of batch effect or the modified")
     parser.add_argument("--output", type=str, help="Output script path")
     
     args = parser.parse_args()

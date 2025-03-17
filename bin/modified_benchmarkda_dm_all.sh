@@ -37,6 +37,7 @@ balance_bool=$3
 mode_embedding=$4
 n_dm=$5
 layer_embedding=$6
+batch_sd_mode=$7
 
 # job_number=0
 # M2 M3 M4 M5 M6 M7
@@ -53,7 +54,8 @@ if [ "$data_id" == "cluster" ]
     data_file=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
     pops=$(for p in $(seq 1 1 3); do echo M$p; done)
     #R_methods=$(for m in mellon mellon_dm mellon_hls milo daseq cydar cna meld louvain milo_batch cna_batch louvain_batch; do echo $m; done)
-    batch_vec=$(for m in 0; do echo $m; done)
+    batch_vec_orig=$(for m in 0; do echo $m; done)
+    batch_vec_modified=$(for m in 0 0.05 0.06 0.08 0.11 0.14 0.19 0.24 0.31 0.41 0.53; do echo $m; done)
     k=30
     resolution=0.2
     beta=33
@@ -81,7 +83,8 @@ elif [ "$data_id" == "linear" ]
     pops=$(for p in $(seq 1 1 7); do echo M$p; done)
     #R_methods=$(for m in mellon mellon_dm mellon_hls milo daseq cydar cna meld louvain milo_batch cna_batch louvain_batch; do echo $m; done)
     #0.75 1 1.25 1.5
-    batch_vec=$(for m in 0; do echo $m; done)
+    batch_vec_orig=$(for m in 0; do echo $m; done)
+    batch_vec_modified=$(for m in 0 0.05 0.06 0.08 0.11 0.14 0.19 0.24 0.31 0.41 0.53; do echo $m; done)
     k=30
     resolution=1
     beta=71
@@ -94,7 +97,8 @@ elif [ "$data_id" == "branch" ]
     data_file=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
     pops=$(for p in $(seq 1 1 8); do echo M$p; done)
     #R_methods=$(for m in mellon mellon_dm mellon_hls milo daseq cydar cna meld louvain milo_batch cna_batch louvain_batch; do echo $m; done)
-    batch_vec=$(for m in 0; do echo $m; done)
+    batch_vec_orig=$(for m in 0; do echo $m; done)
+    batch_vec_modified=$(for m in 0 0.05 0.06 0.08 0.11 0.14 0.19 0.24 0.31 0.41 0.53; do echo $m; done)
     k=30
     resolution=1
     beta=65
@@ -111,7 +115,8 @@ elif [ "$data_id" == "aging" ]
     #0.75 1 1.25 1.5
     #$(for m in $(seq 0 0.1 1) $(seq 1 0.25 1.75) 20; do echo $m; done)
     #batch_vec=$(for m in $(seq 0 0.1 1); do echo $m; done)
-    batch_vec=0.0
+    batch_vec_orig=0.0
+    batch_vec_modified=$(for m in 0 0.05 0.06 0.08 0.11 0.14 0.19 0.24 0.31 0.41 0.53; do echo $m; done)
     k=30
     resolution=1
     beta=64
@@ -125,7 +130,8 @@ elif [[ "$data_id" == "covid19-pbmc" ]]
     data_file=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
     pops=$(for m in RBC B PB CD14_Monocyte CD8_T CD4_T Platelet NK Granulocyte CD16_Monocyte gd_T pDC DC; do echo $m; done)
     #R_methods=$(for m in mellon mellon_dm mellon_hls milo daseq cydar cna meld louvain; do echo $m; done)
-    batch_vec=0
+    batch_vec_orig=0
+    batch_vec_modified=$(for m in 0 0.05 0.06 0.08 0.11 0.14 0.19 0.24 0.31 0.41 0.53; do echo $m; done)
     k=30
     resolution=0.5
     beta=25
@@ -138,7 +144,8 @@ elif [[ "$data_id" == "bcr-xl" ]]
     data_file=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
     pops=$(for m in CD4_T-cells NK_cells CD8_T-cells B-cells_IgM+ monocytes surface- B-cells_IgM- DC; do echo $m; done)
     #R_methods=$(for m in mellon mellon_dm mellon_hls milo daseq cydar cna meld louvain; do echo $m; done)
-    batch_vec=0
+    batch_vec_orig=0
+    batch_vec_modified=$(for m in 0 0.05 0.06 0.08 0.11 0.14 0.19 0.24 0.31 0.41 0.53; do echo $m; done)
     k=30
     resolution=0.6
     beta=23
@@ -151,7 +158,8 @@ elif [[ "$data_id" == "pancreas" ]]
     data_file=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
     pops=$(for m in delta_cell alpha_cell gamma_cell acinar_cell beta_cell ductal_cell epsilon_cell; do echo $m; done)
     #R_methods=$(for m in milo daseq cydar cna meld louvain; do echo $m; done)
-    batch_vec=0
+    batch_vec_orig=0
+    batch_vec_modified=$(for m in 0 0.05 0.06 0.08 0.11 0.14 0.19 0.24 0.31 0.41 0.53; do echo $m; done)
     k=30
     resolution=1.2
     beta=80
@@ -165,7 +173,8 @@ elif [[ "$data_id" == "levine32" ]]
     # CD4_T_cells CD8_T_cells Pre_B_cells Mature_B_cells Monocytes Basophils
     pops=$(for m in pDCs CD4_T_cells CD8_T_cells Pre_B_cells Mature_B_cells Monocytes Basophils; do echo $m; done)
     #R_methods=$(for m in milo daseq cydar cna meld louvain; do echo $m; done)
-    batch_vec=0
+    batch_vec_orig=0
+    batch_vec_modified=$(for m in 0 0.05 0.06 0.08 0.11 0.14 0.19 0.24 0.31 0.41 0.53; do echo $m; done)
     k=30
     resolution=0.6
     beta=36
@@ -187,7 +196,9 @@ if [ -f "$data_file" ]; then
             do
             for enr in $(seq 0.75 0.1 0.95)
                 do
-                for batch_sd_num in $batch_vec
+                varname="batch_vec_${batch_sd_mode}"
+                echo "${!varname}"
+                for batch_sd_num in $(eval echo "\${${varname}[@]}")
                     do
                         ((job_number++))
                         if [ -z "$SLURM_ARRAY_TASK_ID" ] || [ "$job_number" -ne "$SLURM_ARRAY_TASK_ID" ]; then
@@ -214,7 +225,7 @@ if [ -f "$data_file" ]; then
                             --condition_balance 1 \
                             --m 2 \
                             --a_logit 0.5 \
-                            --mode_embedding $mode_embedding \
+                            --batch_sd_mode $batch_sd_mode \
                             --layer_embedding $layer_embedding \
                             --balance $balance_bool \
                             --output_dir $DIRECTORY/
@@ -231,7 +242,7 @@ fi
 jobid="mellon_syn_real_$data_id"
 cmd="sbatch -J '$jobid' --time=$time --partition=$partition \
 --mem 8g --out '$root/SlurmLog/${jobid}_%N_%A_%a.out' --array=1-$job_number \
-'$script_path' $1 $2 $3 $4 $5 $6"
+'$script_path' $1 $2 $3 $4 $5 $6 $7"
 echo "$cmd"
 job_output=$(eval "$cmd")
 echo "$job_output"

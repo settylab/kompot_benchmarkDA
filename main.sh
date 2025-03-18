@@ -58,8 +58,8 @@ fi
 
 # R environment (for Milo, DAseq, CyDAR methods)
 echo "Setting up R environment..."
-mkdir -p .Renviron
-echo "R_LIBS_USER=./renv/library" > .Renviron
+# mkdir -p .Renviron
+# echo "R_LIBS_USER=./renv/library" > .Renviron
 Rscript -e "if (!requireNamespace('renv', quietly = TRUE)) install.packages('renv', repos = 'https://cloud.r-project.org/'); renv::restore()"
 
 # ====================================================================
@@ -84,6 +84,8 @@ echo "  - data/real/levine32/"
 echo "  - data/real/pancreas/"
 echo "Press Enter to continue (or Ctrl+C to cancel)..."
 read -r
+
+BatchEffectMode=$1
 
 # ====================================================================
 # 3. Dataset Preprocessing
@@ -130,49 +132,50 @@ done
 
 # ====================================================================
 # 4. Generate Synthetic Labels
-# ====================================================================
+# # ====================================================================
 echo "Generating condition labels for benchmarking..."
 
 # For synthetic datasets
+
 for DATASET in linear branch cluster; do
 # for DATASET in linear; do
     # Generate labels for diffusion map embeddings
     echo "Generating labels for $DATASET with diffusion map..."
-    bash bin/modified_benchmarkda_dm_all.sh $DATASET dm No DM 10 X_pca
+    bash bin/modified_benchmarkda_dm_all.sh $DATASET dm No DM 10 X_pca $BatchEffectMode
     
     # Generate labels for PCA embeddings
     echo "Generating labels for $DATASET with PCA..."
-    bash bin/modified_benchmarkda.sh $DATASET pca No PCA 0 X_pca
+    bash bin/modified_benchmarkda.sh $DATASET pca No PCA 0 X_pca $BatchEffectMode
 done
 
-# For scRNAseq real datasets if they exist
+# # For scRNAseq real datasets if they exist
 for DATASET in covid19-pbmc pancreas; do
 #for DATASET in pancreas; do
     echo "Generating synthetic labels for $DATASET with diffusion map..."
         # Real scRNAseq datasets use 30 diffusion components
-    bash bin/modified_benchmarkda_dm_all.sh $DATASET dm No DM 30 X_pca
+    bash bin/modified_benchmarkda_dm_all.sh $DATASET dm No DM 30 X_pca $BatchEffectMode
         
     echo "Generating labels for $DATASET with PCA..."
-    bash bin/modified_benchmarkda.sh $DATASET pca No PCA 0 X_pca
+    bash bin/modified_benchmarkda.sh $DATASET pca No PCA 0 X_pca $BatchEffectMode
 done
 
-# # For CyTOF real datasets if they exist
+# # # For CyTOF real datasets if they exist
 for DATASET in bcr-xl levine32; do
-# for DATASET in bcr-xl; do
+# for DATASET in levine32; do
     
     echo "Generating synthetic labels for $DATASET with diffusion map..."
     # For CyToF datasets, the length of adata.var_names is too small for 30 diffusion map components, use 5.
-    bash bin/modified_benchmarkda_dm_all.sh $DATASET dm No DM 5 X_pca
+    bash bin/modified_benchmarkda_dm_all.sh $DATASET dm No DM 5 X_pca $BatchEffectMode
         
     echo "Generating synthetic labels for $DATASET with PCA..."
         # For CyToF datasets, the X_pca is expression matrix itself because of the low dimension of ad.var_names.
-    bash bin/modified_benchmarkda.sh $DATASET pca No PCA 0 X_pca
+    bash bin/modified_benchmarkda.sh $DATASET pca No PCA 0 X_pca $BatchEffectMode
 done
 
 # ====================================================================
 # 5. Run Benchmarking with Unified Script Generator
 # ====================================================================
-# echo "Generating and executing benchmark scripts..."
+echo "Generating and executing benchmark scripts..."
 
 # Common parameters
 ITERATION=0
@@ -190,6 +193,7 @@ run_benchmark() {
     local n_dm=$4
     local mode_embedding=$5
     local layer_embedding=$6
+    local batch_sd_mode=$7
     
     # Create descriptive script name
     local script_name="${TEMP_DIR}/benchmark_${dataset}_${mode_embedding,,}_${method_type}.sh"
@@ -206,6 +210,7 @@ run_benchmark() {
         --n_dm $n_dm \
         --mode_embedding $mode_embedding \
         --layer_embedding $layer_embedding \
+        --batch_sd_mode $batch_sd_mode \
         --output $script_name
     
     chmod +x $script_name
@@ -215,38 +220,38 @@ run_benchmark() {
 }
 
 # Process synthetic datasets
-# for DATASET in linear ; do
-for DATASET in linear branch cluster; do
+for DATASET in linear ; do
+# for DATASET in linear branch cluster; do
     # Python methods
-    run_benchmark $DATASET "python" "dm" 10 "DM" X_pca
-    run_benchmark $DATASET "python" "pca" 0 "PCA" X_pca
+    run_benchmark $DATASET "python" "dm" 10 "DM" X_pca $BatchEffectMode
+    run_benchmark $DATASET "python" "pca" 0 "PCA" X_pca $BatchEffectMode
     
     # R methods
-    run_benchmark $DATASET "r" "dm" 10 "DM" X_pca
-    run_benchmark $DATASET "r" "pca" 0 "PCA" X_pca
+    run_benchmark $DATASET "r" "dm" 10 "DM" X_pca $BatchEffectMode
+    run_benchmark $DATASET "r" "pca" 0 "PCA" X_pca $BatchEffectMode
 done
 
 # For scRNAseq real datasets if they exist
 for DATASET in covid19-pbmc pancreas; do
 # for DATASET in pancreas; do
-        run_benchmark $DATASET "python" "dm" 30 "DM" X_pca
-        run_benchmark $DATASET "python" "pca" 0 "PCA" X_pca
+        run_benchmark $DATASET "python" "dm" 30 "DM" X_pca $BatchEffectMode
+        run_benchmark $DATASET "python" "pca" 0 "PCA" X_pca $BatchEffectMode
         
         # R methods
-        run_benchmark $DATASET "r" "dm" 30 "DM" X_pca
-        run_benchmark $DATASET "r" "pca" 0 "PCA" X_pca
+        run_benchmark $DATASET "r" "dm" 30 "DM" X_pca $BatchEffectMode
+        run_benchmark $DATASET "r" "pca" 0 "PCA" X_pca $BatchEffectMode
 done
 
 # For CyTOF real datasets if they exist
 for DATASET in bcr-xl levine32; do
 # for DATASET in bcr-xl; do
         # Python methods
-    run_benchmark $DATASET "python" "dm" 5 "DM" X_pca
-    run_benchmark $DATASET "python" "pca" 0 "PCA" X_pca
+    run_benchmark $DATASET "python" "dm" 5 "DM" X_pca $BatchEffectMode
+    run_benchmark $DATASET "python" "pca" 0 "PCA" X_pca $BatchEffectMode
         
         # R methods
-    run_benchmark $DATASET "r" "dm" 5 "DM" X_pca
-    run_benchmark $DATASET "r" "pca" 0 "PCA" X_pca
+    run_benchmark $DATASET "r" "dm" 5 "DM" X_pca $BatchEffectMode
+    run_benchmark $DATASET "r" "pca" 0 "PCA" X_pca $BatchEffectMode
 done
 
 echo "====================================================================================="

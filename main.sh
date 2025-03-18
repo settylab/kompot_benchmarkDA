@@ -58,8 +58,8 @@ fi
 
 # R environment (for Milo, DAseq, CyDAR methods)
 echo "Setting up R environment..."
-# mkdir -p .Renviron
-# echo "R_LIBS_USER=./renv/library" > .Renviron
+mkdir -p .Renviron
+echo "R_LIBS_USER=./renv/library" > .Renviron
 Rscript -e "if (!requireNamespace('renv', quietly = TRUE)) install.packages('renv', repos = 'https://cloud.r-project.org/'); renv::restore()"
 
 # ====================================================================

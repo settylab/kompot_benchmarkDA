@@ -67,8 +67,19 @@ The entire workflow is orchestrated by the `main.sh` script, which:
 
 To run the full benchmark:
 
+NOTE: the command line for running main.sh has been edited:
+
 ```bash
-bash main.sh
+bash main.sh $BatchEffectMode
+```
+
+1. If the BatchEffectMode is "orig", it will use the original batch_sd parameter value from benchmarkDA package on PCA layer, or using 0 on diffusion map space to not add batch effect on the diffusion map.
+2. If the BatchEffectMode is "modified", it will use the batch_sd calculated from the logspace.
+
+Example:
+
+```bash
+bash main.sh "modified"
 ```
 
 ## Architecture

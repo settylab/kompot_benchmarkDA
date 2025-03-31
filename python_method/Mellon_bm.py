@@ -98,7 +98,7 @@ def main():
             "_package_performance"
         )
         
-        df_mellon_zscore.to_csv(output_dir_i / "mellon_zscore.csv")
+        #df_mellon_zscore.to_csv(output_dir_i / "mellon_zscore.csv")
 
 if __name__ == "__main__":
     main()

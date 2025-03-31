@@ -76,7 +76,19 @@ DATASET_CONFIGS_PCA = {
         "beta": 36,
         "downsample": 25,
         "pop_col": "cell_type"
+    },
+    "aging":{
+        "pops": ["CLP","Ery_P","HSC","ILC","Immature_B_cell","LMPP", "MBE","MKP","Mature_B_cell" ,"Mono_P" ,"Monocyte" ,"Myelo_P" ,"NK","Neutrophil","Pre-B_cell","T_cell","Treg","cDC", "pDC"],
+        "batch_vec_orig": [0],
+        "batch_vec_modified": [0, 0.05, 0.07, 0.1, 0.14, 0.19, 0.27, 0.38, 0.53, 0.74, 1.03],
+        "k": 30,
+        "resolution": 1,
+        "beta": 64,
+        "downsample": 3,
+        "pop_col": "midres_celltype_benchmarking"
     }
+
+
 }
 
 DATASET_CONFIGS_DM = {
@@ -151,6 +163,16 @@ DATASET_CONFIGS_DM = {
         "beta": 36,
         "downsample": 25,
         "pop_col": "cell_type"
+    },
+    "aging":{
+        "pops": ["CLP","Ery_P","HSC","ILC","Immature_B_cell","LMPP", "MBE","MKP","Mature_B_cell" ,"Mono_P" ,"Monocyte" ,"Myelo_P" ,"NK","Neutrophil","Pre-B_cell","T_cell","Treg","cDC", "pDC"],
+        "batch_vec_orig": [0],
+        "batch_vec_modified": [0, 0.05, 0.06, 0.08, 0.11, 0.14, 0.19, 0.24, 0.31, 0.41, 0.53],
+        "k": 30,
+        "resolution": 1,
+        "beta": 64,
+        "downsample": 3,
+        "pop_col": "midres_celltype_benchmarking"
     }
 }
 

@@ -105,25 +105,6 @@ elif [ "$data_id" == "branch" ]
     downsample=3
     mem=8g
     pop_col="celltype"
-elif [ "$data_id" == "aging" ]
-    then
-    data_dir=${root}/data/real/$data_id
-    data_file=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
-    pops=$(for m in CLP Ery_P HSC ILC Immature_B_cell LMPP MBE MKP Mature_B_cell Mono_P Monocyte Myelo_P NK Neutrophil Pre-B_cell T_cell Treg cDC pDC; do echo $m; done)
-    #Ery_P HSC ILC Immature_B_cell LMPP MBE MKP Mature_B_cell Mono_P Monocyte Myelo_P NK Neutrophil Pre-B_cell T_cell Treg cDC pDC
-    #R_methods=$(for m in mellon mellon_dm mellon_hls milo daseq cydar cna meld louvain milo_batch cna_batch louvain_batch; do echo $m; done)
-    #0.75 1 1.25 1.5
-    #$(for m in $(seq 0 0.1 1) $(seq 1 0.25 1.75) 20; do echo $m; done)
-    #batch_vec=$(for m in $(seq 0 0.1 1); do echo $m; done)
-    batch_vec_orig=0.0
-    batch_vec_modified=$(for m in 0 0.05 0.06 0.08 0.11 0.14 0.19 0.24 0.31 0.41 0.53; do echo $m; done)
-    k=30
-    resolution=1
-    beta=64
-    # this beta will be changed after the parameter tuning
-    downsample=3
-    mem=8g
-    pop_col="midres_celltype_benchmarking"
 elif [[ "$data_id" == "covid19-pbmc" ]]
     then
     data_dir=${root}/data/real/$data_id
@@ -181,6 +162,19 @@ elif [[ "$data_id" == "levine32" ]]
     downsample=25
     mem=96g
     pop_col="cell_type"
+elif [ "$data_id" == "aging" ]
+    then
+    data_dir=${root}/data/real/$data_id
+    data_file=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
+    pops=$(for m in CLP Ery_P HSC ILC Immature_B_cell LMPP MBE MKP Mature_B_cell Mono_P Monocyte Myelo_P NK Neutrophil Pre-B_cell T_cell Treg cDC pDC; do echo $m; done)
+    batch_vec_orig=0
+    batch_vec_modified=$(for m in 0 0.05 0.06 0.08 0.11 0.14 0.19 0.24 0.31 0.41 0.53; do echo $m; done)
+    k=30
+    resolution=1
+    beta=64
+    downsample=3
+    mem=8g
+    pop_col="midres_celltype_benchmarking"
 fi
 
 

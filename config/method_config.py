@@ -10,7 +10,7 @@ PYTHON_METHODS = {
         "script": "Mellon_bm.py",
         "params": {
             "mellon_d_method": "fractal",
-            "norm_density": "No",
+            "norm_density": "Yes",
             "hyperparameter": "Yes",
             "corrected": "No",
             "ls_factor": 1.5
@@ -55,7 +55,8 @@ PYTHON_METHODS = {
                     "covid19-pbmc":25,
                     "bcr-xl":23,
                     "pancreas":80,
-                    "levine32":36}
+                    "levine32":36,
+                    "aging":64}
         }
     },
     "meld_default": {
@@ -67,7 +68,8 @@ PYTHON_METHODS = {
                     "covid19-pbmc":40,
                     "bcr-xl":40,
                     "pancreas":40,
-                    "levine32":40}
+                    "levine32":40,
+                    "aging":40}
         }
     },
     "cna": {

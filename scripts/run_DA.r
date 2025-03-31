@@ -54,7 +54,7 @@ print("Loading dataset...")
 raw_sce <- readRDS(data_path)
 
 if (data_id == "covid19-pbmc") {
-  sce = UpdateSeuratObject(object = raw_sce)
+ sce <- raw_sce
 if (!inherits(sce, "SingleCellExperiment")) {
     sce <- as.SingleCellExperiment(sce)
 }

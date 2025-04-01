@@ -105,7 +105,7 @@ for DATASET in linear branch cluster; do
 done
 
 # Process scRNAseq real datasets if they exist
-for DATASET in covid19-pbmc pancreas; do
+for DATASET in covid19-pbmc pancreas aging; do
 # for DATASET in pancreas; do
     # Check correct path based on script examination
     echo "Preprocessing $DATASET dataset with diffusion map..."
@@ -149,7 +149,7 @@ for DATASET in linear branch cluster; do
 done
 
 # # For scRNAseq real datasets if they exist
-for DATASET in covid19-pbmc pancreas; do
+for DATASET in covid19-pbmc pancreas aging; do
 #for DATASET in pancreas; do
     echo "Generating synthetic labels for $DATASET with diffusion map..."
         # Real scRNAseq datasets use 30 diffusion components
@@ -220,7 +220,7 @@ run_benchmark() {
 }
 
 # Process synthetic datasets
-for DATASET in linear ; do
+for DATASET in linear branch cluster; do
 # for DATASET in linear branch cluster; do
     # Python methods
     run_benchmark $DATASET "python" "dm" 10 "DM" X_pca $BatchEffectMode
@@ -232,7 +232,7 @@ for DATASET in linear ; do
 done
 
 # For scRNAseq real datasets if they exist
-for DATASET in covid19-pbmc pancreas; do
+for DATASET in covid19-pbmc pancreas aging; do
 # for DATASET in pancreas; do
         run_benchmark $DATASET "python" "dm" 30 "DM" X_pca $BatchEffectMode
         run_benchmark $DATASET "python" "pca" 0 "PCA" X_pca $BatchEffectMode

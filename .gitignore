@@ -3,3 +3,6 @@ data/
 .ipynb_checkpoints/
 scripts/core
 notebooks/
+__pycache__/
+.DS_Store
+.nfs*

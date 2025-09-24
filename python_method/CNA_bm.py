@@ -44,24 +44,23 @@ def main():
     for i in range(1):
         iteration_directory = input_file / f'iteration_{i}'
         output_dir_i = output_dir / f'iteration_{i}'
-        
         # Load dataset
         adata = data_loader.load_dataset(
-            args.file_path, 
-            iteration_directory, 
-            args.ds_type, 
-            args.pop, 
-            args.pop_enr, 
-            args.seed, 
-            args.batch_sd, 
+            args.file_path,
+            iteration_directory,
+            args.ds_type,
+            args.pop,
+            args.pop_enr,
+            args.seed,
+            args.batch_sd,
             args.layer_embedding
         )
-        
-        # Prepare data for CNA 
+
+        # Prepare data for CNA
         # CNA requires a specific AnnData format
         adata_temp = anndata.AnnData(
-            adata.obsm[f"{args.layer_embedding}_batch"], 
-            obs=adata.obs, 
+            adata.obsm[f"{args.layer_embedding}_batch"],
+            obs=adata.obs,
             dtype=np.float64
         )
         adata_temp.obs.index.name = "cell"

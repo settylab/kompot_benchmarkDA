@@ -20,28 +20,33 @@ def compute_z_score(dens1, dens2, var1, var2, eps=1e-16):
 
 
 def runMELLON(
-    adata, mellon_d_method: str, norm_density:str,  label_col: str, dm_comp: int = 10,  ls_factor: float = 1):
+    adata, mellon_d_method: str, norm_density:str,  label_col: str, ls_mode:str,layer_embedding,dm_comp: int = 10,  ls_factor: float = 1):
 
     conditions = adata.obs[label_col].unique()
 
     if adata.n_vars <= 50:
-        adata.obsm["X_pca_batch"] = adata.X
+        if ls_mode == "PCA":
+            if not isinstance(adata.X, np.ndarray):
+                adata.obsm[f"{layer_embedding}_batch"] = adata.X.toarray()
+            else:
+                adata.obsm[f"{layer_embedding}_batch"] = adata.X
+        elif ls_mode == "DM":
+            adata.obsm[f"{layer_embedding}_batch"] = adata.obsm[f"{layer_embedding}_batch"]
     else:
-        if "X_pca_batch" not in adata.obsm:
+        if f"{layer_embedding}_batch" not in adata.obsm:
             logging.info("Running PCA")
             # perform pca and use it to generate graph
             sc.tl.pca(adata, n_comps=50)
-            adata.obsm["X_pca_batch"] = adata.obsm["X_pca"]
+            adata.obsm[f"{layer_embedding}_batch"] = adata.obsm["X_pca"]
     if dm_comp > 0:
-        if "DM_EigenVectors" not in adata.obsm:
-            palantir.utils.run_diffusion_maps(
-                adata, n_components=dm_comp, pca_key="X_pca_batch"
-            )
-        X = adata.obsm["DM_EigenVectors"]
-        cov_func_curry = mellon.cov.Matern52
+       if ("DM_EigenVectors" not in adata.obsm
+            or adata.obsm["DM_EigenVectors"].shape[1] != dm_comp):
+            palantir.utils.run_diffusion_maps(adata, n_components=dm_comp, pca_key=f"{layer_embedding}_batch")
+            X = adata.obsm["DM_EigenVectors"]
+            cov_func_curry = mellon.cov.Matern52
     else:
 
-        X = adata.obsm["X_pca_batch"]
+        X = adata.obsm[f"{layer_embedding}_batch"]
         if not isinstance(X, np.ndarray):
             X = X.to_numpy() 
         ls_factor *= 2
@@ -95,7 +100,7 @@ def runMELLON(
 
 
 def runMELLON_synchronized(
-    adata, mellon_d_method: str, norm_density:str, corrected:str, label_col: str, dm_comp,  ls_factor: float , ls_mode:str):
+    adata, mellon_d_method: str, norm_density:str, corrected:str, label_col: str, dm_comp,  ls_factor: float , ls_mode:str,layer_embedding):
     
     """
     This function is different from the above runMellon function, since it estimated hyper-parameters including mu for Gaussian Distribution, landscale factor and d.
@@ -106,23 +111,29 @@ def runMELLON_synchronized(
     conditions = adata.obs[label_col].unique()
 
     if adata.n_vars <= 50:
-        adata.obsm["X_pca_batch"] = adata.X
+        if ls_mode == "PCA":
+            if not isinstance(adata.X, np.ndarray):
+                adata.obsm[f"{layer_embedding}_batch"] = adata.X.toarray()
+            else:
+                adata.obsm[f"{layer_embedding}_batch"] = adata.X
+        elif ls_mode == "DM":
+            adata.obsm[f"{layer_embedding}_batch"] = adata.obsm[f"{layer_embedding}_batch"]
     else:
-        if "X_pca_batch" not in adata.obsm:
+        if f"{layer_embedding}_batch" not in adata.obsm:
             logging.info("Running PCA")
             # perform pca and use it to generate graph
             sc.tl.pca(adata, n_comps=50)
-            adata.obsm["X_pca_batch"] = adata.obsm["X_pca"]
+            adata.obsm[f"{layer_embedding}_batch"] = adata.obsm["X_pca"]
             
     if dm_comp > 0:
        if ("DM_EigenVectors" not in adata.obsm
             or adata.obsm["DM_EigenVectors"].shape[1] != dm_comp):
-            palantir.utils.run_diffusion_maps(adata, n_components=dm_comp, pca_key="X_pca_batch")
+            palantir.utils.run_diffusion_maps(adata, n_components=dm_comp, pca_key=f"{layer_embedding}_batch")
             X = adata.obsm["DM_EigenVectors"]
             cov_func_curry = mellon.cov.Matern52
 
     else:
-        X = adata.obsm["X_pca_batch"]
+        X = adata.obsm[f"{layer_embedding}_batch"]
         if not isinstance(X, np.ndarray):
             X = X.to_numpy() 
         if ls_mode == "DM":

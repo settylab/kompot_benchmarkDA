@@ -100,20 +100,34 @@ for DATASET in linear branch cluster; do
     bash bin/dataset_preprocessing.sh $DATASET X_pca 0 PCA
 done
 
-# Process real datasets if available
-for DATASET in covid19-pbmc bcr-xl levine32 pancreas; do
-    DATASET_PATH="data/real/${DATASET}/${DATASET}.h5ad"
-    if [ -f "$DATASET_PATH" ]; then
-        echo "Processing real dataset: $DATASET"
-        
-        # Real datasets use 30 diffusion components
-        echo "Creating diffusion map for $DATASET..."
+# Process scRNAseq real datasets if they exist
+for DATASET in covid19-pbmc pancreas; do
+    # Check correct path based on script examination
+    if [ -f "data/real/${DATASET}/${DATASET}.h5ad" ]; then
+        echo "Preprocessing $DATASET dataset with diffusion map..."
+        # Real scRNAseq datasets use 30 diffusion components
         bash bin/dataset_preprocessing.sh $DATASET X_pca 30 DM
         
         echo "Creating PCA for $DATASET..."
         bash bin/dataset_preprocessing.sh $DATASET X_pca 0 PCA
     else
-        echo "Skipping $DATASET (file not found: $DATASET_PATH)"
+        echo "Skipping $DATASET (file not found: data/real/${DATASET}/${DATASET}.h5ad)"
+    fi
+done
+
+# Process CyTOF real datasets if they exist
+for DATASET in bcr-xl levine32; do
+    # Check correct path based on script examination
+    if [ -f "data/real/${DATASET}/${DATASET}.h5ad" ]; then
+        echo "Preprocessing $DATASET dataset with diffusion map..."
+        # For CyToF datasets, the length of adata.var_names is too small for 30 diffusion map components, use 5.
+        bash bin/dataset_preprocessing.sh $DATASET X_pca 5 DM
+        
+        echo "Preprocessing $DATASET dataset with PCA..."
+        # For CyToF datasets, the X_pca is expression matrix itself because of the low dimension of ad.var_names.
+        bash bin/dataset_preprocessing.sh $DATASET X_pca 0 PCA
+    else
+        echo "Skipping $DATASET - dataset file not found at data/real/${DATASET}/${DATASET}.h5ad"
     fi
 done
 
@@ -133,14 +147,30 @@ for DATASET in linear branch cluster; do
     bash bin/modified_benchmarkda.sh $DATASET pca No PCA 0
 done
 
-# For real datasets if available
-for DATASET in covid19-pbmc bcr-xl levine32 pancreas; do
+# For scRNAseq real datasets if they exist
+for DATASET in covid19-pbmc pancreas; do
     if [ -f "data/real/${DATASET}/${DATASET}.h5ad" ]; then
-        echo "Generating labels for $DATASET with diffusion map..."
+        echo "Generating synthetic labels for $DATASET with diffusion map..."
+        # Real scRNAseq datasets use 30 diffusion components
         bash bin/modified_benchmarkda_dm_all.sh $DATASET dm No DM 30
         
         echo "Generating labels for $DATASET with PCA..."
         bash bin/modified_benchmarkda.sh $DATASET pca No PCA 0
+    fi
+done
+
+# For CyTOF real datasets if they exist
+for DATASET in bcr-xl levine32; do
+    if [ -f "data/real/${DATASET}/${DATASET}.h5ad" ]; then
+        echo "Generating synthetic labels for $DATASET with diffusion map..."
+       # For CyToF datasets, the length of adata.var_names is too small for 30 diffusion map components, use 5.
+        bash bin/modified_benchmarkda_dm_all.sh $DATASET dm No DM 5
+        
+        echo "Generating synthetic labels for $DATASET with PCA..."
+        # For CyToF datasets, the X_pca is expression matrix itself because of the low dimension of ad.var_names.
+        bash bin/modified_benchmarkda.sh $DATASET pca No PCA 0
+    else
+        echo "Skipping $DATASET - dataset file not found"
     fi
 done
 
@@ -183,16 +213,8 @@ run_benchmark() {
     
     chmod +x $script_name
     
-    # Check if we're running in a Slurm environment
-    if command -v sbatch &> /dev/null; then
-        echo "Submitting $script_name to Slurm..."
-        sbatch $script_name
-    else
-        echo "Executing $script_name locally (no Slurm detected)..."
-        # If not running on Slurm, we'll execute directly
-        # Note: This may take a long time as it runs sequentially
-        ./$script_name
-    fi
+    echo "Executing $script_name ..."
+    ./$script_name
 }
 
 # Process synthetic datasets
@@ -206,8 +228,8 @@ for DATASET in linear branch cluster; do
     run_benchmark $DATASET "r" "pca" 0 "PCA"
 done
 
-# Process real datasets if available
-for DATASET in covid19-pbmc bcr-xl levine32 pancreas; do
+# For scRNAseq real datasets if they exist
+for DATASET in covid19-pbmc pancreas; do
     if [ -f "data/real/${DATASET}/${DATASET}.h5ad" ]; then
         # Python methods
         run_benchmark $DATASET "python" "dm" 30 "DM"
@@ -215,6 +237,19 @@ for DATASET in covid19-pbmc bcr-xl levine32 pancreas; do
         
         # R methods
         run_benchmark $DATASET "r" "dm" 30 "DM"
+        run_benchmark $DATASET "r" "pca" 0 "PCA"
+    fi
+done
+
+# For CyTOF real datasets if they exist
+for DATASET in bcr-xl levine32; do
+    if [ -f "data/real/${DATASET}/${DATASET}.h5ad" ]; then
+        # Python methods
+        run_benchmark $DATASET "python" "dm" 5 "DM"
+        run_benchmark $DATASET "python" "pca" 0 "PCA"
+        
+        # R methods
+        run_benchmark $DATASET "r" "dm" 5 "DM"
         run_benchmark $DATASET "r" "pca" 0 "PCA"
     fi
 done

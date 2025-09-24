@@ -49,28 +49,27 @@ def main():
     for i in range(1):
         iteration_directory = input_file / f'iteration_{i}'
         output_dir_i = output_dir / f'iteration_{i}'
-        
         # Load dataset
         adata = data_loader.load_dataset(
-            args.file_path, 
-            iteration_directory, 
-            args.ds_type, 
-            args.pop, 
-            args.pop_enr, 
-            args.seed, 
-            args.batch_sd, 
+            args.file_path,
+            iteration_directory,
+            args.ds_type,
+            args.pop,
+            args.pop_enr,
+            args.seed,
+            args.batch_sd,
             args.layer_embedding
         )
-        
+
         # Run Mellon with appropriate parameters
         if args.hyperparameter == "No":
             log_fold_change_mean, zscores = runMellon.runMELLON(
-                adata, args.mellon_d_method, args.norm_density, "synth_labels", args.n_dm, args.ls_factor
+                adata, args.mellon_d_method, args.norm_density, "synth_labels", args.ls_mode, args.layer_embedding, args.n_dm, args.ls_factor
             )
         elif args.hyperparameter == "Yes":
             log_fold_change_mean, zscores = runMellon.runMELLON_synchronized(
-                adata, args.mellon_d_method, args.norm_density, args.corrected, "synth_labels", args.n_dm, 
-                args.ls_factor, args.ls_mode
+                adata, args.mellon_d_method, args.norm_density, args.corrected, "synth_labels", args.n_dm,
+                args.ls_factor, args.ls_mode, args.layer_embedding
             )
         
         # Prepare results

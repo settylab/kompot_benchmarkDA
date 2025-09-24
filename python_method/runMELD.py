@@ -6,13 +6,13 @@ import pandas as pd
 import scanpy as sc
 import anndata as ad
 
-
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import precision_recall_curve, average_precision_score
 from sklearn import metrics
 
 from sklearn.preprocessing import normalize
 import graphtools as gt
+import shared_embedding_utils
 
 def replicate_normalize_densities(sample_densities, replicate):
     sample_likelihoods = sample_densities.copy()
@@ -22,22 +22,27 @@ def replicate_normalize_densities(sample_densities, replicate):
     return sample_likelihoods
 
 
-def runMELD(adata,k,sample_col, label_col, layer_embedding,beta):
+def runMELD(adata,k,sample_col, label_col, layer_embedding,beta, use_dm=False, dm_comp=10):
     # add sample and label dataframe to adata
     samplem = pd.DataFrame(index=pd.Series(adata.obs[sample_col]).unique())
     samplem.loc[:,label_col] = \
         adata.obs[[sample_col, label_col]].groupby(by=sample_col).aggregate(lambda x: x[0])
     adata.uns['samplem'] = samplem
-    
+
     if adata.n_vars <= 50:
         G = gt.Graph(adata.X, knn=k, use_pygsp=True)
     else:
-        if layer_embedding not in adata.obsm:
-                # perform pca and use it to generate graph
-            raise ValueError(f"Embedding '{layer_embedding}' not found in adata.obsm. "
-                         "Please make sure it has been calculated.")
-        else:
-            G = gt.Graph(adata.obsm[f"{layer_embedding}_batch"], knn=k, use_pygsp=True)
+        # Use shared embedding utilities for consistency
+        adata = shared_embedding_utils.ensure_batch_corrected_embeddings(
+            adata, layer_embedding=layer_embedding, dm_comp=dm_comp
+        )
+
+        # Get the appropriate embedding matrix
+        X, embedding_name = shared_embedding_utils.get_embedding_for_method(
+            adata, use_dm=use_dm, dm_comp=dm_comp
+        )
+
+        G = gt.Graph(X, knn=k, use_pygsp=True)
         
     meld_op = meld.MELD(beta=beta)
         # generate the densities of each sample

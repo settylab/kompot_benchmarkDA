@@ -11,6 +11,8 @@ from sklearn.metrics import precision_recall_curve, average_precision_score
 from sklearn import metrics
 
 import logging
+import shared_embedding_utils
+
 logger = logging.getLogger("mellon")
 
 def compute_z_score(dens1, dens2, var1, var2, eps=1e-16):
@@ -24,33 +26,21 @@ def runMELLON(
 
     conditions = adata.obs[label_col].unique()
 
-    if adata.n_vars <= 50:
-        if ls_mode == "PCA":
-            if not isinstance(adata.X, np.ndarray):
-                adata.obsm[f"{layer_embedding}_batch"] = adata.X.toarray()
-            else:
-                adata.obsm[f"{layer_embedding}_batch"] = adata.X
-        elif ls_mode == "DM":
-            adata.obsm[f"{layer_embedding}_batch"] = adata.obsm[f"{layer_embedding}_batch"]
-    else:
-        if f"{layer_embedding}_batch" not in adata.obsm:
-            logging.info("Running PCA")
-            # perform pca and use it to generate graph
-            sc.tl.pca(adata, n_comps=50)
-            adata.obsm[f"{layer_embedding}_batch"] = adata.obsm["X_pca"]
-    if dm_comp > 0:
-       if ("DM_EigenVectors" not in adata.obsm
-            or adata.obsm["DM_EigenVectors"].shape[1] != dm_comp):
-            palantir.utils.run_diffusion_maps(adata, n_components=dm_comp, pca_key=f"{layer_embedding}_batch")
-            X = adata.obsm["DM_EigenVectors"]
-            cov_func_curry = mellon.cov.Matern52
-    else:
+    # Use shared embedding utilities for consistency
+    use_dm = (dm_comp > 0)
+    adata = shared_embedding_utils.ensure_batch_corrected_embeddings(
+        adata, layer_embedding=layer_embedding, dm_comp=dm_comp
+    )
 
-        X = adata.obsm[f"{layer_embedding}_batch"]
-        if not isinstance(X, np.ndarray):
-            X = X.to_numpy() 
-        ls_factor *= 2
-        cov_func_curry = mellon.cov.Matern52
+    # Get the appropriate embedding
+    X, embedding_name = shared_embedding_utils.get_embedding_for_method(
+        adata, use_dm=use_dm, dm_comp=dm_comp
+    )
+
+    # Set covariance function and adjust ls_factor for PCA
+    cov_func_curry = mellon.cov.Matern52
+    if not use_dm:
+        ls_factor *= 2  # Adjust ls_factor for PCA mode
     # X = adata.obsm["X_pca"]
 
     densities = list()
@@ -101,7 +91,7 @@ def runMELLON(
 
 def runMELLON_synchronized(
     adata, mellon_d_method: str, norm_density:str, corrected:str, label_col: str, dm_comp,  ls_factor: float , ls_mode:str,layer_embedding):
-    
+
     """
     This function is different from the above runMellon function, since it estimated hyper-parameters including mu for Gaussian Distribution, landscale factor and d.
     ls_mode: if PCA: ls small; if DM: ls large
@@ -110,39 +100,25 @@ def runMELLON_synchronized(
 
     conditions = adata.obs[label_col].unique()
 
-    if adata.n_vars <= 50:
-        if ls_mode == "PCA":
-            if not isinstance(adata.X, np.ndarray):
-                adata.obsm[f"{layer_embedding}_batch"] = adata.X.toarray()
-            else:
-                adata.obsm[f"{layer_embedding}_batch"] = adata.X
-        elif ls_mode == "DM":
-            adata.obsm[f"{layer_embedding}_batch"] = adata.obsm[f"{layer_embedding}_batch"]
-    else:
-        if f"{layer_embedding}_batch" not in adata.obsm:
-            logging.info("Running PCA")
-            # perform pca and use it to generate graph
-            sc.tl.pca(adata, n_comps=50)
-            adata.obsm[f"{layer_embedding}_batch"] = adata.obsm["X_pca"]
-            
-    if dm_comp > 0:
-       if ("DM_EigenVectors" not in adata.obsm
-            or adata.obsm["DM_EigenVectors"].shape[1] != dm_comp):
-            palantir.utils.run_diffusion_maps(adata, n_components=dm_comp, pca_key=f"{layer_embedding}_batch")
-            X = adata.obsm["DM_EigenVectors"]
-            cov_func_curry = mellon.cov.Matern52
+    # Use shared embedding utilities for consistency
+    use_dm = (dm_comp > 0)
+    adata = shared_embedding_utils.ensure_batch_corrected_embeddings(
+        adata, layer_embedding=layer_embedding, dm_comp=dm_comp
+    )
 
-    else:
-        X = adata.obsm[f"{layer_embedding}_batch"]
-        if not isinstance(X, np.ndarray):
-            X = X.to_numpy() 
-        if ls_mode == "DM":
-            ls_factor = ls_factor
-            logger.info(f"ls_factor large, not change,ls_factor={ls_factor}")
-        elif ls_mode == "PCA":
+    # Get the appropriate embedding
+    X, embedding_name = shared_embedding_utils.get_embedding_for_method(
+        adata, use_dm=use_dm, dm_comp=dm_comp
+    )
+
+    # Set covariance function and adjust ls_factor based on mode
+    cov_func_curry = mellon.cov.Matern52
+    if not use_dm:
+        if ls_mode == "PCA":
             ls_factor *= 2
             logger.info(f"ls_factor small, ls_factor={ls_factor}")
-        cov_func_curry = mellon.cov.Matern52
+        else:
+            logger.info(f"ls_factor large, not change,ls_factor={ls_factor}")
     # X = adata.obsm["X_pca"]
     
     # # compute hyper parameters

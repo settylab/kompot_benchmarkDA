@@ -67,6 +67,39 @@ PYTHON_METHODS = {
             "log_fold_change_threshold": 1.0,
             "ptp_threshold": 0.05
         }
+    },
+    "kompot_pca": {
+        "script": "kompot_bm.py",
+        "params": {
+            "ls_factor": 10.0,
+            "n_landmarks": None,
+            "log_fold_change_threshold": 1.0,
+            "ptp_threshold": 0.05,
+            "force_pca": True
+        }
+    },
+    "mellon_pca": {
+        "script": "Mellon_bm.py",
+        "params": {
+            "mellon_d_method": "fractal",
+            "norm_density": "No",
+            "hyperparameter": "Yes",
+            "corrected": "No",
+            "ls_factor": 1.5,
+            "force_pca": True
+        }
+    },
+    "meld_pca": {
+        "script": "meld_bm.py",
+        "params": {
+            "force_pca": True
+        }
+    },
+    "cna_pca": {
+        "script": "CNA_bm.py",
+        "params": {
+            "force_pca": True
+        }
     }
 }
 
@@ -96,9 +129,9 @@ COMMON_PARAMS = {
     "layer_embedding_dm": "DM_EigenVectors",
 }
 
-def get_python_method_cmd(method, file_path, pop, pop_enr, pop_col, ds_type, batch_sd, 
-                         input_file, seed, layer_embedding, output_dir, k=30, beta=None, 
-                         n_dm=0, ls_mode="PCA"):
+def get_python_method_cmd(method, file_path, pop, pop_enr, pop_col, ds_type, batch_sd,
+                         input_file, seed, layer_embedding, output_dir, k=30, beta=None,
+                         n_dm=10, ls_mode="DM"):
     """Generate a Python method command with appropriate parameters."""
     
     method_config = PYTHON_METHODS[method]
@@ -119,6 +152,9 @@ def get_python_method_cmd(method, file_path, pop, pop_enr, pop_col, ds_type, bat
     
     # Add method-specific parameters
     if script == "Mellon_bm.py":
+        # Force PCA mode if specified
+        if method_params.get('force_pca'):
+            n_dm = 0
         cmd += f"    --n_dm {n_dm} \\\n"
         cmd += f"    --mellon_d_method \"{method_params.get('mellon_d_method', 'fractal')}\" \\\n"
         cmd += f"    --norm_density \"{method_params.get('norm_density', 'No')}\" \\\n"
@@ -127,10 +163,18 @@ def get_python_method_cmd(method, file_path, pop, pop_enr, pop_col, ds_type, bat
         cmd += f"    --ls_factor {method_params.get('ls_factor', 1.5)} \\\n"
         cmd += f"    --ls_mode {ls_mode} \\\n"
     elif script == "meld_bm.py":
+        # Force PCA mode if specified
+        if method_params.get('force_pca'):
+            n_dm = 0
         cmd += f"    --beta {beta if beta else method_params.get('beta', 40)} \\\n"
         cmd += f"    --k_meld {k} \\\n"
+        cmd += f"    --n_dm {n_dm} \\\n"
     elif script == "CNA_bm.py":
+        # Force PCA mode if specified
+        if method_params.get('force_pca'):
+            n_dm = 0
         cmd += f"    --k_cna {k} \\\n"
+        cmd += f"    --n_dm {n_dm} \\\n"
     elif script == "kompot_bm.py":
         cmd += f"    --n_dm {n_dm} \\\n"
         cmd += f"    --ls_factor {method_params.get('ls_factor', 10.0)} \\\n"
@@ -138,6 +182,8 @@ def get_python_method_cmd(method, file_path, pop, pop_enr, pop_col, ds_type, bat
             cmd += f"    --n_landmarks {method_params.get('n_landmarks')} \\\n"
         cmd += f"    --log_fold_change_threshold {method_params.get('log_fold_change_threshold', 1.0)} \\\n"
         cmd += f"    --ptp_threshold {method_params.get('ptp_threshold', 0.05)} \\\n"
+        if method_params.get('force_pca'):
+            cmd += f"    --force_pca \\\n"
 
     cmd += f"    --output_dir {output_dir}/"
 

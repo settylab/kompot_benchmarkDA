@@ -31,6 +31,7 @@ def main():
     parser.add_argument('--seed', type=int, help='Seed for random number generation')
     parser.add_argument('--layer_embedding', type=str, help='Layer embedding, X_pca or DM_EigenVectors')
     parser.add_argument('--k_cna', type=int, help='K CNA value')
+    parser.add_argument('--n_dm', type=int, default=0, help='Number of diffusion component for CNA (0 = PCA mode)')
     parser.add_argument('--output_dir', type=str, required=True, help='Output directory path')
 
     # Parse arguments
@@ -56,23 +57,20 @@ def main():
             args.layer_embedding
         )
 
-        # Prepare data for CNA
-        # CNA requires a specific AnnData format
-        adata_temp = anndata.AnnData(
-            adata.obsm[f"{args.layer_embedding}_batch"],
-            obs=adata.obs,
-            dtype=np.float64
-        )
-        adata_temp.obs.index.name = "cell"
-        
-        # Run CNA
+        # Determine embedding mode: DM by default, PCA if n_dm=0
+        use_dm = (args.n_dm > 0)
+
+        # Run CNA with standardized embedding handling
         cna_res, md = runCNA.runCNA_func(
-            adata_temp,
+            adata,
             args.k_cna,
             "synth_samples",
             "synth_labels",
             {'Condition1': 0, "Condition2": 1},
-            "synth_batches"
+            "synth_batches",
+            layer_embedding=args.layer_embedding,
+            use_dm=use_dm,
+            dm_comp=args.n_dm
         )
         
         # Prepare results

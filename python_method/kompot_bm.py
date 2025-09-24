@@ -34,6 +34,7 @@ def main():
     parser.add_argument('--n_landmarks', type=int, default=None, help='Number of landmarks for Kompot')
     parser.add_argument('--log_fold_change_threshold', type=float, default=1.0, help='Log fold change threshold')
     parser.add_argument('--ptp_threshold', type=float, default=0.05, help='Peak-to-peak threshold')
+    parser.add_argument('--force_pca', action='store_true', help='Force PCA mode even if n_dm > 0')
     parser.add_argument('--output_dir', type=str, required=True, help='Output directory path')
 
     # Parse arguments
@@ -60,17 +61,14 @@ def main():
             args.layer_embedding
         )
 
-        # Determine the embedding key
-        if args.n_dm > 0 and args.layer_embedding == "DM_EigenVectors":
-            obsm_key = "DM_EigenVectors"
-        else:
-            obsm_key = f"{args.layer_embedding}_batch"
+        # Determine embedding mode: DM by default, PCA if n_dm=0 or force_pca=True
+        use_dm = (args.n_dm > 0) and not args.force_pca
 
-        # Run Kompot
+        # Run Kompot with standardized embedding handling
         log_fold_change_mean, zscores = runKompot.runKOMPOT_with_params(
             adata=adata,
             label_col="synth_labels",
-            obsm_key=obsm_key,
+            use_dm=use_dm,
             dm_comp=args.n_dm,
             ls_factor=args.ls_factor,
             n_landmarks=args.n_landmarks,

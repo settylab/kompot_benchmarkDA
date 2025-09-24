@@ -31,6 +31,7 @@ def main():
     parser.add_argument('--layer_embedding', type=str, help='Layer embedding, X_pca or DM_EigenVectors')
     parser.add_argument('--beta', type=float, help='Beta value')
     parser.add_argument('--k_meld', type=int, help='K MELD value')
+    parser.add_argument('--n_dm', type=int, default=0, help='Number of diffusion component for MELD (0 = PCA mode)')
     parser.add_argument('--output_dir', type=str, required=True, help='Output directory path')
 
     # Parse arguments
@@ -57,14 +58,19 @@ def main():
             args.layer_embedding
         )
         
-        # Run MELD
+        # Determine embedding mode: DM by default, PCA if n_dm=0
+        use_dm = (args.n_dm > 0)
+
+        # Run MELD with standardized embedding handling
         sample_likelihoods_meld, samplem = runMELD.runMELD(
-            adata, 
-            args.k_meld, 
-            "synth_samples", 
-            "synth_labels", 
-            args.layer_embedding, 
-            args.beta
+            adata,
+            args.k_meld,
+            "synth_samples",
+            "synth_labels",
+            args.layer_embedding,
+            args.beta,
+            use_dm=use_dm,
+            dm_comp=args.n_dm
         )
         
         # Prepare results

@@ -24,6 +24,7 @@ import os.path as osp
 
 import cna
 from multianndata import MultiAnnData
+import shared_embedding_utils
 
 def runCNA_func(
     adata: anndata.AnnData,
@@ -32,9 +33,26 @@ def runCNA_func(
     label_col: str,
     encode_label_dict: dict = {'Condition1': 0, "Condition2": 1},
     batch_col: str = None,
+    layer_embedding: str = "X_pca",
+    use_dm: bool = False,
+    dm_comp: int = 10,
 ):
-    # build the kNN graph
-    sc.pp.neighbors(adata, n_neighbors=k)
+    # Ensure consistent embeddings
+    adata = shared_embedding_utils.ensure_batch_corrected_embeddings(
+        adata, layer_embedding=layer_embedding, dm_comp=dm_comp
+    )
+
+    # Get the appropriate embedding matrix for building kNN graph
+    X, embedding_name = shared_embedding_utils.get_embedding_for_method(
+        adata, use_dm=use_dm, dm_comp=dm_comp
+    )
+
+    # Store the embedding matrix for scanpy's neighbor computation
+    adata.obsm['X_cna_embedding'] = X
+
+    # Build the kNN graph using the standardized embedding
+    sc.pp.neighbors(adata, n_neighbors=k, use_rep='X_cna_embedding')
+
     # create multi-anndata and convert condition and batch labels to numeric vars
     adata.obs['sample_id'] = adata.obs[sample_col].astype('category').cat.codes + 1
     adata.obs['label_id'] = adata.obs[label_col].map(encode_label_dict).astype(int)

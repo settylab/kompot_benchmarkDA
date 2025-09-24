@@ -4,6 +4,7 @@ import pandas as pd
 import scanpy as sc
 import anndata as ad
 import logging
+import shared_embedding_utils
 
 logger = logging.getLogger("kompot")
 
@@ -151,41 +152,43 @@ def runKOMPOT(
 def runKOMPOT_with_params(
     adata,
     label_col: str,
-    obsm_key: str = "X_pca",
+    use_dm: bool = True,
     dm_comp: int = 10,
     ls_factor: float = 10.0,
     **kwargs
 ):
     """
-    Wrapper function that handles diffusion map computation if needed.
-    Similar interface to runMellon functions.
+    Wrapper function that ensures consistent embeddings across all methods.
+
+    Parameters:
+    -----------
+    adata : AnnData
+        Annotated data object
+    label_col : str
+        Column name for condition labels
+    use_dm : bool, default True
+        Whether to use diffusion maps (True) or batch-corrected PCA (False)
+    dm_comp : int, default 10
+        Number of diffusion map components
+    ls_factor : float, default 10.0
+        Kompot's default length scale factor
+    **kwargs : additional arguments
+        Passed to runKOMPOT
     """
 
-    # Handle diffusion map computation if requested
-    if dm_comp > 0 and obsm_key == "DM_EigenVectors":
-        if ("DM_EigenVectors" not in adata.obsm
-            or adata.obsm["DM_EigenVectors"].shape[1] != dm_comp):
+    # Ensure consistent embeddings using shared utility
+    adata = shared_embedding_utils.ensure_batch_corrected_embeddings(
+        adata, dm_comp=dm_comp
+    )
 
-            logger.info(f"Computing diffusion maps with {dm_comp} components")
-            # Ensure we have PCA first
-            if "X_pca" not in adata.obsm:
-                sc.tl.pca(adata, n_comps=50)
+    # Get the appropriate obsm key
+    obsm_key = shared_embedding_utils.get_obsm_key_for_method(use_dm=use_dm)
 
-            # Use palantir for diffusion maps (consistent with mellon implementation)
-            try:
-                import palantir
-                palantir.utils.run_diffusion_maps(adata, n_components=dm_comp, pca_key="X_pca")
-            except ImportError:
-                logger.warning("Palantir not available, using PCA instead of diffusion maps")
-                obsm_key = "X_pca"
-                dm_comp = 0
-
-    elif dm_comp == 0 or obsm_key == "X_pca":
-        # Use PCA embedding
-        obsm_key = "X_pca"
-        if "X_pca" not in adata.obsm:
-            logger.info("Computing PCA")
-            sc.tl.pca(adata, n_comps=50)
+    logger.info(f"Kompot using embedding: {obsm_key}")
+    if use_dm:
+        logger.info(f"Diffusion maps with {dm_comp} components (computed from batch-corrected PCA)")
+    else:
+        logger.info("Batch-corrected PCA")
 
     return runKOMPOT(
         adata=adata,

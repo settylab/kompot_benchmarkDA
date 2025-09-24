@@ -8,8 +8,9 @@ if command -v module &> /dev/null; then
     module load cuDNN/8.4.1.50-CUDA-11.7.0 || true
 fi
 
-# Set up micromamba environment
-eval "$(micromamba shell hook --shell bash 2>/dev/null)" || echo "micromamba not available, assuming environment is already activated"
+# Load environment detection utilities
+script_dir="$(dirname "${BASH_SOURCE[0]}")"
+source "${script_dir}/bin/environment_utils.sh"
 
 # Set slurm parameters
 time=1-00:00:00
@@ -81,9 +82,8 @@ for p in $pops; do
                         
                         echo "Running $jobid method=$method..."
                         
-                        # Activate environment (with error handling for non-slurm environments)
-                        micromamba deactivate 2>/dev/null || true
-                        micromamba activate kompot_v1 2>/dev/null || echo "Using existing environment"
+                        # Activate benchmarkda environment (user-agnostic)
+                        activate_benchmarkda_environment || echo "Using existing environment"
                         
                         # Execute the appropriate method based on selection
                         if [[ "$method" == "kompot" ]]; then

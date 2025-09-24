@@ -27,18 +27,31 @@ The benchmark evaluates these methods using both real datasets and synthetic top
 
 Our implementation requires a Slurm job scheduler since we need to run thousands of parallel jobs.
 
+### Quick Setup
+
+```bash
+# Create the environment (choose one):
+bash setup_environment.sh --minimal    # Flexible versions
+bash setup_environment.sh --complete   # Pinned versions
+
+# Run the benchmark:
+bash main.sh
+```
+
 ### Dependencies
 
 - **Python environment** (for Python methods):
-  - Managed with micromamba
-  - Two environment file options:
-    - `environment_full.yml`: Complete environment with exact versions (recommended for reproducibility)
-    - `environment_minimal.yml`: Minimal environment with flexible versioning (for cross-platform compatibility)
-  - Original configuration in `differential_abundance_env_list.yml` (Linux-specific, kept for reference)
+  - Environment name: `benchmarkda` (user-agnostic)
+  - Managed with conda/mamba/micromamba
+  - Two environment options:
+    - `environment_complete.yml`: Pinned versions (recommended for reproducibility)
+    - `environment_minimal.yml`: Flexible versions (better cross-platform compatibility)
+  - Includes kompot from latest master: `git+https://github.com/settylab/kompot.git@master`
 
 - **R environment** (for R methods):
   - Managed with renv
   - Configuration in `renv.lock`
+  - Required packages: miloR, DAseq, cydar, SingleCellExperiment
 
 ## Datasets
 
@@ -68,6 +81,10 @@ The entire workflow is orchestrated by the `main.sh` script, which:
 To run the full benchmark:
 
 ```bash
+# First-time setup:
+bash setup_environment.sh
+
+# Run benchmark:
 bash main.sh
 ```
 

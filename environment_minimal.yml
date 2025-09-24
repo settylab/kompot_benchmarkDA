@@ -1,4 +1,4 @@
-name: diffabundance
+name: benchmarkda
 channels:
   - conda-forge
   - bioconda
@@ -10,17 +10,27 @@ dependencies:
   - scanpy
   - scikit-learn
   - matplotlib
+  - seaborn
   - anndata
   - h5py
   - rpy2
   - r-base
+  - r-argparse
+  - r-tidyverse
+  - r-singlecellexperiment
+  - r-scran
+  - r-seurat
+  - r-igraph
   - jupyterlab
   - tqdm
   - pip
-  - graphtools
+  - git
   - pip:
     - meld
     - cna
     - multianndata
     - palantir
     - anndata2ri
+    - graphtools
+    - mellon
+    - git+https://github.com/settylab/kompot.git@master

@@ -1,0 +1,37 @@
+name: benchmarkda
+channels:
+  - conda-forge
+  - bioconda
+  - nodefaults
+dependencies:
+  - python=3.9
+  - numpy=1.24.2
+  - pandas=2.0.3
+  - scanpy=1.9.5
+  - scikit-learn=1.3.0
+  - matplotlib=3.7.2
+  - seaborn=0.12.2
+  - anndata=0.9.2
+  - h5py=3.9.0
+  - rpy2=3.5.14
+  - r-base=4.3.1
+  - r-argparse=2.2.2
+  - r-tidyverse=2.0.0
+  - r-singlecellexperiment=1.22.0
+  - r-scran=1.28.2
+  - r-seurat=4.3.0
+  - r-igraph=1.5.1
+  - r-matrix=1.6_1
+  - jupyterlab=4.0.6
+  - tqdm=4.66.1
+  - pip=23.2.1
+  - git=2.42.0
+  - pip:
+    - meld==1.0.2
+    - cna==0.1.8
+    - multianndata==0.2.4
+    - palantir==1.3.6
+    - anndata2ri==1.3.1
+    - graphtools==1.5.2
+    - mellon==1.4.2
+    - git+https://github.com/settylab/kompot.git@master

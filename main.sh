@@ -21,37 +21,16 @@ mkdir -p SlurmLog
 # ====================================================================
 echo "Setting up computational environments..."
 
-# Environment Options
-# Using kompot_v1 environment which includes kompot and other DA methods
-PYTHON_ENV="kompot_v1"
+# Load environment detection utilities
+source "$(dirname "$0")/bin/environment_utils.sh"
 
-# Set up mamba/micromamba if available
-if command -v mamba &> /dev/null; then
-    MAMBA_CMD="mamba"
-elif command -v micromamba &> /dev/null; then
-    MAMBA_CMD="micromamba"
-else
-    MAMBA_CMD=""
-fi
-
-if [ -n "$MAMBA_CMD" ]; then
-    # Check if kompot_v1 environment exists
-    if $MAMBA_CMD env list | grep -q "kompot_v1"; then
-        echo "Using existing kompot_v1 environment (includes Kompot, MELD, CNA, Mellon methods)"
-        eval "$($MAMBA_CMD shell hook --shell bash 2>/dev/null)"
-        $MAMBA_CMD activate $PYTHON_ENV 2>/dev/null
-    else
-        echo "ERROR: kompot_v1 environment not found!"
-        echo "Please create the kompot_v1 environment with required packages:"
-        echo "  - Python packages: numpy, pandas, scanpy, meld, cna, palantir, anndata2ri, mellon, kompot"
-        echo "Or fall back to environment_full.yml for other methods (without kompot)"
-        exit 1
-    fi
-else
-    echo "WARNING: mamba/micromamba not found. Assuming you are running in kompot_v1 environment."
-    echo "Make sure all required dependencies are installed including:"
-    echo "  - Python packages: numpy, pandas, scanpy, meld, cna, palantir, anndata2ri, mellon, kompot"
-    echo "  - R packages: managed through renv"
+# Detect and activate benchmarkda environment
+echo "Detecting and activating Python environment..."
+if ! activate_benchmarkda_environment; then
+    echo "ERROR: Could not set up Python environment!"
+    echo "Please run: bash setup_environment.sh"
+    echo "Or manually activate an environment with all required DA packages."
+    exit 1
 fi
 
 # R environment (for Milo, DAseq, CyDAR methods)
@@ -256,12 +235,14 @@ done
 echo "====================================================================================="
 echo "Benchmark process completed"
 echo "====================================================================================="
+ENV_NAME=$(detect_benchmarkda_environment)
 echo "ENVIRONMENT SETUP:"
-echo "  - Using kompot_v1 environment for Python methods (includes all DA tools)"
+echo "  - Using environment: $ENV_NAME (includes all DA tools)"
 echo "  - R methods use renv for dependency management"
-echo "  - Two environment files are also provided for alternative setups:"
-echo "    1. environment_full.yml: Complete environment with exact versions"
-echo "    2. environment_minimal.yml: Minimal environment with flexible versioning"
+echo "  - Environment setup files available:"
+echo "    1. environment_complete.yml: Pinned versions (reproducibility)"
+echo "    2. environment_minimal.yml: Flexible versions (compatibility)"
+echo "  - To recreate environment: bash setup_environment.sh"
 echo ""
 echo "EXECUTION MODE:"
 if command -v sbatch &> /dev/null; then

@@ -22,7 +22,7 @@ from config.method_config import get_python_method_cmd, get_r_method_cmd
 def generate_benchmark_script(args):
     """Generate a shell script for running benchmark analyses."""
     
-    # Base script content with environment setup
+    # Base script content with user-agnostic environment setup
     script_content = """#!/bin/bash
 
 # Check if module command is available and load modules on systems that support it
@@ -33,9 +33,6 @@ if command -v module &> /dev/null; then
     module load cuDNN/8.4.1.50-CUDA-11.7.0 || true
 fi
 
-# Set up micromamba environment
-eval "$(micromamba shell hook --shell bash 2>/dev/null)" || echo "micromamba not available, assuming environment is already activated"
-
 # Set slurm parameters
 time=1-00:00:00
 partition=campus-new
@@ -45,6 +42,9 @@ script_dir="$(dirname "$script_path")"
 if [ -z "${root+x}" ]; then
     export root="$(readlink -f "$script_dir/..")"
 fi
+
+# Load environment detection utilities
+source "${root}/bin/environment_utils.sh"
 
 """
     
@@ -148,9 +148,8 @@ for p in $pops; do
     # Method-specific commands
     if args.method_type == "python":
         script_content += """                        
-                        # Activate environment (with error handling for non-slurm environments)
-                        micromamba deactivate 2>/dev/null || true
-                        micromamba activate kompot_v1 2>/dev/null || echo "Using existing environment"
+                        # Activate benchmarkda environment (user-agnostic)
+                        activate_benchmarkda_environment || echo "Using existing environment"
                         
                         # Execute the appropriate method based on selection
 """

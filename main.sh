@@ -22,37 +22,36 @@ mkdir -p SlurmLog
 echo "Setting up computational environments..."
 
 # Environment Options
-#  - environment_full.yml: Complete environment with exact versions (recommended for full reproducibility)
-#  - environment_minimal.yml: Minimal environment with flexible versioning (for compatibility on different platforms)
-#  - differential_abundance_env_list.yml: Original environment specification with full dependency tree (Linux-specific)
-ENV_FILE="environment_full.yml"
+# Using kompot_v1 environment which includes kompot and other DA methods
+PYTHON_ENV="kompot_v1"
 
-# Set up micromamba if available
-if command -v micromamba &> /dev/null; then
-    # Python environment (for MELD, CNA, Mellon methods)
-    if ! micromamba env list | grep -q "diffabundance"; then
-        echo "Creating Python environment with micromamba..."
-        echo "Using environment file: $ENV_FILE"
-        echo ""
-        echo "NOTE: Environment setup options:"
-        echo "  - For full reproducibility (exact versions): environment_full.yml"
-        echo "  - For better platform compatibility (flexible versions): environment_minimal.yml"
-        echo "  - To customize, edit main.sh and change ENV_FILE variable"
-        echo ""
-        micromamba create -n diffabundance -f $ENV_FILE -y
-    fi
-
-    eval "$(micromamba shell hook --shell bash 2>/dev/null)"
-    micromamba activate diffabundance 2>/dev/null
+# Set up mamba/micromamba if available
+if command -v mamba &> /dev/null; then
+    MAMBA_CMD="mamba"
+elif command -v micromamba &> /dev/null; then
+    MAMBA_CMD="micromamba"
 else
-    echo "WARNING: micromamba not found. Assuming you are running in a pre-configured environment."
-    echo "Make sure all required dependencies are installed."
-    echo ""
-    echo "Required dependencies include:"
-    echo "  - Python packages: numpy, pandas, scanpy, meld, cna, palantir, anndata2ri"
+    MAMBA_CMD=""
+fi
+
+if [ -n "$MAMBA_CMD" ]; then
+    # Check if kompot_v1 environment exists
+    if $MAMBA_CMD env list | grep -q "kompot_v1"; then
+        echo "Using existing kompot_v1 environment (includes Kompot, MELD, CNA, Mellon methods)"
+        eval "$($MAMBA_CMD shell hook --shell bash 2>/dev/null)"
+        $MAMBA_CMD activate $PYTHON_ENV 2>/dev/null
+    else
+        echo "ERROR: kompot_v1 environment not found!"
+        echo "Please create the kompot_v1 environment with required packages:"
+        echo "  - Python packages: numpy, pandas, scanpy, meld, cna, palantir, anndata2ri, mellon, kompot"
+        echo "Or fall back to environment_full.yml for other methods (without kompot)"
+        exit 1
+    fi
+else
+    echo "WARNING: mamba/micromamba not found. Assuming you are running in kompot_v1 environment."
+    echo "Make sure all required dependencies are installed including:"
+    echo "  - Python packages: numpy, pandas, scanpy, meld, cna, palantir, anndata2ri, mellon, kompot"
     echo "  - R packages: managed through renv"
-    echo ""
-    echo "To install micromamba, see: https://mamba.readthedocs.io/en/latest/installation.html"
 fi
 
 # R environment (for Milo, DAseq, CyDAR methods)

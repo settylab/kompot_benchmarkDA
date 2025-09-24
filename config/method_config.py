@@ -58,6 +58,15 @@ PYTHON_METHODS = {
     "cna": {
         "script": "CNA_bm.py",
         "params": {}
+    },
+    "kompot": {
+        "script": "kompot_bm.py",
+        "params": {
+            "ls_factor": 10.0,
+            "n_landmarks": None,
+            "log_fold_change_threshold": 1.0,
+            "ptp_threshold": 0.05
+        }
     }
 }
 
@@ -122,9 +131,16 @@ def get_python_method_cmd(method, file_path, pop, pop_enr, pop_col, ds_type, bat
         cmd += f"    --k_meld {k} \\\n"
     elif script == "CNA_bm.py":
         cmd += f"    --k_cna {k} \\\n"
-    
+    elif script == "kompot_bm.py":
+        cmd += f"    --n_dm {n_dm} \\\n"
+        cmd += f"    --ls_factor {method_params.get('ls_factor', 10.0)} \\\n"
+        if method_params.get('n_landmarks') is not None:
+            cmd += f"    --n_landmarks {method_params.get('n_landmarks')} \\\n"
+        cmd += f"    --log_fold_change_threshold {method_params.get('log_fold_change_threshold', 1.0)} \\\n"
+        cmd += f"    --ptp_threshold {method_params.get('ptp_threshold', 0.05)} \\\n"
+
     cmd += f"    --output_dir {output_dir}/"
-    
+
     return cmd
 
 def get_r_method_cmd(method, data_file, pop, pop_enr, pop_col, ds_type, batch_sd,

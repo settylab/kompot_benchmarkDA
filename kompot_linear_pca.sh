@@ -83,7 +83,7 @@ for p in $pops; do
                         
                         # Activate environment (with error handling for non-slurm environments)
                         micromamba deactivate 2>/dev/null || true
-                        micromamba activate diffabundance 2>/dev/null || echo "Using existing environment"
+                        micromamba activate kompot_v1 2>/dev/null || echo "Using existing environment"
                         
                         # Execute the appropriate method based on selection
                         if [[ "$method" == "kompot" ]]; then

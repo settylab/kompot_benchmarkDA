@@ -190,12 +190,13 @@ def get_python_method_cmd(method, file_path, pop, pop_enr, pop_col, ds_type, bat
     return cmd
 
 def get_r_method_cmd(method, data_file, pop, pop_enr, pop_col, ds_type, batch_sd,
-                    input_file, seed, layer_embedding, output_dir, k=30, resolution=0.5):
+                    input_file, seed, layer_embedding, output_dir, k=30, resolution=0.5,
+                    n_dm=10, scripts_dir="${root}/scripts"):
     """Generate an R method command with appropriate parameters."""
-    
+
     method_config = R_METHODS[method]
     method_name = method_config["method_name"]
-    
+
     cmd = f"Rscript {scripts_dir}/run_DA.r \\\n"
     cmd += f"    --file_path {data_file} \\\n"
     cmd += f"    --pop {pop} \\\n"
@@ -209,6 +210,7 @@ def get_r_method_cmd(method, data_file, pop, pop_enr, pop_col, ds_type, batch_sd
     cmd += f"    --layer_embedding {layer_embedding} \\\n"
     cmd += f"    --k {k} \\\n"
     cmd += f"    --resolution {resolution} \\\n"
+    cmd += f"    --n_dm {n_dm} \\\n"
     cmd += f"    --output_dir {output_dir}/"
     
     return cmd

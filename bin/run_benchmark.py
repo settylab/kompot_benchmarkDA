@@ -89,14 +89,32 @@ pop_col="{dataset_config['pop_col']}"
 
 """
 
-    # Add methods to use
+    # Add methods to use and environment variables
     if args.method_type == "python":
         script_content += f"""# Python methods to run
 methods="{' '.join(args.methods) if args.methods else ' '.join(PYTHON_METHODS.keys())}"
+
+# Set default values for environment variables if not set
+if [ -z "${{SEEDS+x}}" ]; then
+    SEEDS=({' '.join(map(str, SEEDS))})
+fi
+
+if [ -z "${{ENRICHMENT_VALUES+x}}" ]; then
+    ENRICHMENT_VALUES=({' '.join(map(str, ENRICHMENT_VALUES))})
+fi
 """
     else:
         script_content += f"""# R methods to run
 methods="{' '.join(args.methods) if args.methods else ' '.join(R_METHODS.keys())}"
+
+# Set default values for environment variables if not set
+if [ -z "${{SEEDS+x}}" ]; then
+    SEEDS=({' '.join(map(str, SEEDS))})
+fi
+
+if [ -z "${{ENRICHMENT_VALUES+x}}" ]; then
+    ENRICHMENT_VALUES=({' '.join(map(str, ENRICHMENT_VALUES))})
+fi
 """
 
     # Job counter and nested loops
@@ -132,17 +150,19 @@ for p in $pops; do
         script_content += """                        
                         # Activate environment (with error handling for non-slurm environments)
                         micromamba deactivate 2>/dev/null || true
-                        micromamba activate diffabundance 2>/dev/null || echo "Using existing environment"
+                        micromamba activate kompot_v1 2>/dev/null || echo "Using existing environment"
                         
                         # Execute the appropriate method based on selection
 """
         # Add Python method conditionals
         for method in PYTHON_METHODS:
             method_config = PYTHON_METHODS[method]
+            script_name = method_config["script"].replace('.py', '')
             script_content += f"""                        if [[ "$method" == "{method}" ]]; then
-                            {method_config["script"].split('.')[0]}_cmd
-                            exit $!
+                            {script_name}_cmd
+                        fi
 """
+        script_content += "                        exit 0\n"
     else:
         script_content += """
                         # Load R environment
@@ -153,26 +173,26 @@ for p in $pops; do
                         # Execute R method
 """
         # Add R method code
-        script_content += """                        Rscript ${root}/scripts/run_DA.r \\
-                            --file_path ${data_file} \\
-                            --pop ${p} \\
-                            --pop_enr ${enr} \\
-                            --pop_column ${pop_col} \\
-                            --ds_type ${data_id} \\
-                            --batch_sd ${batch_sd_num} \\
-                            --input_file ${data_dir}/${jobid}/ \\
-                            --package ${method} \\
-                            --seed ${seed} \\
-                            --layer_embedding ${layer_embedding} \\
-                            --k ${k} \\
-                            --resolution ${resolution} \\
-                            --output_dir ${save_path}/
-                        exit $!
+        script_content += """                        Rscript ${{root}}/scripts/run_DA.r \\
+                            --file_path ${{data_file}} \\
+                            --pop ${{p}} \\
+                            --pop_enr ${{enr}} \\
+                            --pop_column ${{pop_col}} \\
+                            --ds_type ${{data_id}} \\
+                            --batch_sd ${{batch_sd_num}} \\
+                            --input_file ${{data_dir}}/${{jobid}}/ \\
+                            --package ${{method}} \\
+                            --seed ${{seed}} \\
+                            --layer_embedding ${{layer_embedding}} \\
+                            --k ${{k}} \\
+                            --resolution ${{resolution}} \\
+                            --n_dm ${{n_dm}} \\
+                            --output_dir ${{save_path}}/
+                        exit 0
 """
 
-    # Close conditionals and loops
-    script_content += """                        fi
-                    done
+    # Close loops
+    script_content += """                    done
                 done
             done
         done
@@ -185,8 +205,10 @@ done
     # Add method command functions for Python methods
     if args.method_type == "python":
         for method in PYTHON_METHODS:
+            method_config = PYTHON_METHODS[method]
+            script_name = method_config["script"].replace('.py', '')
             script_content += f"""
-{method_config["script"].split('.')[0]}_cmd() {{
+{script_name}_cmd() {{
     python {method_config["script"]} \\
         --file_path ${{data_file}} \\
         --pop ${{p}} \\

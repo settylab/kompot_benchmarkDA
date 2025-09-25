@@ -17,10 +17,10 @@ dependencies:
   - r-base=4.3.1
   - r-argparse=2.2.2
   - r-tidyverse=2.0.0
-  - r-singlecellexperiment=1.22.0
-  - r-scran=1.28.2
   - r-seurat=4.3.0
   - r-igraph=1.5.1
+  - bioconductor-singlecellexperiment=1.22.0
+  - bioconductor-scran=1.28.2
   - r-matrix=1.6_1
   - jupyterlab=4.0.6
   - tqdm=4.66.1

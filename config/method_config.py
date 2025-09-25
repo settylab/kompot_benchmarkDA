@@ -7,16 +7,7 @@ Contains method-specific parameters and command templates.
 PYTHON_METHODS = {
     "mellon": {
         "script": "Mellon_bm.py",
-        "params": {
-            "mellon_d_method": "fractal",
-            "norm_density": "No",
-            "hyperparameter": "Yes",
-            "corrected": "No",
-            "ls_factor": 1.5
-        }
-    },
-    "mellon_noNorm": {
-        "script": "Mellon_bm.py",
+        "description": "Mellon with standard fractal density estimation and hyperparameter sync",
         "params": {
             "mellon_d_method": "fractal",
             "norm_density": "No",
@@ -27,6 +18,7 @@ PYTHON_METHODS = {
     },
     "mellon_noSync": {
         "script": "Mellon_bm.py",
+        "description": "Mellon without hyperparameter synchronization",
         "params": {
             "mellon_d_method": "fractal",
             "norm_density": "No",
@@ -37,6 +29,7 @@ PYTHON_METHODS = {
     },
     "mellon_corr": {
         "script": "Mellon_bm.py",
+        "description": "Mellon with batch correction",
         "params": {
             "mellon_d_method": "fractal",
             "norm_density": "No",
@@ -47,20 +40,24 @@ PYTHON_METHODS = {
     },
     "meld": {
         "script": "meld_bm.py",
+        "description": "MELD with dataset-specific parameters",
         "params": {}
     },
     "meld_default": {
         "script": "meld_bm.py",
+        "description": "MELD with fixed beta=40 parameter",
         "params": {
             "beta": 40
         }
     },
     "cna": {
         "script": "CNA_bm.py",
+        "description": "Conditional Neighborhood Analysis",
         "params": {}
     },
     "kompot": {
         "script": "kompot_bm.py",
+        "description": "Kompot differential abundance testing",
         "params": {
             "ls_factor": 10.0,
             "n_landmarks": None,
@@ -70,6 +67,7 @@ PYTHON_METHODS = {
     },
     "kompot_pca": {
         "script": "kompot_bm.py",
+        "description": "Kompot using PCA embedding",
         "params": {
             "ls_factor": 10.0,
             "n_landmarks": None,
@@ -80,6 +78,7 @@ PYTHON_METHODS = {
     },
     "mellon_pca": {
         "script": "Mellon_bm.py",
+        "description": "Mellon using PCA embedding",
         "params": {
             "mellon_d_method": "fractal",
             "norm_density": "No",
@@ -91,12 +90,14 @@ PYTHON_METHODS = {
     },
     "meld_pca": {
         "script": "meld_bm.py",
+        "description": "MELD using PCA embedding",
         "params": {
             "force_pca": True
         }
     },
     "cna_pca": {
         "script": "CNA_bm.py",
+        "description": "CNA using PCA embedding",
         "params": {
             "force_pca": True
         }
@@ -107,18 +108,22 @@ PYTHON_METHODS = {
 R_METHODS = {
     "milo": {
         "method_name": "milo",
+        "description": "Neighborhood-based differential abundance testing",
         "params": {}
     },
     "daseq": {
         "method_name": "daseq",
+        "description": "Differential abundance region detection",
         "params": {}
     },
     "cydar": {
         "method_name": "cydar",
+        "description": "Hypersphere-based differential abundance testing",
         "params": {}
     },
     "louvain": {
         "method_name": "louvain",
+        "description": "Clustering-based differential abundance testing",
         "params": {}
     }
 }
@@ -128,6 +133,31 @@ COMMON_PARAMS = {
     "layer_embedding_pca": "X_pca",
     "layer_embedding_dm": "DM_EigenVectors",
 }
+
+def get_method_description(method_name):
+    """Get description for a specific method."""
+    if method_name in PYTHON_METHODS:
+        return PYTHON_METHODS[method_name].get("description", "No description available")
+    elif method_name in R_METHODS:
+        return R_METHODS[method_name].get("description", "No description available")
+    else:
+        return "Unknown method"
+
+def list_methods_with_descriptions():
+    """Get formatted list of all methods with descriptions."""
+    output = []
+
+    output.append("PYTHON METHODS:")
+    for name, config in PYTHON_METHODS.items():
+        desc = config.get("description", "No description")
+        output.append(f"  {name:<15} - {desc}")
+
+    output.append("\nR METHODS:")
+    for name, config in R_METHODS.items():
+        desc = config.get("description", "No description")
+        output.append(f"  {name:<15} - {desc}")
+
+    return "\n".join(output)
 
 def get_python_method_cmd(method, file_path, pop, pop_enr, pop_col, ds_type, batch_sd,
                          input_file, seed, layer_embedding, output_dir, k=30, beta=None,

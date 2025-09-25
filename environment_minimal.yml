@@ -17,10 +17,10 @@ dependencies:
   - r-base
   - r-argparse
   - r-tidyverse
-  - r-singlecellexperiment
-  - r-scran
   - r-seurat
   - r-igraph
+  - bioconductor-singlecellexperiment
+  - bioconductor-scran
   - jupyterlab
   - tqdm
   - pip

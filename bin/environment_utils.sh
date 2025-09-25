@@ -121,8 +121,6 @@ fi
 EOF
 }
 
-# Export functions for use in other scripts
-export -f detect_package_manager
-export -f detect_benchmarkda_environment
-export -f activate_benchmarkda_environment
-export -f get_environment_activation_command
+# Note: Functions are defined and can be sourced by other scripts
+# Shell compatibility: export -f works in bash but not zsh
+# These functions will be available after sourcing this file

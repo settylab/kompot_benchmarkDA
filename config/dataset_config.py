@@ -12,7 +12,8 @@ DATASET_CONFIGS = {
         "resolution": 0.2,
         "beta": 33,
         "downsample": 3,
-        "pop_col": "celltype"
+        "pop_col": "celltype",
+        "n_dm": 10  # Diffusion map components for this dataset
     },
     "linear": {
         "pops": ["M1", "M2", "M3", "M4", "M5", "M6", "M7"],
@@ -21,7 +22,8 @@ DATASET_CONFIGS = {
         "resolution": 1,
         "beta": 71,
         "downsample": 3,
-        "pop_col": "celltype"
+        "pop_col": "celltype",
+        "n_dm": 10  # Diffusion map components for this dataset
     },
     "branch": {
         "pops": ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8"],
@@ -30,33 +32,65 @@ DATASET_CONFIGS = {
         "resolution": 1,
         "beta": 65,
         "downsample": 3,
-        "pop_col": "celltype"
+        "pop_col": "celltype",
+        "n_dm": 10  # Diffusion map components for this dataset
     },
     "covid19-pbmc": {
-        "pops": ["PB", "CD14_Monocyte", "CD8_T", "CD4_T", "Platelet", "NK", "Granulocyte", 
+        "pops": ["PB", "CD14_Monocyte", "CD8_T", "CD4_T", "Platelet", "NK", "Granulocyte",
                 "CD16_Monocyte", "gd_T", "pDC", "DC"],
         "batch_vec": [0],
-        "k": 30, 
+        "k": 30,
         "resolution": 0.5,
         "beta": 40,
         "downsample": 3,
-        "pop_col": "celltype"
+        "pop_col": "celltype",
+        "n_dm": 30  # Diffusion map components for this dataset
     },
     "bcr-xl": {
-        "pops": ["naive_CD4_T", "memory_CD4_T", "naive_CD8_T", "memory_CD8_T", "CD56_NK", 
+        "pops": ["naive_CD4_T", "memory_CD4_T", "naive_CD8_T", "memory_CD8_T", "CD56_NK",
                 "naive_B", "memory_B", "DC", "CD14_Mono", "CD16_Mono", "pDCs"],
         "batch_vec": [0],
         "k": 30,
         "resolution": 0.5,
         "beta": 40,
         "downsample": 3,
-        "pop_col": "celltype"
+        "pop_col": "celltype",
+        "n_dm": 5   # Diffusion map components for this dataset
+    },
+    "levine32": {
+        "pops": [],  # Add appropriate populations if needed
+        "batch_vec": [0],
+        "k": 30,
+        "resolution": 0.5,
+        "beta": 40,
+        "downsample": 3,
+        "pop_col": "celltype",
+        "n_dm": 5   # Diffusion map components for this dataset
+    },
+    "pancreas": {
+        "pops": [],  # Add appropriate populations if needed
+        "batch_vec": [0],
+        "k": 30,
+        "resolution": 0.5,
+        "beta": 40,
+        "downsample": 3,
+        "pop_col": "celltype",
+        "n_dm": 30  # Diffusion map components for this dataset
     }
 }
 
 # Common parameter sets
 SEEDS = [43, 44, 45]
 ENRICHMENT_VALUES = [0.75, 0.85, 0.95]
+
+# Helper functions
+def get_n_dm_for_dataset(dataset):
+    """Get the number of diffusion map components for a specific dataset."""
+    if dataset in DATASET_CONFIGS:
+        return DATASET_CONFIGS[dataset]["n_dm"]
+    else:
+        # Default fallback
+        return 10
 
 # Path templates
 def get_data_file_path(root, data_id, mode_embedding, n_dm):

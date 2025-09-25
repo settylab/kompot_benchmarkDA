@@ -359,52 +359,35 @@ run_benchmarks() {
         local n_dm=$(get_n_dm_for_dataset "$dataset")
 
         for method_type in "${SELECTED_METHODS[@]}"; do
-            for embedding in "${SELECTED_EMBEDDINGS[@]}"; do
-                local analysis_layer embedding_mode n_dm_val
+            print_info "Running $method_type methods on $dataset with embeddings: ${SELECTED_EMBEDDINGS[*]}"
 
-                if [[ "$embedding" == "dm" ]]; then
-                    analysis_layer="dm"
-                    embedding_mode="DM"
-                    n_dm_val="$n_dm"
+            # Create embedding list for the direct execution
+            local embedding_list=$(IFS=','; echo "${SELECTED_EMBEDDINGS[*]}")
+
+            if [ "$DRY_RUN" = true ]; then
+                echo "[DRY RUN] python bin/direct_benchmark.py --dataset \"$dataset\" --method_type \"$method_type\" --embeddings \"$embedding_list\" --n_dm \"$n_dm\""
+            else
+                print_info "Executing benchmarks directly (no script generation)"
+
+                # Use MAMBA_EXE for reliable environment execution
+                if [ -n "${MAMBA_EXE}" ]; then
+                    ${MAMBA_EXE} run -n benchmarkda python bin/direct_benchmark.py \
+                        --dataset "$dataset" \
+                        --method_type "$method_type" \
+                        --embeddings "$embedding_list" \
+                        --n_dm "$n_dm" || {
+                        print_warning "Direct benchmark execution failed for $dataset $method_type"
+                    }
                 else
-                    analysis_layer="pca"
-                    embedding_mode="PCA"
-                    n_dm_val="0"
+                    python bin/direct_benchmark.py \
+                        --dataset "$dataset" \
+                        --method_type "$method_type" \
+                        --embeddings "$embedding_list" \
+                        --n_dm "$n_dm" || {
+                        print_warning "Direct benchmark execution failed for $dataset $method_type"
+                    }
                 fi
-
-                print_info "Running $method_type methods on $dataset ($embedding_mode)"
-
-                if [ "$DRY_RUN" = true ]; then
-                    echo "[DRY RUN] python bin/run_benchmark.py --dataset \"$dataset\" --method_type \"$method_type\" --analysis_layer \"$analysis_layer\" --n_dm \"$n_dm_val\" --mode_embedding \"$embedding_mode\""
-                else
-                    # Use MAMBA_EXE for reliable environment execution
-                    if [ -n "${MAMBA_EXE}" ]; then
-                        ${MAMBA_EXE} run -n benchmarkda python bin/run_benchmark.py \
-                            --dataset "$dataset" \
-                            --method_type "$method_type" \
-                            --analysis_layer "$analysis_layer" \
-                            --n_dm "$n_dm_val" \
-                            --mode_embedding "$embedding_mode" \
-                            --output "benchmark_scripts/${dataset}_${embedding_mode,,}_${method_type}.sh"
-                    else
-                        python bin/run_benchmark.py \
-                            --dataset "$dataset" \
-                            --method_type "$method_type" \
-                            --analysis_layer "$analysis_layer" \
-                            --n_dm "$n_dm_val" \
-                            --mode_embedding "$embedding_mode" \
-                            --output "benchmark_scripts/${dataset}_${embedding_mode,,}_${method_type}.sh"
-                    fi
-
-                    # Execute the generated script
-                    local script_file="benchmark_scripts/${dataset}_${embedding_mode,,}_${method_type}.sh"
-                    if [[ -f "$script_file" ]]; then
-                        bash "$script_file" || {
-                            print_warning "Benchmark execution failed for $dataset $method_type $embedding_mode"
-                        }
-                    fi
-                fi
-            done
+            fi
         done
     done
 

@@ -120,8 +120,10 @@ def main():
 
         # Convert Pandas DataFrame to R DataFrame
     def pandas_to_r_dataframe(df):
-        pandas2ri.activate()
-        return pandas2ri.py2rpy(df)
+        # Use newer rpy2 API with context manager
+        from rpy2.robjects.conversion import localconverter
+        with localconverter(robjects.default_converter + pandas2ri.converter):
+            return robjects.conversion.py2rpy(df)
 
 
    # Function to get the library paths used by R
@@ -143,7 +145,15 @@ def main():
     import synth_labels
     import cluster_dataset_synth_labels
 
-    pandas2ri.activate()
+    # Handle pandas2ri activation - suppress deprecation warning
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        try:
+            pandas2ri.activate()
+        except Exception:
+            # If activation fails, continue without it
+            pass
     
 
     adata = read_file.read_dataset(file_path,layer_embedding)

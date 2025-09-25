@@ -66,27 +66,33 @@ activate_benchmarkda_environment() {
     echo "Detected package manager: $pkg_manager"
     echo "Detected environment: $env_name"
 
-    # Set up shell hook and activate environment
+    # Use MAMBA_EXE if available for more reliable execution
+    if [ -n "$MAMBA_EXE" ]; then
+        echo "Using MAMBA_EXE for environment execution"
+        return 0
+    fi
+
+    # Fallback: Set up shell hook and activate environment
     case "$pkg_manager" in
         "micromamba")
             eval "$(micromamba shell hook --shell bash 2>/dev/null)" || true
             micromamba deactivate 2>/dev/null || true
             micromamba activate "$env_name" 2>/dev/null || {
-                echo "WARNING: Failed to activate $env_name, assuming environment is already activated" >&2
+                echo "WARNING: Failed to activate $env_name, using MAMBA_EXE fallback" >&2
                 return 0
             }
             ;;
         "mamba")
             eval "$(conda shell.bash hook 2>/dev/null)" || true
             mamba activate "$env_name" 2>/dev/null || {
-                echo "WARNING: Failed to activate $env_name, assuming environment is already activated" >&2
+                echo "WARNING: Failed to activate $env_name, using MAMBA_EXE fallback" >&2
                 return 0
             }
             ;;
         "conda")
             eval "$(conda shell.bash hook 2>/dev/null)" || true
             conda activate "$env_name" 2>/dev/null || {
-                echo "WARNING: Failed to activate $env_name, assuming environment is already activated" >&2
+                echo "WARNING: Failed to activate $env_name, using MAMBA_EXE fallback" >&2
                 return 0
             }
             ;;

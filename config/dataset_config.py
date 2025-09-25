@@ -43,7 +43,7 @@ DATASET_CONFIGS = {
         "resolution": 0.5,
         "beta": 40,
         "downsample": 3,
-        "pop_col": "celltype",
+        "pop_col": "cell.type.coarse",
         "n_dm": 30  # Diffusion map components for this dataset
     },
     "bcr-xl": {
@@ -54,7 +54,7 @@ DATASET_CONFIGS = {
         "resolution": 0.5,
         "beta": 40,
         "downsample": 3,
-        "pop_col": "celltype",
+        "pop_col": "cell_type",
         "n_dm": 5   # Diffusion map components for this dataset
     },
     "levine32": {
@@ -64,7 +64,7 @@ DATASET_CONFIGS = {
         "resolution": 0.5,
         "beta": 40,
         "downsample": 3,
-        "pop_col": "celltype",
+        "pop_col": "cell_type",
         "n_dm": 5   # Diffusion map components for this dataset
     },
     "pancreas": {
@@ -74,7 +74,7 @@ DATASET_CONFIGS = {
         "resolution": 0.5,
         "beta": 40,
         "downsample": 3,
-        "pop_col": "celltype",
+        "pop_col": "Factor.Value.inferred.cell.type...authors.labels.",
         "n_dm": 30  # Diffusion map components for this dataset
     }
 }
@@ -91,6 +91,7 @@ def get_n_dm_for_dataset(dataset):
     else:
         # Default fallback
         return 10
+
 
 # Path templates
 def get_data_file_path(root, data_id, mode_embedding, n_dm):

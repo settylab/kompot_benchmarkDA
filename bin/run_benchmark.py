@@ -25,13 +25,7 @@ def generate_benchmark_script(args):
     # Base script content with user-agnostic environment setup
     script_content = """#!/bin/bash
 
-# Check if module command is available and load modules on systems that support it
-if command -v module &> /dev/null; then
-    module purge
-    module load ImageMagick/7.1.0-53-GCCcore-12.2.0 || true
-    module load GSL/2.7-GCCcore-12.2.0 || true
-    module load cuDNN/8.4.1.50-CUDA-11.7.0 || true
-fi
+# Note: This script is designed to be user-agnostic and does not use the module system
 
 # Set slurm parameters
 time=1-00:00:00
@@ -63,6 +57,9 @@ echo "Working directory: $root/scripts"
     if not dataset_config:
         raise ValueError(f"Dataset {args.dataset} not found in configuration")
     
+    # Determine layer_embedding based on mode
+    layer_embedding = 'DM_EigenVectors' if args.mode_embedding == 'DM' else 'X_pca'
+
     # Add variables from CLI arguments
     script_content += f"""
 # Parameters from command line
@@ -72,6 +69,7 @@ iteration_num="{args.iteration_num}"
 balance_bool="{args.balance}"
 n_dm="{args.n_dm}"
 mode_embedding="{args.mode_embedding}"
+layer_embedding="{layer_embedding}"
 
 """
     
@@ -137,7 +135,11 @@ for p in $pops; do
                         fi
                         
                         # Create job ID and paths
+                        # Use unified jobid for label input (embedding-independent)
+                        unified_jobid=${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-${balance_bool}
+                        # Use embedding-specific jobid for benchmark output
                         jobid=${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-${balance_bool}-${analysis_layer}
+                        input_path=${data_dir}/${unified_jobid}
                         save_path=${root}/benchmark_${mode_embedding,,}/$([[ "$data_id" =~ ^(linear|branch|cluster)$ ]] && echo "synthetic" || echo "real")/$data_id/${jobid}
                         save_path_iteration=${save_path}/iteration_${iteration}
                         mkdir -p "$save_path_iteration"
@@ -164,10 +166,7 @@ for p in $pops; do
         script_content += "                        exit 0\n"
     else:
         script_content += """
-                        # Load R environment
-                        if command -v module &> /dev/null; then
-                            module load R/4.3.1-gfbf-2022b || true
-                        fi
+                        # R environment is handled by conda/mamba activation
                         
                         # Execute R method
 """
@@ -179,7 +178,7 @@ for p in $pops; do
                             --pop_column ${{pop_col}} \\
                             --ds_type ${{data_id}} \\
                             --batch_sd ${{batch_sd_num}} \\
-                            --input_file ${{data_dir}}/${{jobid}}/ \\
+                            --input_file ${{input_path}}/ \\
                             --package ${{method}} \\
                             --seed ${{seed}} \\
                             --layer_embedding ${{layer_embedding}} \\
@@ -215,7 +214,7 @@ done
         --pop_column ${{pop_col}} \\
         --ds_type ${{data_id}} \\
         --batch_sd ${{batch_sd_num}} \\
-        --input_file ${{data_dir}}/${{jobid}}/ \\
+        --input_file ${{input_path}}/ \\
         --package {method} \\
         --seed ${{seed}} \\
         --layer_embedding ${{layer_embedding}}"""

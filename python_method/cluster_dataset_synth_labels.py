@@ -70,10 +70,13 @@ def add_synth_label_cluster_labels(adata,pop,seed, pop_enr,pop_col, n_conditions
     #         for i in range(len(cond_probability_df))
     # ]
 
-    pandas2ri.activate()
-    # Convert the pandas DataFrame to an R data frame within a conversion context
-    with localconverter(robjects.default_converter + pandas2ri.converter):
-        r_cond_probability = robjects.conversion.py2rpy(cond_probability_df)
+    # Suppress pandas2ri deprecation warning and convert DataFrame
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        # Convert the pandas DataFrame to an R data frame within a conversion context
+        with localconverter(robjects.default_converter + pandas2ri.converter):
+            r_cond_probability = robjects.conversion.py2rpy(cond_probability_df)
 
     # Assign the R data frame to an R variable in the global environment
     robjects.globalenv['cond_probability'] = r_cond_probability

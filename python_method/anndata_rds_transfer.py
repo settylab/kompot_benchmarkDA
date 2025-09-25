@@ -75,11 +75,23 @@ def main():
     import rpy2.robjects as ro
     from rpy2.robjects.packages import importr
 
-    anndata2ri.activate()
+    # Try both old and new anndata2ri API
+    try:
+        anndata2ri.activate()
+    except AttributeError:
+        # New API doesn't have activate()
+        pass
 
     adata = anndata.read_h5ad(input_file_path)
 
-    r_adata = ro.conversion.py2rpy(adata)
+    # Try conversion with anndata2ri
+    try:
+        r_adata = ro.conversion.py2rpy(adata)
+    except Exception as e:
+        # Fallback: convert manually using anndata2ri converter
+        from rpy2.robjects.conversion import localconverter
+        with localconverter(ro.default_converter + anndata2ri.converter):
+            r_adata = ro.conversion.py2rpy(adata)
     ro.globalenv["r_adata"] = r_adata
     r_command = f'saveRDS(r_adata, file="{output_file_path}")'
     ro.r(r_command)

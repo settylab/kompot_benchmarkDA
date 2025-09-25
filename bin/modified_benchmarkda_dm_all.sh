@@ -1,13 +1,6 @@
 #!/bin/bash
 
-# Check if module command is available and load modules on systems that support it
-if command -v module &> /dev/null; then
-    module purge
-    #module load R/4.3.1-gfbf-2022b
-    module load ImageMagick/7.1.0-53-GCCcore-12.2.0 || true
-    module load GSL/2.7-GCCcore-12.2.0 || true
-    module load cuDNN/8.4.1.50-CUDA-11.7.0 || true
-fi
+# Note: This script is designed to be user-agnostic and does not use the module system
 
 # Set up micromamba environment
 eval "$(micromamba shell hook --shell bash 2>/dev/null)" || echo "micromamba not available, assuming environment is already activated"
@@ -191,30 +184,55 @@ for p in $pops;
                         continue
                     fi
                     ## please regulate the jobid name for saving them without replaceing the previous data !
-					jobid=${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-${balance_bool}-${analysis_layer}
+					# Use embedding-independent job ID for unified label generation
+					if [ "$analysis_layer" = "unified" ]; then
+						jobid=${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-${balance_bool}
+					else
+						jobid=${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-${balance_bool}-${analysis_layer}
+					fi
 					echo "Doing $jobid ..."
-                    micromamba deactivate 2>/dev/null || true
-                    micromamba activate diffabundance 2>/dev/null || echo "Using existing environment"
                     DIRECTORY=$data_dir/${jobid}/
-                    mkdir "$DIRECTORY"
-                    python generate_bm_data.py \
-                        --file_path ${data_file} \
-                        --pop ${p} \
-                        --pop_enr $enr \
-                        --pop_column ${pop_col} \
-                        --ds_type $data_id \
-                        --batch_sd ${batch_sd_num} \
-                        --n_conditions 2 \
-                        --n_replicates 3 \
-                        --n_batches 2 \
-                        --seed ${seed} \
-                        --condition_balance 1 \
-                        --m 2 \
-                        --a_logit 0.5 \
-                        --mode_embedding PCA \
-                        --layer_embedding X_pca \
-                        --balance $balance_bool \
-                        --output_dir $DIRECTORY/
+                    mkdir -p "$DIRECTORY"
+                    # Use MAMBA_EXE for reliable environment execution
+                    if [ -n "${MAMBA_EXE}" ]; then
+                        ${MAMBA_EXE} run -n benchmarkda python generate_bm_data.py \
+                            --file_path ${data_file} \
+                            --pop ${p} \
+                            --pop_enr $enr \
+                            --pop_column ${pop_col} \
+                            --ds_type $data_id \
+                            --batch_sd ${batch_sd_num} \
+                            --n_conditions 2 \
+                            --n_replicates 3 \
+                            --n_batches 2 \
+                            --seed ${seed} \
+                            --condition_balance 1 \
+                            --m 2 \
+                            --a_logit 0.5 \
+                            --mode_embedding PCA \
+                            --layer_embedding X_pca \
+                            --balance $balance_bool \
+                            --output_dir $DIRECTORY/
+                    else
+                        python generate_bm_data.py \
+                            --file_path ${data_file} \
+                            --pop ${p} \
+                            --pop_enr $enr \
+                            --pop_column ${pop_col} \
+                            --ds_type $data_id \
+                            --batch_sd ${batch_sd_num} \
+                            --n_conditions 2 \
+                            --n_replicates 3 \
+                            --n_batches 2 \
+                            --seed ${seed} \
+                            --condition_balance 1 \
+                            --m 2 \
+                            --a_logit 0.5 \
+                            --mode_embedding PCA \
+                            --layer_embedding X_pca \
+                            --balance $balance_bool \
+                            --output_dir $DIRECTORY/
+                    fi
                     exit $!					
 
 			done

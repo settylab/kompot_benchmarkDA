@@ -59,10 +59,13 @@ def label_condition_and_rep_labels(adata,cond_probability,seed):
     # cond_probability.loc[:,1] = adata.obs["condition2_prob"]
     # cond_probability.columns = conditions
     #np.random.seed(seed)
-    pandas2ri.activate()
-    # Convert the pandas DataFrame to an R data frame within a conversion context
-    with localconverter(robjects.default_converter + pandas2ri.converter):
-        r_cond_probability = robjects.conversion.py2rpy(cond_probability)
+    # Suppress pandas2ri deprecation warning and convert DataFrame
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        # Convert the pandas DataFrame to an R data frame within a conversion context
+        with localconverter(robjects.default_converter + pandas2ri.converter):
+            r_cond_probability = robjects.conversion.py2rpy(cond_probability)
 
     # Assign the R data frame to an R variable in the global environment
     robjects.globalenv['cond_probability'] = r_cond_probability

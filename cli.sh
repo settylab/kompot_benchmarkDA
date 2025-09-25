@@ -334,29 +334,19 @@ generate_labels() {
     print_step "Generating synthetic condition labels"
 
     for dataset in "${SELECTED_DATASETS[@]}"; do
-        local n_dm=$(get_n_dm_for_dataset "$dataset")
+        print_info "Generating labels for $dataset (embedding-independent)"
 
-        print_info "Generating labels for $dataset"
-
-        for embedding in "${SELECTED_EMBEDDINGS[@]}"; do
-            if [[ "$embedding" == "dm" && $n_dm -gt 0 ]]; then
-                if [ "$DRY_RUN" = true ]; then
-                    echo "[DRY RUN] bash bin/modified_benchmarkda_dm_all.sh \"$dataset\" dm No DM \"$n_dm\""
-                else
-                    bash bin/modified_benchmarkda_dm_all.sh "$dataset" dm No DM "$n_dm" || {
-                        print_warning "DM label generation failed for $dataset"
-                    }
-                fi
-            elif [[ "$embedding" == "pca" ]]; then
-                if [ "$DRY_RUN" = true ]; then
-                    echo "[DRY RUN] bash bin/modified_benchmarkda.sh \"$dataset\" pca No PCA 0"
-                else
-                    bash bin/modified_benchmarkda.sh "$dataset" pca No PCA 0 || {
-                        print_warning "PCA label generation failed for $dataset"
-                    }
-                fi
-            fi
-        done
+        # Check if labels already exist to avoid regeneration
+        local label_dir_pattern="data/*/$dataset/$dataset-*"
+        if [ "$DRY_RUN" = true ]; then
+            echo "[DRY RUN] bash bin/modified_benchmarkda_dm_all.sh \"$dataset\" unified No DM 10"
+        else
+            # Generate labels once per dataset using DM script but with unified naming
+            # This eliminates the embedding-specific redundancy
+            bash bin/modified_benchmarkda_dm_all.sh "$dataset" unified No DM 10 || {
+                print_warning "Label generation failed for $dataset"
+            }
+        fi
     done
 
     print_success "Label generation completed"
@@ -387,13 +377,24 @@ run_benchmarks() {
                 if [ "$DRY_RUN" = true ]; then
                     echo "[DRY RUN] python bin/run_benchmark.py --dataset \"$dataset\" --method_type \"$method_type\" --analysis_layer \"$analysis_layer\" --n_dm \"$n_dm_val\" --mode_embedding \"$embedding_mode\""
                 else
-                    python bin/run_benchmark.py \
-                        --dataset "$dataset" \
-                        --method_type "$method_type" \
-                        --analysis_layer "$analysis_layer" \
-                        --n_dm "$n_dm_val" \
-                        --mode_embedding "$embedding_mode" \
-                        --output "benchmark_scripts/${dataset}_${embedding_mode,,}_${method_type}.sh"
+                    # Use MAMBA_EXE for reliable environment execution
+                    if [ -n "${MAMBA_EXE}" ]; then
+                        ${MAMBA_EXE} run -n benchmarkda python bin/run_benchmark.py \
+                            --dataset "$dataset" \
+                            --method_type "$method_type" \
+                            --analysis_layer "$analysis_layer" \
+                            --n_dm "$n_dm_val" \
+                            --mode_embedding "$embedding_mode" \
+                            --output "benchmark_scripts/${dataset}_${embedding_mode,,}_${method_type}.sh"
+                    else
+                        python bin/run_benchmark.py \
+                            --dataset "$dataset" \
+                            --method_type "$method_type" \
+                            --analysis_layer "$analysis_layer" \
+                            --n_dm "$n_dm_val" \
+                            --mode_embedding "$embedding_mode" \
+                            --output "benchmark_scripts/${dataset}_${embedding_mode,,}_${method_type}.sh"
+                    fi
 
                     # Execute the generated script
                     local script_file="benchmark_scripts/${dataset}_${embedding_mode,,}_${method_type}.sh"

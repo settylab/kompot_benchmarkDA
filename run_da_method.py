@@ -35,8 +35,8 @@ def get_available_datasets():
     # Check synthetic datasets
     synthetic_datasets = ['linear', 'branch', 'cluster']
     for dataset in synthetic_datasets:
-        synthetic_path = PROJECT_ROOT / 'data' / 'synthetic' / dataset
-        if synthetic_path.exists() and any(synthetic_path.glob(f'{dataset}_*.h5ad')):
+        synthetic_path = PROJECT_ROOT / 'data' / 'synthetic' / dataset / f'{dataset}.h5ad'
+        if synthetic_path.exists():
             datasets.append(dataset)
 
     # Check real datasets
@@ -120,8 +120,8 @@ def run_python_method(method, dataset, embedding_type, **kwargs):
         '--output_dir', str(output_dir)
     ]
 
-    # Add method-specific parameters
-    if 'n_dm' in [p.name for p in argparse.ArgumentParser().add_argument('--n_dm', type=int).parents]:
+    # Add method-specific parameters - always add n_dm for methods that need it
+    if method in ['mellon', 'meld']:
         cmd.extend(['--n_dm', str(n_dm)])
 
     print_colored(f"Running {method} on {dataset} with {embedding_type} embedding...", 'blue')

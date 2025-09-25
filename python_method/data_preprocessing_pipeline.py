@@ -45,7 +45,7 @@ def main():
     
 
 
-    adata = read_file.read_dataset(file_path)
+    adata = read_file.read_dataset(file_path, embedding_layer)
     print(file_path)
     ## detecting whether there is the space inside the cell names string, replace the space with the underline.
     adata = preprocessing.replace_space_in_string(adata, pop_col)

@@ -369,9 +369,10 @@ run_benchmarks() {
             else
                 print_info "Executing benchmarks directly (no script generation)"
 
-                # Use MAMBA_EXE for reliable environment execution
-                if [ -n "${MAMBA_EXE}" ]; then
-                    ${MAMBA_EXE} run -n benchmarkda python bin/direct_benchmark.py \
+                # Use proper environment execution command
+                local run_cmd=$(get_environment_run_command)
+                if [ -n "$run_cmd" ]; then
+                    $run_cmd python bin/direct_benchmark.py \
                         --dataset "$dataset" \
                         --method_type "$method_type" \
                         --embeddings "$embedding_list" \
@@ -379,6 +380,7 @@ run_benchmarks() {
                         print_warning "Direct benchmark execution failed for $dataset $method_type"
                     }
                 else
+                    print_warning "No suitable environment execution command found, trying direct execution"
                     python bin/direct_benchmark.py \
                         --dataset "$dataset" \
                         --method_type "$method_type" \

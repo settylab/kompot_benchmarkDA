@@ -9,22 +9,25 @@ BenchmarkDA provides a systematic approach to evaluate differential abundance me
 ## Quick Start
 
 ```bash
-# Setup environment
+# 1. Setup environment (creates 'benchmarkda' environment)
 bash setup_environment.sh --minimal
 
-# Check pipeline status
-python bin/status_report.py
+# 2. Activate the environment (adapt command to your package manager)
+conda activate benchmarkda        # For conda users
+mamba activate benchmarkda        # For mamba users
+micromamba activate benchmarkda   # For micromamba users
 
-# Run complete pipeline
-./cli.sh
-
-# Run specific components
-./cli.sh --datasets linear,branch preprocess
-./cli.sh --methods python --embeddings dm benchmark
-
-# Run individual methods
-python run_da_method.py kompot linear --embedding dm
+# 3. Run commands (environment activated)
+python bin/status_report.py      # Check pipeline status
+./cli.sh                         # Run complete pipeline
+./cli.sh --datasets linear preprocess  # Run specific components
+python run_da_method.py kompot linear --embedding dm  # Individual methods
 ```
+
+**IMPORTANT**: All Python commands require the `benchmarkda` environment. Either:
+- Activate the environment first (shown above), then use `python` normally
+- Use `./cli.sh` which handles environment automatically
+- Use direct environment execution: `conda run -n benchmarkda python ...` (or `mamba run`, `micromamba run`)
 
 ## Methods and Datasets
 
@@ -97,23 +100,21 @@ benchmarkDA_private/
 
 ### Pipeline Management
 ```bash
-# Check what needs to be run
-python bin/status_report.py --detailed --commands
+# Activate environment first (choose your package manager)
+conda activate benchmarkda  # or mamba/micromamba activate benchmarkda
 
-# Run complete pipeline
-./cli.sh
-
-# Run specific steps
-./cli.sh --datasets linear,branch preprocess
-./cli.sh --datasets cluster labels
-./cli.sh --methods python --embeddings dm benchmark
-
-# Status for specific dataset
-python bin/status_report.py --dataset levine32 --detailed
+# Then run commands normally
+python bin/status_report.py --detailed --commands  # Check what needs to be run
+./cli.sh                                          # Run complete pipeline
+./cli.sh --datasets linear,branch preprocess      # Run specific steps
+python bin/status_report.py --dataset levine32 --detailed  # Dataset status
 ```
 
 ### Individual Method Testing
 ```bash
+# Activate environment first
+conda activate benchmarkda  # or mamba/micromamba activate benchmarkda
+
 # List available methods and datasets
 python run_da_method.py --list
 
@@ -161,6 +162,9 @@ The system automatically detects and uses:
 ## Status Monitoring
 
 ```bash
+# Activate environment first
+conda activate benchmarkda  # or mamba/micromamba activate benchmarkda
+
 # Comprehensive status report
 python bin/status_report.py --detailed
 
@@ -173,6 +177,8 @@ python bin/status_report.py --save
 # Individual dataset status
 python bin/status_report.py --dataset pancreas --detailed
 ```
+
+**Note**: The `cli.sh` script automatically handles the environment activation, so you can always use it directly without manually activating.
 
 The status report provides:
 - **Data file availability**: Which datasets are present
@@ -253,4 +259,30 @@ Comprehensive progress monitoring tracks completion at the dataset, method, and 
 
 Real datasets must be downloaded separately and placed in the appropriate `data/real/{dataset}/` directories. The framework automatically detects available datasets and suggests commands for missing components.
 
-For questions or issues, consult the status report: `python bin/status_report.py --commands`
+## Environment Usage Summary
+
+**Three ways to run Python commands:**
+
+1. **Environment activation** (recommended):
+   ```bash
+   conda activate benchmarkda     # (or mamba/micromamba activate benchmarkda)
+   python bin/status_report.py   # Use python normally after activation
+   ```
+
+2. **CLI script** (automatic environment handling):
+   ```bash
+   ./cli.sh preprocess           # Handles environment automatically
+   ./cli.sh --datasets linear benchmark
+   ./cli.sh status
+   ```
+
+3. **Direct environment execution** (no activation needed):
+   ```bash
+   conda run -n benchmarkda python bin/status_report.py    # For conda users
+   mamba run -n benchmarkda python bin/status_report.py    # For mamba users
+   micromamba run -n benchmarkda python bin/status_report.py  # For micromamba users
+   ```
+
+**Never use system python directly** - commands like `python bin/status_report.py` will fail unless you've first activated the `benchmarkda` environment.
+
+For questions or issues, consult the status report: `python bin/status_report.py --commands` (after environment activation)

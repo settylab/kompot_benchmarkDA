@@ -106,7 +106,7 @@ class BenchmarkStatus:
 
         # Check for DM files (if required)
         if n_dm > 0:
-            dm_file = data_dir / f"{dataset}_DM.h5ad"
+            dm_file = data_dir / f"{dataset}_DM_{n_dm}.h5ad"
             preprocessing_status["dm"]["complete"] = dm_file.exists()
             if dm_file.exists():
                 preprocessing_status["dm"]["files"].append(str(dm_file))
@@ -114,7 +114,7 @@ class BenchmarkStatus:
             preprocessing_status["dm"]["complete"] = True  # Not required
 
         # Check for PCA files
-        pca_file = data_dir / f"{dataset}_PCA.h5ad"
+        pca_file = data_dir / f"{dataset}_PCA_0.h5ad"
         preprocessing_status["pca"]["complete"] = pca_file.exists()
         if pca_file.exists():
             preprocessing_status["pca"]["files"].append(str(pca_file))

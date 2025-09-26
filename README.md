@@ -1,34 +1,38 @@
 # BenchmarkDA: Differential Abundance Testing Framework
 
-A comprehensive, user-agnostic framework for benchmarking differential abundance (DA) methods in single-cell data with consistent batch-corrected embeddings.
+A modular, configuration-driven framework for benchmarking differential abundance (DA) methods on single-cell data with consistent preprocessing and unified execution.
 
-## 🚀 Quick Start
+## Overview
+
+BenchmarkDA provides a systematic approach to evaluate differential abundance methods across multiple datasets and conditions. The framework handles preprocessing, synthetic label generation, method execution, and comprehensive progress tracking through a unified command-line interface.
+
+## Quick Start
 
 ```bash
-# 1. Test your setup
-python test_setup.py
+# Setup environment
+bash setup_environment.sh --minimal
 
-# 2. Create environment (if needed)
-bash setup_environment.sh
+# Check pipeline status
+python bin/status_report.py
 
-# 3. Run complete benchmark
-bash main.sh
+# Run complete pipeline
+./cli.sh
 
-# 4. Run individual components
+# Run specific components
 ./cli.sh --datasets linear,branch preprocess
 ./cli.sh --methods python --embeddings dm benchmark
 
-# 5. Run individual methods
+# Run individual methods
 python run_da_method.py kompot linear --embedding dm
 ```
 
-## 📋 What's Included
+## Methods and Datasets
 
 ### Python Methods
-- **kompot** (from master): Latest from `github.com/settylab/kompot`
-- **mellon**: Multiple variants (standard, PCA, normalized, corrected)
-- **meld**: Multiple variants (standard, PCA, default)
-- **cna**: Multiple variants (standard, PCA)
+- **kompot**: Kernel-based differential abundance testing
+- **mellon**: Manifold-based methods (multiple variants)
+- **meld**: Manifold enhancement of latent dimensions
+- **cna**: Conditional neighborhood analysis
 
 ### R Methods
 - **milo**: Neighborhood-based DA testing
@@ -37,187 +41,216 @@ python run_da_method.py kompot linear --embedding dm
 - **louvain**: Clustering-based DA testing
 
 ### Datasets
-- **Synthetic**: Linear, branch, cluster topologies
-- **Real**: BCR-XL, COVID-19 PBMC, Levine32, pancreas (download separately)
+- **Synthetic**: `linear`, `branch`, `cluster` - Generated topologies for benchmarking
+- **Real**: `covid19-pbmc`, `bcr-xl`, `levine32`, `pancreas` - Real biological datasets
 
-## 🏗️ Architecture Highlights
+## Architecture
 
-### ✅ **Fixed Critical Issues**
-- **Batch Effect Consistency**: All methods use same `DM_EigenVectors_batch` and `X_pca_batch`
-- **User-Agnostic**: Works with any conda/mamba/micromamba setup
-- **Modular Design**: Run individual methods or complete pipeline
-- **Clean Structure**: Organized, readable, maintainable code
+### Core Features
+- **Configuration-driven**: All datasets and methods defined in `config/`
+- **Unified CLI**: Single `cli.sh` interface for all operations
+- **Status tracking**: Comprehensive progress monitoring
+- **Direct execution**: No intermediate script generation
+- **Environment detection**: Works with mamba/conda/micromamba
+- **Modular pipeline**: Independent preprocessing, labels, and benchmarking stages
 
-### ✅ **Improved Usability**
-- **One-Command Setup**: `bash setup_environment.sh`
-- **Comprehensive Testing**: `python test_setup.py`
-- **Clear Main Script**: Readable `main.sh` with colored output and error handling
-- **Individual Execution**: `python run_da_method.py` for single methods
-
-## 📂 Directory Structure
+### Directory Structure
 
 ```
 benchmarkDA_private/
-├── main.sh                          # 🎯 Master workflow (clean & readable)
-├── setup_environment.sh             # 🔧 User-agnostic environment setup
-├── test_setup.py                    # ✅ Comprehensive testing
-├── run_da_method.py                 # 🎮 Individual method execution
-│
-├── config/
-│   ├── method_config.py             # Method configurations
-│   └── dataset_config.py            # Dataset parameters
-│
-├── python_method/
-│   ├── shared_embedding_utils.py    # 🔑 Critical: Consistent embeddings
-│   ├── data_loader.py               # Unified data loading
-│   ├── Mellon_bm.py, meld_bm.py     # Method implementations
-│   ├── CNA_bm.py, kompot_bm.py      # (all updated for consistency)
-│   └── run*.py                      # Method-specific runners
-│
-├── scripts/
-│   └── run_DA.r                     # 🔄 Unified R methods
+├── cli.sh                           # Main CLI interface
+├── setup_environment.sh             # Environment setup
+├── run_da_method.py                 # Individual method execution
 │
 ├── bin/
-│   ├── environment_utils.sh         # Environment detection
-│   └── run_benchmark.py             # Script generator
+│   ├── status_report.py             # Progress tracking and reporting
+│   ├── direct_benchmark.py          # Direct method execution
+│   ├── environment_utils.sh         # Environment detection utilities
+│   ├── dataset_preprocessing.sh     # Dataset preprocessing pipeline
+│   └── modified_benchmarkda_dm_all.sh # Label generation pipeline
 │
-├── environment_minimal.yml          # Flexible versions
-├── environment_complete.yml         # Pinned versions
-└── legacy/                          # Old files moved here
+├── config/
+│   ├── dataset_config.py            # Dataset parameters and populations
+│   └── method_config.py             # Method configurations
+│
+├── python_method/
+│   ├── kompot_bm.py, Mellon_bm.py   # Python method implementations
+│   ├── meld_bm.py, CNA_bm.py        # Method implementations
+│   ├── generate_bm_data.py          # Shared data generation
+│   └── *.py                         # Supporting utilities
+│
+├── scripts/
+│   └── run_DA.r                     # Unified R method interface
+│
+├── data/
+│   ├── synthetic/{linear,branch,cluster}/  # Generated datasets
+│   └── real/{covid19-pbmc,pancreas,...}/   # Real datasets
+│
+├── benchmark/
+│   ├── synthetic/{dataset}/{job-id}/  # Synthetic results
+│   └── real/{dataset}/{job-id}/       # Real dataset results
+│
+└── environment_minimal.yml          # Environment specification
 ```
 
-## 🎯 Usage Examples
+## Usage
 
-### Complete Pipeline
+### Pipeline Management
 ```bash
-# Full benchmark with all methods and datasets
-bash main.sh
+# Check what needs to be run
+python bin/status_report.py --detailed --commands
+
+# Run complete pipeline
+./cli.sh
+
+# Run specific steps
+./cli.sh --datasets linear,branch preprocess
+./cli.sh --datasets cluster labels
+./cli.sh --methods python --embeddings dm benchmark
+
+# Status for specific dataset
+python bin/status_report.py --dataset levine32 --detailed
 ```
 
-### Modular Execution
+### Individual Method Testing
 ```bash
 # List available methods and datasets
 python run_da_method.py --list
 
-# Run specific pipeline steps
-./cli.sh --datasets linear,branch preprocess
-./cli.sh --methods python --embeddings dm benchmark
-./cli.sh --skip-missing --dry-run all
-
-# Run individual methods
+# Test specific methods
 python run_da_method.py kompot linear --embedding dm
 python run_da_method.py mellon branch --embedding pca --population M2
-python run_da_method.py meld cluster --embedding dm --enrichment 3.0 --seed 42
 ```
 
-### Generated Scripts (for advanced users)
+### Advanced Options
 ```bash
-# Generate script for specific dataset/methods
-python bin/run_benchmark.py \
-    --dataset linear \
-    --method_type python \
-    --methods kompot mellon \
-    --mode_embedding DM
+# Dry run to see what would be executed
+./cli.sh --datasets linear --methods python --dry-run
 
-# Generated scripts are saved in benchmark_scripts/
+# Skip missing datasets
+./cli.sh --skip-missing preprocess
+
+# Custom embedding selection
+./cli.sh --embeddings pca benchmark
 ```
 
-## 🔧 Environment Management
+## Environment Setup
 
 ### Automatic Setup
 ```bash
-bash setup_environment.sh          # Choose minimal or complete
+# Interactive setup with environment detection
+bash setup_environment.sh
+
+# Minimal setup (non-interactive)
+bash setup_environment.sh --minimal
 ```
 
 ### Manual Setup
 ```bash
-# Option 1: Minimal (flexible versions)
+# Using your preferred package manager
 mamba env create -f environment_minimal.yml
-
-# Option 2: Complete (pinned versions)
-mamba env create -f environment_complete.yml
+mamba activate benchmarkda
 ```
 
 ### Environment Detection
-The system automatically detects:
-- **Package managers**: mamba → micromamba → conda
-- **Environment names**: benchmarkda, diffabundance, kompot_v1, etc.
-- **Missing packages**: Provides clear error messages
+The system automatically detects and uses:
+- MAMBA_EXE or CONDA_EXE environment variables (preferred)
+- Fallback to `micromamba` if available
+- Works around IT placeholder scripts for institutional setups
 
-## ✅ Testing & Validation
-
-```bash
-# Comprehensive test suite
-python test_setup.py
-
-# Test specific components
-python test_setup.py  # Will test:
-# ✓ File structure
-# ✓ Method configurations
-# ✓ Environment detection
-# ✓ Python packages (including kompot from master)
-# ✓ R packages
-# ✓ Basic functionality
-```
-
-## 🚨 What Was Fixed
-
-### Old Issues ❌
-- Hardcoded user-specific environment names (`kompot_v1`)
-- Inconsistent diffusion map computation across methods
-- Hard-to-read monolithic `main.sh` script
-- No modular execution options
-- Cluttered repository with old files
-- Complex script generation system
-
-### New Solutions ✅
-- **User-agnostic environment** (`benchmarkda`) with auto-detection
-- **Consistent embeddings** via `shared_embedding_utils.py`
-- **Clean, readable main.sh** with colored output and error handling
-- **Modular execution** via `run_da_method.py`
-- **Organized structure** with `legacy/` folder for old files
-- **Simple testing** with `test_setup.py`
-
-## 📊 Output Structure
-
-```
-benchmark/                          # Results organized by embedding
-├── dm/                             # Diffusion map results
-│   ├── synthetic/{linear,branch,cluster}/
-│   └── real/{covid19-pbmc,pancreas,...}/
-└── pca/                           # PCA results (same structure)
-
-results/individual/                 # Individual method results
-└── {method}_{dataset}_{embedding}/
-
-benchmark_scripts/                  # Generated scripts (for inspection)
-└── {dataset}_{embedding}_{type}.sh
-```
-
-## 🎯 Why This Is Better
-
-| Aspect | Before | After |
-|--------|---------|--------|
-| **Environment** | User-specific (`kompot_v1`) | User-agnostic (`benchmarkda`) |
-| **Embedding Consistency** | ❌ Inconsistent DM computation | ✅ Shared embedding utilities |
-| **Modularity** | ❌ Monolithic scripts only | ✅ Individual method execution |
-| **Readability** | ❌ Hard-to-read main.sh | ✅ Clean, colored, modular |
-| **Testing** | ❌ No validation system | ✅ Comprehensive test suite |
-| **Organization** | ❌ Cluttered with old files | ✅ Clean structure + legacy/ |
-| **Setup** | ❌ Manual, error-prone | ✅ One-command setup + validation |
-
-## 🔄 Migration from Old Setup
-
-If you had the old `kompot_v1` setup:
+## Status Monitoring
 
 ```bash
-# Your old setup still works! But to get the improvements:
-git pull                          # Get latest changes
-python test_setup.py             # Test your current setup
-bash setup_environment.sh        # Create standardized environment
-bash main.sh                     # Run with new architecture
+# Comprehensive status report
+python bin/status_report.py --detailed
+
+# Summary with suggested commands
+python bin/status_report.py --commands
+
+# Save status to JSON
+python bin/status_report.py --save
+
+# Individual dataset status
+python bin/status_report.py --dataset pancreas --detailed
 ```
 
----
+The status report provides:
+- **Data file availability**: Which datasets are present
+- **Preprocessing status**: DM/PCA embedding completion
+- **Label generation**: Synthetic condition combinations completed
+- **Benchmark progress**: Individual method completion by embedding type
+- **Suggested commands**: Exact CLI commands to run missing components
 
-**Ready to benchmark differential abundance methods reliably!** 🎉
+## Configuration
+
+### Dataset Configuration
+Dataset parameters are defined in `config/dataset_config.py`:
+
+```python
+DATASET_CONFIGS = {
+    "linear": {
+        "pops": ["M1", "M2", "M3", "M4", "M5", "M6", "M7"],  # Cell populations to test
+        "batch_vec": [0, 0.75, 1, 1.25, 1.5],               # Batch effect levels
+        "pop_col": "celltype",                                # Column name for cell types
+        "n_dm": 10                                            # Diffusion map components
+    }
+}
+
+SEEDS = [43, 44, 45]                    # Random seeds for reproducibility
+ENRICHMENT_VALUES = [0.75, 0.85, 0.95] # Population enrichment levels
+```
+
+### Method Configuration
+Method-specific parameters and execution details are defined in `config/method_config.py`.
+
+## Pipeline Workflow
+
+The benchmarking pipeline consists of three independent stages:
+
+1. **Preprocessing**: Generate PCA and DM embeddings for each dataset
+2. **Label Generation**: Create synthetic condition labels (independent of embeddings)
+3. **Benchmarking**: Run all DA methods on all population/enrichment/seed combinations
+
+### Label Combinations
+For each dataset, labels are generated for all combinations of:
+- Populations × Seeds × Enrichment values × Batch settings
+- Example: 8 populations × 3 seeds × 3 enrichments × 1 batch = 72 combinations
+
+### Benchmark Jobs
+Each method runs on all label combinations for both DM and PCA embeddings.
+
+## Results Structure
+
+Results are organized in a hierarchical structure:
+```
+benchmark/{synthetic|real}/{dataset}/{job-id}/iteration_0/
+```
+
+Where `job-id` follows the format: `{dataset}-{population}-{enrichment}-{seed}-{batch}-{balance}-{embedding}`
+
+## Implementation Details
+
+### Unified Label Generation
+Labels are created once per dataset, independent of embedding type. This eliminates redundancy and ensures consistency across method comparisons.
+
+### Direct Method Execution
+Methods are executed directly without intermediate script generation, reducing complexity and improving maintainability.
+
+### Environment Compatibility
+The framework includes robust environment detection that works with various conda/mamba configurations and handles institutional IT constraints.
+
+### Status Tracking
+Comprehensive progress monitoring tracks completion at the dataset, method, and embedding level, enabling resumable execution and clear progress reporting.
+
+## Performance Characteristics
+
+- **Parallel execution**: Methods run independently
+- **Resource efficient**: Only generates necessary embeddings
+- **Resumable**: Status tracking allows continuing interrupted runs
+- **Modular**: Individual components can be run independently
+
+## Data Requirements
+
+Real datasets must be downloaded separately and placed in the appropriate `data/real/{dataset}/` directories. The framework automatically detects available datasets and suggests commands for missing components.
+
+For questions or issues, consult the status report: `python bin/status_report.py --commands`

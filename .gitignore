@@ -6,3 +6,4 @@ notebooks/
 __pycache__/
 .DS_Store
 .nfs*
+status.json

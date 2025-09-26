@@ -58,7 +58,8 @@ DATASET_CONFIGS = {
         "n_dm": 5   # Diffusion map components for this dataset
     },
     "levine32": {
-        "pops": [],  # Add appropriate populations if needed
+        "pops": ["CD4 T cells", "CD8 T cells", "Monocytes", "Mature B cells", "CD16- NK cells",
+                "CD16+ NK cells", "pDCs", "Pre B cells"],  # Major immune cell populations
         "batch_vec": [0],
         "k": 30,
         "resolution": 0.5,
@@ -68,7 +69,8 @@ DATASET_CONFIGS = {
         "n_dm": 5   # Diffusion map components for this dataset
     },
     "pancreas": {
-        "pops": [],  # Add appropriate populations if needed
+        "pops": ["alpha cell", "beta cell", "delta cell", "gamma cell", "ductal cell",
+                "acinar cell", "endothelial cell", "PSC cell"],  # Major pancreatic cell types
         "batch_vec": [0],
         "k": 30,
         "resolution": 0.5,

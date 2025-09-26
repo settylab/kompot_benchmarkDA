@@ -74,6 +74,7 @@ STEPS (run all if none specified):
     preprocess             Preprocess datasets and create embeddings
     labels                 Generate synthetic condition labels
     benchmark              Run differential abundance method benchmarks
+    status                 Show status report of completed and missing work
     all                    Run all steps (default)
 
 EXAMPLES:
@@ -132,7 +133,7 @@ while [[ $# -gt 0 ]]; do
             DRY_RUN=true
             shift
             ;;
-        setup|preprocess|labels|benchmark|all)
+        setup|preprocess|labels|benchmark|status|all)
             STEPS+=("$1")
             shift
             ;;
@@ -396,6 +397,42 @@ run_benchmarks() {
     print_success "Benchmark execution completed"
 }
 
+show_status_report() {
+    print_step "Generating status report"
+
+    if [ "$DRY_RUN" = true ]; then
+        echo "[DRY RUN] python bin/status_report.py --detailed --commands --save"
+    else
+        # Use MAMBA_EXE if available for reliable environment execution
+        if [ -n "${MAMBA_EXE}" ]; then
+            if [ ${#SELECTED_DATASETS[@]} -gt 0 ]; then
+                # Report on specific datasets
+                for dataset in "${SELECTED_DATASETS[@]}"; do
+                    print_info "Status for dataset: $dataset"
+                    ${MAMBA_EXE} run -n benchmarkda python bin/status_report.py --dataset "$dataset" --detailed
+                    echo
+                done
+            else
+                # Report on all datasets
+                ${MAMBA_EXE} run -n benchmarkda python bin/status_report.py --detailed --commands --save
+            fi
+        else
+            print_warning "MAMBA_EXE not available, trying direct execution"
+            if [ ${#SELECTED_DATASETS[@]} -gt 0 ]; then
+                for dataset in "${SELECTED_DATASETS[@]}"; do
+                    print_info "Status for dataset: $dataset"
+                    python bin/status_report.py --dataset "$dataset" --detailed
+                    echo
+                done
+            else
+                python bin/status_report.py --detailed --commands --save
+            fi
+        fi
+    fi
+
+    print_success "Status report completed"
+}
+
 # =============================================================================
 # MAIN EXECUTION
 # =============================================================================
@@ -433,6 +470,9 @@ main() {
                 ;;
             benchmark)
                 run_benchmarks
+                ;;
+            status)
+                show_status_report
                 ;;
             *)
                 print_error "Unknown step: $step"

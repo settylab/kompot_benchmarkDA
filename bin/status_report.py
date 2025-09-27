@@ -193,8 +193,8 @@ class BenchmarkStatus:
             method_info = {
                 "complete": False,
                 "embeddings": {
-                    "dm": {"complete": False, "files": []},
-                    "pca": {"complete": False, "files": []}
+                    "dm": {"complete": False, "partial": False, "files": [], "jobs": 0, "completed": 0},
+                    "pca": {"complete": False, "partial": False, "files": [], "jobs": 0, "completed": 0}
                 }
             }
 
@@ -222,12 +222,21 @@ class BenchmarkStatus:
                                         completed_jobs += 1
                                         method_info["embeddings"][embedding]["files"].extend([str(f) for f in method_results])
 
+
+                # Store counts for partial completion tracking
+                method_info["embeddings"][embedding]["jobs"] = embedding_jobs
+                method_info["embeddings"][embedding]["completed"] = embedding_completed
+
                 # Only consider complete if there were jobs to do AND they're all done
                 method_info["embeddings"][embedding]["complete"] = (
                     embedding_jobs > 0 and embedding_completed == embedding_jobs
                 )
+                # Consider partial if some jobs are done but not all
+                method_info["embeddings"][embedding]["partial"] = (
+                    embedding_jobs > 0 and embedding_completed > 0 and embedding_completed < embedding_jobs
+                )
 
-            # Method is complete if both embeddings are complete
+            # Method is complete if both embeddings are complete, but show partial progress
             method_info["complete"] = (
                 method_info["embeddings"]["dm"]["complete"] and
                 method_info["embeddings"]["pca"]["complete"]
@@ -271,112 +280,181 @@ class BenchmarkStatus:
 
     def print_summary(self, status):
         """Print a summary status report."""
-        print("🔍 BenchmarkDA Status Report")
-        print("=" * 50)
-        print(f"Last Updated: {status['last_updated']}")
-        print(f"Total Datasets: {status['summary']['total_datasets']}")
-        print(f"Preprocessing Complete: {status['summary']['preprocessing_complete']}/{status['summary']['total_datasets']}")
-        print(f"Labels Complete: {status['summary']['labels_complete']}/{status['summary']['total_datasets']}")
-        print(f"All Benchmarks Complete: {status['summary']['benchmarks_complete']}/{status['summary']['total_datasets']}")
-        print("  (Note: Individual method progress shown in detailed view)")
+        print("BenchmarkDA Pipeline Status Report")
+        print("=" * 70)
+        print(f"Report Generated: {status['last_updated']}")
+        print(f"Datasets Tracked: {status['summary']['total_datasets']}")
+        print()
+
+        # Pipeline stage completion
+        print("PIPELINE COMPLETION OVERVIEW:")
+        print(f"  Data Preprocessing: {status['summary']['preprocessing_complete']}/{status['summary']['total_datasets']} complete")
+        print(f"  Label Generation:   {status['summary']['labels_complete']}/{status['summary']['total_datasets']} complete")
+        print(f"  Method Benchmarks:  {status['summary']['benchmarks_complete']}/{status['summary']['total_datasets']} complete")
+        print()
+
+        # Calculate overall completion rate
+        total_stages = status['summary']['total_datasets'] * 3  # preprocessing, labels, benchmarks
+        completed_stages = (status['summary']['preprocessing_complete'] +
+                          status['summary']['labels_complete'] +
+                          status['summary']['benchmarks_complete'])
+        completion_pct = (completed_stages / total_stages * 100) if total_stages > 0 else 0
+        print(f"Overall Pipeline Progress: {completed_stages}/{total_stages} stages ({completion_pct:.1f}%)")
         print()
 
     def print_detailed_status(self, status):
         """Print detailed status for each dataset."""
+        print("DATASET STATUS DETAILS:")
+        print("=" * 70)
+
         for dataset, info in status["datasets"].items():
-            print(f"📊 Dataset: {dataset} ({info['type']})")
-            print("-" * 40)
+            print(f"\nDataset: {dataset.upper()} ({info['type']})")
+            print("-" * 50)
+
+            # Configuration summary
+            config = info["config"]
+            print(f"Configuration:")
+            print(f"  Populations: {len(config['pops'])} ({', '.join(config['pops'][:3])}{'...' if len(config['pops']) > 3 else ''})")
+            print(f"  Seeds: {config['seeds']}")
+            print(f"  Enrichments: {config['enrichment_values']}")
+            print(f"  Batch Effects: {config['batch_vec']}")
+            print(f"  DM Components: {config['n_dm']}")
 
             # Data file status
-            data_icon = "✅" if info["data_file"]["exists"] else "❌"
-            print(f"  Data File: {data_icon} {info['data_file']['path']}")
+            data_status = "AVAILABLE" if info["data_file"]["exists"] else "MISSING"
+            print(f"\nData File: {data_status}")
+            if not info["data_file"]["exists"]:
+                print(f"  Location: {info['data_file']['path']}")
 
             # Preprocessing status
-            dm_icon = "✅" if info["preprocessing"]["dm"]["complete"] else "❌" if info["preprocessing"]["dm"]["required"] else "➖"
-            pca_icon = "✅" if info["preprocessing"]["pca"]["complete"] else "❌"
-            print(f"  Preprocessing: DM {dm_icon} | PCA {pca_icon}")
+            print(f"\nPreprocessing Status:")
+            if info["preprocessing"]["dm"]["required"]:
+                dm_status = "COMPLETE" if info["preprocessing"]["dm"]["complete"] else "PENDING"
+                print(f"  Diffusion Maps (DM): {dm_status}")
+                if info["preprocessing"]["dm"]["files"]:
+                    print(f"    Files: {len(info['preprocessing']['dm']['files'])}")
+            else:
+                print(f"  Diffusion Maps (DM): NOT REQUIRED")
+
+            pca_status = "COMPLETE" if info["preprocessing"]["pca"]["complete"] else "PENDING"
+            print(f"  PCA Embeddings: {pca_status}")
+            if info["preprocessing"]["pca"]["files"]:
+                print(f"    Files: {len(info['preprocessing']['pca']['files'])}")
 
             # Labels status
-            labels_icon = "✅" if info["labels"]["complete"] else "❌"
             labels_pct = (info["labels"]["completed_combinations"] / info["labels"]["total_combinations"] * 100) if info["labels"]["total_combinations"] > 0 else 0
-            print(f"  Labels: {labels_icon} {info['labels']['completed_combinations']}/{info['labels']['total_combinations']} ({labels_pct:.1f}%)")
+            labels_status = "COMPLETE" if info["labels"]["complete"] else f"IN PROGRESS ({labels_pct:.1f}%)"
+            print(f"\nLabel Generation: {labels_status}")
+            print(f"  Combinations: {info['labels']['completed_combinations']}/{info['labels']['total_combinations']}")
+            if info["labels"]["missing_combinations"]:
+                missing_count = len(info["labels"]["missing_combinations"])
+                print(f"  Missing: {missing_count} combinations")
 
-            # Benchmarks status - show individual methods
-            print("  Benchmarks:")
+            # Benchmarks status - detailed breakdown
+            print(f"\nBenchmark Status:")
 
             # Python methods
-            python_methods = info["benchmarks"]["python"]["methods"]
-            print("    Python:")
-            for method_name, method_info in python_methods.items():
-                method_icon = "✅" if method_info["complete"] else "❌"
-                dm_complete = method_info["embeddings"]["dm"]["complete"]
-                pca_complete = method_info["embeddings"]["pca"]["complete"]
-                dm_icon = "✅" if dm_complete else "❌"
-                pca_icon = "✅" if pca_complete else "❌"
-                print(f"      {method_name}: {method_icon} (DM {dm_icon} | PCA {pca_icon})")
+            python_info = info["benchmarks"]["python"]
+            python_pct = (python_info["completed_jobs"] / python_info["total_jobs"] * 100) if python_info["total_jobs"] > 0 else 0
+            print(f"  Python Methods: {python_info['completed_jobs']}/{python_info['total_jobs']} jobs ({python_pct:.1f}%)")
+
+            for method_name, method_info in python_info["methods"].items():
+                dm_jobs = method_info["embeddings"]["dm"]["jobs"]
+                dm_completed = method_info["embeddings"]["dm"]["completed"]
+                pca_jobs = method_info["embeddings"]["pca"]["jobs"]
+                pca_completed = method_info["embeddings"]["pca"]["completed"]
+
+                total_method_jobs = dm_jobs + pca_jobs
+                total_completed = dm_completed + pca_completed
+                method_pct = (total_completed / total_method_jobs * 100) if total_method_jobs > 0 else 0
+
+                status_text = "COMPLETE" if method_info["complete"] else f"PROGRESS ({method_pct:.1f}%)"
+                print(f"    {method_name}: {status_text}")
+                if not method_info["complete"] and total_method_jobs > 0:
+                    print(f"      DM: {dm_completed}/{dm_jobs} | PCA: {pca_completed}/{pca_jobs}")
 
             # R methods
-            r_methods = info["benchmarks"]["r"]["methods"]
-            print("    R:")
-            for method_name, method_info in r_methods.items():
-                method_icon = "✅" if method_info["complete"] else "❌"
-                dm_complete = method_info["embeddings"]["dm"]["complete"]
-                pca_complete = method_info["embeddings"]["pca"]["complete"]
-                dm_icon = "✅" if dm_complete else "❌"
-                pca_icon = "✅" if pca_complete else "❌"
-                print(f"      {method_name}: {method_icon} (DM {dm_icon} | PCA {pca_icon})")
+            r_info = info["benchmarks"]["r"]
+            r_pct = (r_info["completed_jobs"] / r_info["total_jobs"] * 100) if r_info["total_jobs"] > 0 else 0
+            print(f"  R Methods: {r_info['completed_jobs']}/{r_info['total_jobs']} jobs ({r_pct:.1f}%)")
 
-            print()
+            for method_name, method_info in r_info["methods"].items():
+                dm_jobs = method_info["embeddings"]["dm"]["jobs"]
+                dm_completed = method_info["embeddings"]["dm"]["completed"]
+                pca_jobs = method_info["embeddings"]["pca"]["jobs"]
+                pca_completed = method_info["embeddings"]["pca"]["completed"]
+
+                total_method_jobs = dm_jobs + pca_jobs
+                total_completed = dm_completed + pca_completed
+                method_pct = (total_completed / total_method_jobs * 100) if total_method_jobs > 0 else 0
+
+                status_text = "COMPLETE" if method_info["complete"] else f"PROGRESS ({method_pct:.1f}%)"
+                print(f"    {method_name}: {status_text}")
+                if not method_info["complete"] and total_method_jobs > 0:
+                    print(f"      DM: {dm_completed}/{dm_jobs} | PCA: {pca_completed}/{pca_jobs}")
+
+        print()
 
     def print_missing_items(self, status):
         """Print what still needs to be run."""
-        print("🚧 Missing Items:")
-        print("=" * 50)
+        print("PENDING TASKS:")
+        print("=" * 70)
 
+        any_missing = False
         for dataset, info in status["datasets"].items():
             missing_items = []
 
             if not info["data_file"]["exists"]:
-                missing_items.append("Data file")
+                missing_items.append("Data file download required")
 
             if info["preprocessing"]["dm"]["required"] and not info["preprocessing"]["dm"]["complete"]:
-                missing_items.append("DM preprocessing")
+                missing_items.append("Diffusion map preprocessing")
 
             if not info["preprocessing"]["pca"]["complete"]:
                 missing_items.append("PCA preprocessing")
 
             if not info["labels"]["complete"]:
-                missing_items.append(f"Labels ({info['labels']['total_combinations'] - info['labels']['completed_combinations']} combinations)")
+                remaining = info['labels']['total_combinations'] - info['labels']['completed_combinations']
+                missing_items.append(f"Label generation ({remaining} of {info['labels']['total_combinations']} combinations pending)")
 
-            if not info["benchmarks"]["python"]["complete"]:
-                incomplete_methods = [m for m, status in info["benchmarks"]["python"]["methods"].items() if not status["complete"]]
-                if incomplete_methods:
-                    missing_items.append(f"Python methods: {', '.join(incomplete_methods)}")
+            python_info = info["benchmarks"]["python"]
+            if python_info["total_jobs"] > 0 and not python_info["complete"]:
+                remaining_jobs = python_info["total_jobs"] - python_info["completed_jobs"]
+                incomplete_methods = [m for m, method_status in python_info["methods"].items() if not method_status["complete"]]
+                missing_items.append(f"Python benchmarks ({remaining_jobs} jobs, methods: {', '.join(incomplete_methods)})")
 
-            if not info["benchmarks"]["r"]["complete"]:
-                incomplete_methods = [m for m, status in info["benchmarks"]["r"]["methods"].items() if not status["complete"]]
-                if incomplete_methods:
-                    missing_items.append(f"R methods: {', '.join(incomplete_methods)}")
+            r_info = info["benchmarks"]["r"]
+            if r_info["total_jobs"] > 0 and not r_info["complete"]:
+                remaining_jobs = r_info["total_jobs"] - r_info["completed_jobs"]
+                incomplete_methods = [m for m, method_status in r_info["methods"].items() if not method_status["complete"]]
+                missing_items.append(f"R benchmarks ({remaining_jobs} jobs, methods: {', '.join(incomplete_methods)})")
 
             if missing_items:
-                print(f"  {dataset}: {', '.join(missing_items)}")
+                any_missing = True
+                print(f"\n{dataset.upper()}:")
+                for item in missing_items:
+                    print(f"  - {item}")
+
+        if not any_missing:
+            print("All tasks completed!")
 
         print()
 
     def suggest_commands(self, status):
         """Suggest CLI commands to complete missing work."""
-        print("💡 Suggested Commands:")
-        print("=" * 50)
+        print("RECOMMENDED ACTIONS:")
+        print("=" * 70)
 
         # Find datasets that need preprocessing
         datasets_need_preprocessing = []
         datasets_need_labels = []
         datasets_need_python_benchmarks = []
         datasets_need_r_benchmarks = []
+        datasets_missing_data = []
 
         for dataset, info in status["datasets"].items():
             if not info["data_file"]["exists"]:
-                print(f"# Download {dataset} dataset first")
+                datasets_missing_data.append(dataset)
                 continue
 
             needs_preprocessing = (
@@ -395,22 +473,52 @@ class BenchmarkStatus:
             if not info["benchmarks"]["r"]["complete"]:
                 datasets_need_r_benchmarks.append(dataset)
 
+        # Data download instructions
+        if datasets_missing_data:
+            print("Data Download Required:")
+            print("  Download these datasets from:")
+            print("  https://drive.google.com/drive/folders/15wWFD5FMe0VdzN1pUnaUUpQ17OXkeebH")
+            for dataset in datasets_missing_data:
+                print(f"    - {dataset}.h5ad")
+            print()
+
+        # Command suggestions
+        commands_suggested = False
+
         if datasets_need_preprocessing:
             datasets_str = ",".join(datasets_need_preprocessing)
-            print(f"./cli.sh --datasets {datasets_str} preprocess")
+            print("Run Preprocessing:")
+            print(f"  ./cli.sh --datasets {datasets_str} preprocess")
+            commands_suggested = True
 
         if datasets_need_labels:
             datasets_str = ",".join(datasets_need_labels)
-            print(f"./cli.sh --datasets {datasets_str} labels")
+            print("Generate Labels:")
+            print(f"  ./cli.sh --datasets {datasets_str} labels")
+            commands_suggested = True
 
         if datasets_need_python_benchmarks:
             datasets_str = ",".join(datasets_need_python_benchmarks)
-            print(f"./cli.sh --datasets {datasets_str} --methods python benchmark")
+            print("Run Python Method Benchmarks:")
+            print(f"  ./cli.sh --datasets {datasets_str} --methods python benchmark")
+            commands_suggested = True
 
         if datasets_need_r_benchmarks:
             datasets_str = ",".join(datasets_need_r_benchmarks)
-            print(f"./cli.sh --datasets {datasets_str} --methods r benchmark")
+            print("Run R Method Benchmarks:")
+            print(f"  ./cli.sh --datasets {datasets_str} --methods r benchmark")
+            commands_suggested = True
 
+        if not commands_suggested and not datasets_missing_data:
+            print("All pipeline stages completed!")
+
+        print()
+
+        # Additional helpful commands
+        print("Monitoring Commands:")
+        print("  ./cli.sh status                    # Overview")
+        print("  ./cli.sh --detailed status         # Detailed progress")
+        print("  ./cli.sh --datasets <name> status  # Specific dataset")
         print()
 
 def main():

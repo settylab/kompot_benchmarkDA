@@ -50,11 +50,12 @@ PYTHON_METHODS = {
             "beta": 40
         }
     },
-    "cna": {
-        "script": "CNA_bm.py",
-        "description": "Conditional Neighborhood Analysis",
-        "params": {}
-    },
+    # CNA methods temporarily disabled due to NumPy 2.0 compatibility issues
+    # "cna": {
+    #     "script": "CNA_bm.py",
+    #     "description": "Conditional Neighborhood Analysis",
+    #     "params": {}
+    # },
     "kompot": {
         "script": "kompot_bm.py",
         "description": "Kompot differential abundance testing",
@@ -62,7 +63,7 @@ PYTHON_METHODS = {
             "ls_factor": 10.0,
             "n_landmarks": None,
             "log_fold_change_threshold": 1.0,
-            "ptp_threshold": 0.05
+            "pvalue_threshold": 0.05
         }
     },
     "kompot_pca": {
@@ -72,7 +73,7 @@ PYTHON_METHODS = {
             "ls_factor": 10.0,
             "n_landmarks": None,
             "log_fold_change_threshold": 1.0,
-            "ptp_threshold": 0.05,
+            "pvalue_threshold": 0.05,
             "force_pca": True
         }
     },
@@ -94,14 +95,15 @@ PYTHON_METHODS = {
         "params": {
             "force_pca": True
         }
-    },
-    "cna_pca": {
-        "script": "CNA_bm.py",
-        "description": "CNA using PCA embedding",
-        "params": {
-            "force_pca": True
-        }
     }
+    # CNA PCA method temporarily disabled due to NumPy 2.0 compatibility issues
+    # "cna_pca": {
+    #     "script": "CNA_bm.py",
+    #     "description": "CNA using PCA embedding",
+    #     "params": {
+    #         "force_pca": True
+    #     }
+    # }
 }
 
 # R method configurations
@@ -211,7 +213,7 @@ def get_python_method_cmd(method, file_path, pop, pop_enr, pop_col, ds_type, bat
         if method_params.get('n_landmarks') is not None:
             cmd += f"    --n_landmarks {method_params.get('n_landmarks')} \\\n"
         cmd += f"    --log_fold_change_threshold {method_params.get('log_fold_change_threshold', 1.0)} \\\n"
-        cmd += f"    --ptp_threshold {method_params.get('ptp_threshold', 0.05)} \\\n"
+        cmd += f"    --pvalue_threshold {method_params.get('pvalue_threshold', 0.05)} \\\n"
         if method_params.get('force_pca'):
             cmd += f"    --force_pca \\\n"
 

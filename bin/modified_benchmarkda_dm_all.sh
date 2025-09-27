@@ -15,7 +15,29 @@ if [ -z "${root+x}" ]; then
     export root="$(readlink -f "$script_dir/..")"
 fi
 cd ${root}/python_method
-echo "files are in :$root/python_method" 
+echo "files are in :$root/python_method"
+
+# Import configuration from Python
+get_config() {
+    local dataset=$1
+    local key=$2
+    python3 -c "
+import sys
+sys.path.append('${root}')
+from config.dataset_config import DATASET_CONFIGS, SEEDS, ENRICHMENT_VALUES
+config = DATASET_CONFIGS['$dataset']
+if '$key' == 'pops':
+    print(' '.join(config['pops']))
+elif '$key' == 'batch_vec':
+    print(' '.join(map(str, config['batch_vec'])))
+elif '$key' == 'seeds':
+    print(' '.join(map(str, SEEDS)))
+elif '$key' == 'enrichments':
+    print(' '.join(map(str, ENRICHMENT_VALUES)))
+else:
+    print(config.get('$key', ''))
+"
+} 
 
 #data_dir="$root/data"
 #out_dir="$root/benchmark_python"
@@ -45,7 +67,7 @@ if [ "$data_id" == "cluster" ]
     data_file=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
     pops=$(for p in $(seq 1 1 3); do echo M$p; done)
     #R_methods=$(for m in mellon mellon_dm mellon_hls milo daseq cydar cna meld louvain milo_batch cna_batch louvain_batch; do echo $m; done)
-    batch_vec=$(for m in 0; do echo $m; done)
+    batch_vec=$(for m in 0 0.75 1 1.25 1.5; do echo $m; done)
     k=30
     resolution=0.2
     beta=33
@@ -72,8 +94,7 @@ elif [ "$data_id" == "linear" ]
     data_file=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
     pops=$(for p in $(seq 1 1 7); do echo M$p; done)
     #R_methods=$(for m in mellon mellon_dm mellon_hls milo daseq cydar cna meld louvain milo_batch cna_batch louvain_batch; do echo $m; done)
-    #0.75 1 1.25 1.5
-    batch_vec=$(for m in 0; do echo $m; done)
+    batch_vec=$(for m in 0 0.75 1 1.25 1.5; do echo $m; done)
     k=30
     resolution=1
     beta=71
@@ -86,7 +107,7 @@ elif [ "$data_id" == "branch" ]
     data_file=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
     pops=$(for p in $(seq 1 1 8); do echo M$p; done)
     #R_methods=$(for m in mellon mellon_dm mellon_hls milo daseq cydar cna meld louvain milo_batch cna_batch louvain_batch; do echo $m; done)
-    batch_vec=$(for m in 0; do echo $m; done)
+    batch_vec=$(for m in 0 0.75 1 1.25 1.5; do echo $m; done)
     k=30
     resolution=1
     beta=65
@@ -171,11 +192,14 @@ fi
 echo "data_dir is $data_dir" 
 job_number=0
 
+seeds=$(get_config "$data_id" "seeds")
+enrichments=$(get_config "$data_id" "enrichments")
+
 for p in $pops;
     do
-    for seed in 43 44 45
+    for seed in $seeds
         do
-        for enr in $(seq 0.75 0.1 0.95)
+        for enr in $enrichments
         	do
 			for batch_sd_num in $batch_vec
                 do

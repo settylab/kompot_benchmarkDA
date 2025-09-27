@@ -15,7 +15,7 @@ def runKOMPOT(
     ls_factor: float = 10.0,
     n_landmarks: int = None,
     log_fold_change_threshold: float = 1.0,
-    ptp_threshold: float = 0.05,
+    pvalue_threshold: float = 0.05,
     random_state: int = None,
     **kwargs
 ):
@@ -84,7 +84,7 @@ def runKOMPOT(
             ls_factor=ls_factor,
             n_landmarks=n_landmarks,
             log_fold_change_threshold=log_fold_change_threshold,
-            ptp_threshold=ptp_threshold,
+            pvalue_threshold=pvalue_threshold,
             random_state=random_state,
             return_full_results=True,
             inplace=False,

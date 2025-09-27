@@ -11,6 +11,9 @@ set -e
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 cd "$SCRIPT_DIR"
 
+# Source environment utilities
+source bin/environment_utils.sh
+
 # Color codes for better output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -51,47 +54,47 @@ print_success() {
 
 usage() {
     cat << EOF
-BenchmarkDA: Modular Differential Abundance Benchmarking
+BenchmarkDA: Differential Abundance Benchmarking Pipeline
 
-Usage: ./cli.sh [OPTIONS] [STEPS...]
+USAGE: ./cli.sh [OPTIONS] [STEPS...]
 
 OPTIONS:
     -h, --help              Show this help message
-    -d, --datasets LIST     Comma-separated list of datasets to process
-                           Available: linear,branch,cluster,covid19-pbmc,pancreas,bcr-xl,levine32
-                           Default: all available datasets
-    -m, --methods LIST      Comma-separated list of method types to run
-                           Available: python,r,all
-                           Default: all
-    -e, --embeddings LIST   Comma-separated list of embeddings to use
-                           Available: dm,pca,both
-                           Default: both
-    -s, --skip-missing      Skip missing datasets instead of prompting
-    --dry-run              Show what would be executed without running
+    -d, --datasets LIST     Datasets: linear,branch,cluster,covid19-pbmc,pancreas,bcr-xl,levine32
+    -m, --methods LIST      Methods: python,r,all (default: all)
+    -e, --embeddings LIST   Embeddings: dm,pca,both (default: both)
+    -s, --skip-missing      Skip missing datasets without prompting
+    --dry-run              Show commands without executing
 
-STEPS (run all if none specified):
+STEPS:
     setup                   Setup environment and directories
-    preprocess             Preprocess datasets and create embeddings
-    labels                 Generate synthetic condition labels
-    benchmark              Run differential abundance method benchmarks
-    status                 Show status report of completed and missing work
+    preprocess             Create embeddings for datasets
+    labels                 Generate synthetic labels
+    benchmark              Run DA method benchmarks
+    status                 Show completion status
     all                    Run all steps (default)
 
+STATUS COMMANDS:
+    ./cli.sh status                              All datasets
+    ./cli.sh --datasets linear,branch status     Specific datasets
+
+STATUS OUTPUT:
+    [Complete] = Finished   [Partial] = In progress   [Missing] = Not started
+
+PYTHON METHODS:
+    mellon, mellon_noSync, mellon_corr, mellon_pca
+    meld, meld_default, meld_pca
+    kompot, kompot_pca
+
+R METHODS:
+    milo, daseq, cydar, louvain
+
 EXAMPLES:
-    # Run complete pipeline
-    ./cli.sh
-
-    # Run only preprocessing for specific datasets
-    ./cli.sh --datasets linear,branch preprocess
-
-    # Run benchmarking for Python methods only with DM embeddings
-    ./cli.sh --methods python --embeddings dm benchmark
-
-    # Run setup and preprocessing, skip missing datasets
-    ./cli.sh --skip-missing setup preprocess
-
-    # Dry run to see what would be executed
-    ./cli.sh --datasets linear --methods python --dry-run
+    ./cli.sh                                     Complete pipeline
+    ./cli.sh status                              Check progress
+    ./cli.sh --datasets linear preprocess        Preprocess one dataset
+    ./cli.sh --methods python benchmark          Python methods only
+    ./cli.sh --embeddings dm --dry-run           Show DM commands
 EOF
 }
 

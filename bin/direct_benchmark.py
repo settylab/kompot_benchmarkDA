@@ -19,21 +19,26 @@ from config.method_config import PYTHON_METHODS, R_METHODS
 
 def run_python_method(method_name, method_config, dataset_config, params):
     """Execute a Python method directly."""
-    script_path = Path("python_method") / method_config["script"]
+    # Get the project root directory
+    project_root = Path(__file__).resolve().parent.parent
+    script_path = project_root / "python_method" / method_config["script"]
+
+    # Make sure data file path is absolute
+    data_file_path = project_root / params["data_file"]
 
     cmd = [
         "python", str(script_path),
-        "--file_path", params["data_file"],
+        "--file_path", str(data_file_path),
         "--pop", params["pop"],
         "--pop_enr", str(params["enrichment"]),
         "--pop_column", dataset_config["pop_col"],
         "--ds_type", params["dataset"],
         "--batch_sd", str(params["batch_sd"]),
-        "--input_file", f"{params['input_path']}/",
+        "--input_file", f"{project_root / params['input_path']}/",
         "--package", method_name,
         "--seed", str(params["seed"]),
         "--layer_embedding", params["layer_embedding"],
-        "--output_dir", f"{params['output_path']}/"
+        "--output_dir", f"{project_root / params['output_path']}/"
     ]
 
     # Add method-specific parameters
@@ -56,12 +61,24 @@ def run_python_method(method_name, method_config, dataset_config, params):
             "--k_meld", str(dataset_config["k"])
         ])
     elif method_config["script"] == "CNA_bm.py":
+        # CNA methods are disabled due to NumPy 2.0 compatibility issues
+        print(f"Warning: CNA method {method_name} is disabled due to compatibility issues")
+        return False
+    elif method_config["script"] == "kompot_bm.py":
+        method_params = method_config["params"]
         cmd.extend([
-            "--k_cna", str(dataset_config["k"])
+            "--n_dm", str(params["n_dm"]),
+            "--ls_factor", str(method_params.get("ls_factor", 10.0)),
+            "--log_fold_change_threshold", str(method_params.get("log_fold_change_threshold", 1.0)),
+            "--pvalue_threshold", str(method_params.get("pvalue_threshold", 0.05))
         ])
+        if method_params.get("n_landmarks") is not None:
+            cmd.extend(["--n_landmarks", str(method_params["n_landmarks"])])
+        if method_params.get("force_pca"):
+            cmd.append("--force_pca")
 
     print(f"Executing: {' '.join(cmd)}")
-    return subprocess.run(cmd, cwd="python_method")
+    return subprocess.run(cmd, cwd="python_method", timeout=3600)  # 1 hour timeout
 
 def run_r_method(method_name, dataset_config, params):
     """Execute an R method directly."""
@@ -84,7 +101,7 @@ def run_r_method(method_name, dataset_config, params):
     ]
 
     print(f"Executing: {' '.join(cmd)}")
-    return subprocess.run(cmd)
+    return subprocess.run(cmd, timeout=3600)  # 1 hour timeout
 
 def main():
     """Main function to execute benchmarks directly."""
@@ -126,14 +143,17 @@ def main():
         else:
             methods_to_run = R_METHODS
 
+    # Get the project root directory
+    project_root = Path(__file__).resolve().parent.parent
+
     # Set data paths
     if args.dataset in ['linear', 'branch', 'cluster']:
         data_file = f"data/synthetic/{args.dataset}/{args.dataset}.h5ad"
-        data_dir = f"data/synthetic/{args.dataset}"
+        data_dir = str(project_root / f"data/synthetic/{args.dataset}")
         data_type = "synthetic"
     else:
         data_file = f"data/real/{args.dataset}/{args.dataset}.h5ad"
-        data_dir = f"data/real/{args.dataset}"
+        data_dir = str(project_root / f"data/real/{args.dataset}")
         data_type = "real"
 
     if args.slurm:
@@ -145,6 +165,9 @@ def main():
 
 def execute_benchmarks(args, dataset_config, embeddings, methods_to_run, data_file, data_dir, data_type):
     """Execute benchmarks directly without SLURM."""
+
+    # Get the project root directory
+    project_root = Path(__file__).resolve().parent.parent
 
     for embedding in embeddings:
         # Set embedding-specific variables
@@ -170,9 +193,9 @@ def execute_benchmarks(args, dataset_config, embeddings, methods_to_run, data_fi
                                 unified_jobid = f"{args.dataset}-{pop}-{enrichment}-{seed}-{batch_sd}-{args.balance}"
                                 embedding_jobid = f"{unified_jobid}-{analysis_layer}"
                                 input_path = f"{data_dir}/{unified_jobid}"
-                                output_path = f"benchmark/{data_type}/{args.dataset}/{embedding_jobid}/iteration_{iteration}"
+                                output_path = str(project_root / f"benchmark/{data_type}/{args.dataset}/{embedding_jobid}")
 
-                                # Create output directory
+                                # Create output directory (the Python methods create iteration_X subdirectories)
                                 os.makedirs(output_path, exist_ok=True)
 
                                 # Prepare parameters

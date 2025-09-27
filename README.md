@@ -257,7 +257,11 @@ Comprehensive progress monitoring tracks completion at the dataset, method, and 
 
 ## Data Requirements
 
-Real datasets must be downloaded separately and placed in the appropriate `data/real/{dataset}/` directories. The framework automatically detects available datasets and suggests commands for missing components.
+**Synthetic datasets** (linear, branch, cluster): Generated automatically
+
+**Real datasets** (covid19-pbmc, bcr-xl, levine32, pancreas): Must be downloaded separately
+- Download from: [Google Drive link](https://drive.google.com/drive/folders/15wWFD5FMe0VdzN1pUnaUUpQ17OXkeebH)
+- Place in `data/real/{dataset}/` directories
 
 ## Environment Usage Summary
 
@@ -284,5 +288,32 @@ Real datasets must be downloaded separately and placed in the appropriate `data/
    ```
 
 **Never use system python directly** - commands like `python bin/status_report.py` will fail unless you've first activated the `benchmarkda` environment.
+
+## Troubleshooting
+
+### Environment Issues
+```bash
+# Environment not found
+bash setup_environment.sh --minimal
+
+# Package manager not detected - set environment variables:
+export MAMBA_EXE=/path/to/mamba
+# or
+export CONDA_EXE=/path/to/conda
+```
+
+### Permission Issues
+```bash
+# If you see "permission denied" errors:
+chmod +x cli.sh
+chmod +x setup_environment.sh
+```
+
+### Status Report Issues
+```bash
+# If preprocessing not detected, check file naming:
+ls data/synthetic/linear/linear_DM_*.h5ad
+ls data/synthetic/linear/linear_PCA_*.h5ad
+```
 
 For questions or issues, consult the status report: `python bin/status_report.py --commands` (after environment activation)

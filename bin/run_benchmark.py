@@ -20,7 +20,7 @@ from config.method_config import PYTHON_METHODS, R_METHODS
 from config.method_config import get_python_method_cmd, get_r_method_cmd
 
 def generate_benchmark_script(args):
-    """Generate a unified shell script for running benchmark analyses."""
+    """Generate a standard shell script for running benchmark analyses."""
 
     # Parse embeddings list
     embeddings = [e.strip() for e in args.embeddings.split(',')]
@@ -156,11 +156,11 @@ for embedding in $(echo "$embeddings" | tr ',' ' '); do
                             fi
 
                             # Create job ID and paths
-                            # Use unified jobid for label input (embedding-independent)
-                            unified_jobid="${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-${balance_bool}"
+                            # Use standard jobid for label input (embedding-independent)
+                            standard_jobid="${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-${balance_bool}"
                             # Use embedding-specific jobid for benchmark output
                             jobid="${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-${balance_bool}-${analysis_layer}"
-                            input_path="${data_dir}/${unified_jobid}"
+                            input_path="${data_dir}/${standard_jobid}"
                             save_path="${root}/benchmark/${data_type}/${data_id}/${jobid}"
                             save_path_iteration="${save_path}/iteration_${iteration}"
                             mkdir -p "$save_path_iteration"

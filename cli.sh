@@ -62,13 +62,12 @@ OPTIONS:
     -h, --help              Show this help message
     -d, --datasets LIST     Datasets: linear,branch,cluster,covid19-pbmc,pancreas,bcr-xl,levine32
     -m, --methods LIST      Methods: python,r,all (default: all)
-    -e, --embeddings LIST   Embeddings: dm,pca,both (default: both)
     -s, --skip-missing      Skip missing datasets without prompting
     --dry-run              Show commands without executing
 
 STEPS:
     setup                   Setup environment and directories
-    preprocess             Create embeddings for datasets
+    preprocess             Create PCA embeddings and DM from PCA+batch
     labels                 Generate synthetic labels
     benchmark              Run DA method benchmarks
     status                 Show completion status
@@ -94,7 +93,7 @@ EXAMPLES:
     ./cli.sh status                              Check progress
     ./cli.sh --datasets linear preprocess        Preprocess one dataset
     ./cli.sh --methods python benchmark          Python methods only
-    ./cli.sh --embeddings dm --dry-run           Show DM commands
+    ./cli.sh --dry-run                           Show commands without execution
 EOF
 }
 
@@ -105,7 +104,6 @@ EOF
 # Default values
 DATASETS=""
 METHODS="all"
-EMBEDDINGS="both"
 SKIP_MISSING=false
 DRY_RUN=false
 STEPS=()
@@ -122,10 +120,6 @@ while [[ $# -gt 0 ]]; do
             ;;
         -m|--methods)
             METHODS="$2"
-            shift 2
-            ;;
-        -e|--embeddings)
-            EMBEDDINGS="$2"
             shift 2
             ;;
         -s|--skip-missing)
@@ -165,13 +159,6 @@ if [ "$METHODS" = "all" ]; then
     SELECTED_METHODS=("python" "r")
 else
     IFS=',' read -ra SELECTED_METHODS <<< "$METHODS"
-fi
-
-# Parse embeddings
-if [ "$EMBEDDINGS" = "both" ]; then
-    SELECTED_EMBEDDINGS=("dm" "pca")
-else
-    IFS=',' read -ra SELECTED_EMBEDDINGS <<< "$EMBEDDINGS"
 fi
 
 # =============================================================================
@@ -303,32 +290,33 @@ check_datasets() {
 }
 
 preprocess_datasets() {
-    print_step "Preprocessing datasets with embeddings"
+    print_step "Preprocessing datasets"
 
     for dataset in "${SELECTED_DATASETS[@]}"; do
         local n_dm=$(get_n_dm_for_dataset "$dataset")
 
         print_info "Processing $dataset (DM components: $n_dm)"
 
-        for embedding in "${SELECTED_EMBEDDINGS[@]}"; do
-            if [[ "$embedding" == "dm" && $n_dm -gt 0 ]]; then
-                if [ "$DRY_RUN" = true ]; then
-                    echo "[DRY RUN] bash bin/dataset_preprocessing.sh \"$dataset\" X_pca \"$n_dm\" DM"
-                else
-                    bash bin/dataset_preprocessing.sh "$dataset" X_pca "$n_dm" DM || {
-                        print_warning "DM preprocessing failed for $dataset"
-                    }
-                fi
-            elif [[ "$embedding" == "pca" ]]; then
-                if [ "$DRY_RUN" = true ]; then
-                    echo "[DRY RUN] bash bin/dataset_preprocessing.sh \"$dataset\" X_pca 0 PCA"
-                else
-                    bash bin/dataset_preprocessing.sh "$dataset" X_pca 0 PCA || {
-                        print_warning "PCA preprocessing failed for $dataset"
-                    }
-                fi
+        # First create PCA embeddings
+        if [ "$DRY_RUN" = true ]; then
+            echo "[DRY RUN] bash bin/dataset_preprocessing.sh \"$dataset\" X_pca 0 PCA"
+        else
+            bash bin/dataset_preprocessing.sh "$dataset" X_pca 0 PCA || {
+                print_warning "PCA preprocessing failed for $dataset"
+                continue
+            }
+        fi
+
+        # Then create DM from PCA (for methods that need it)
+        if [[ $n_dm -gt 0 ]]; then
+            if [ "$DRY_RUN" = true ]; then
+                echo "[DRY RUN] bash bin/dataset_preprocessing.sh \"$dataset\" X_pca \"$n_dm\" DM"
+            else
+                bash bin/dataset_preprocessing.sh "$dataset" X_pca "$n_dm" DM || {
+                    print_warning "DM preprocessing failed for $dataset"
+                }
             fi
-        done
+        fi
     done
 
     print_success "Dataset preprocessing completed"
@@ -338,16 +326,13 @@ generate_labels() {
     print_step "Generating synthetic condition labels"
 
     for dataset in "${SELECTED_DATASETS[@]}"; do
-        print_info "Generating labels for $dataset (embedding-independent)"
+        print_info "Generating labels for $dataset"
 
-        # Check if labels already exist to avoid regeneration
-        local label_dir_pattern="data/*/$dataset/$dataset-*"
         if [ "$DRY_RUN" = true ]; then
-            echo "[DRY RUN] bash bin/modified_benchmarkda_dm_all.sh \"$dataset\" unified No DM 10"
+            echo "[DRY RUN] bash bin/modified_benchmarkda_dm_all.sh \"$dataset\" labels No PCA 0"
         else
-            # Generate labels once per dataset using DM script but with unified naming
-            # This eliminates the embedding-specific redundancy
-            bash bin/modified_benchmarkda_dm_all.sh "$dataset" unified No DM 10 || {
+            # Generate labels once per dataset
+            bash bin/modified_benchmarkda_dm_all.sh "$dataset" labels No PCA 0 || {
                 print_warning "Label generation failed for $dataset"
             }
         fi
@@ -365,13 +350,10 @@ run_benchmarks() {
         for method_type in "${SELECTED_METHODS[@]}"; do
             print_info "Running $method_type methods on $dataset with embeddings: ${SELECTED_EMBEDDINGS[*]}"
 
-            # Create embedding list for the direct execution
-            local embedding_list=$(IFS=','; echo "${SELECTED_EMBEDDINGS[*]}")
-
             if [ "$DRY_RUN" = true ]; then
-                echo "[DRY RUN] python bin/direct_benchmark.py --dataset \"$dataset\" --method_type \"$method_type\" --embeddings \"$embedding_list\" --n_dm \"$n_dm\""
+                echo "[DRY RUN] python bin/direct_benchmark.py --dataset \"$dataset\" --method_type \"$method_type\" --n_dm \"$n_dm\""
             else
-                print_info "Executing benchmarks directly (no script generation)"
+                print_info "Executing benchmarks"
 
                 # Use proper environment execution command
                 local run_cmd=$(get_environment_run_command)
@@ -379,7 +361,6 @@ run_benchmarks() {
                     $run_cmd python bin/direct_benchmark.py \
                         --dataset "$dataset" \
                         --method_type "$method_type" \
-                        --embeddings "$embedding_list" \
                         --n_dm "$n_dm" || {
                         print_warning "Direct benchmark execution failed for $dataset $method_type"
                     }
@@ -388,7 +369,6 @@ run_benchmarks() {
                     python bin/direct_benchmark.py \
                         --dataset "$dataset" \
                         --method_type "$method_type" \
-                        --embeddings "$embedding_list" \
                         --n_dm "$n_dm" || {
                         print_warning "Direct benchmark execution failed for $dataset $method_type"
                     }
@@ -450,7 +430,7 @@ main() {
     print_info "Configuration:"
     print_info "  Datasets: ${SELECTED_DATASETS[*]}"
     print_info "  Methods: ${SELECTED_METHODS[*]}"
-    print_info "  Embeddings: ${SELECTED_EMBEDDINGS[*]}"
+    print_info "  Embeddings: PCA-based"
     print_info "  Steps: ${STEPS[*]}"
 
     # Check if we should run all steps

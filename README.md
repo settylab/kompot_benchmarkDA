@@ -1,10 +1,10 @@
 # BenchmarkDA: Differential Abundance Testing Framework
 
-A modular, configuration-driven framework for benchmarking differential abundance (DA) methods on single-cell data with consistent preprocessing and unified execution.
+A modular, configuration-driven framework for benchmarking differential abundance (DA) methods on single-cell data with consistent preprocessing.
 
 ## Overview
 
-BenchmarkDA provides a systematic approach to evaluate differential abundance methods across multiple datasets and conditions. The framework handles preprocessing, synthetic label generation, method execution, and comprehensive progress tracking through a unified command-line interface.
+BenchmarkDA provides a systematic approach to evaluate differential abundance methods across multiple datasets and conditions. The framework handles preprocessing, synthetic label generation, method execution, and comprehensive progress tracking through a single command-line interface.
 
 ## Quick Start
 
@@ -51,7 +51,7 @@ python run_da_method.py kompot linear --embedding dm  # Individual methods
 
 ### Core Features
 - **Configuration-driven**: All datasets and methods defined in `config/`
-- **Unified CLI**: Single `cli.sh` interface for all operations
+- **Single CLI**: The `cli.sh` interface for all operations
 - **Status tracking**: Comprehensive progress monitoring
 - **Direct execution**: No intermediate script generation
 - **Environment detection**: Works with mamba/conda/micromamba
@@ -83,7 +83,7 @@ benchmarkDA_private/
 │   └── *.py                         # Supporting utilities
 │
 ├── scripts/
-│   └── run_DA.r                     # Unified R method interface
+│   └── run_DA.r                     # R method interface
 │
 ├── data/
 │   ├── synthetic/{linear,branch,cluster}/  # Generated datasets
@@ -236,8 +236,8 @@ Where `job-id` follows the format: `{dataset}-{population}-{enrichment}-{seed}-{
 
 ## Implementation Details
 
-### Unified Label Generation
-Labels are created once per dataset, independent of embedding type. This eliminates redundancy and ensures consistency across method comparisons.
+### Label Generation
+Labels are created once per dataset, ensuring consistency across method comparisons.
 
 ### Direct Method Execution
 Methods are executed directly without intermediate script generation, reducing complexity and improving maintainability.

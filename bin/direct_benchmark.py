@@ -110,8 +110,9 @@ def main():
     # Required arguments
     parser.add_argument("--dataset", type=str, required=True, help="Dataset name")
     parser.add_argument("--method_type", type=str, required=True, choices=["python", "r"], help="Method type")
-    parser.add_argument("--embeddings", type=str, required=True, help="Comma-separated list of embeddings")
     parser.add_argument("--n_dm", type=int, required=True, help="Number of diffusion map components")
+    # Legacy argument for compatibility - embeddings no longer used
+    parser.add_argument("--embeddings", type=str, default="pca", help="LEGACY: Ignored")
 
     # Optional arguments
     parser.add_argument("--iteration_num", type=int, default=0, help="Number of iterations")
@@ -126,8 +127,8 @@ def main():
     if not dataset_config:
         raise ValueError(f"Dataset {args.dataset} not found in configuration")
 
-    # Parse embeddings
-    embeddings = [e.strip() for e in args.embeddings.split(',')]
+    # all methods use single processing approach
+    # embeddings parameter ignored - kept for compatibility
 
     # Get methods to run
     if args.method_type == "python":
@@ -158,79 +159,190 @@ def main():
 
     if args.slurm:
         # Generate and submit SLURM job
-        generate_slurm_job(args, dataset_config, embeddings, methods_to_run, data_file, data_dir, data_type)
+        generate_slurm_job(args, dataset_config, methods_to_run, data_file, data_dir, data_type)
     else:
         # Execute directly
-        execute_benchmarks(args, dataset_config, embeddings, methods_to_run, data_file, data_dir, data_type)
+        execute_benchmarks(args, dataset_config, methods_to_run, data_file, data_dir, data_type)
 
-def execute_benchmarks(args, dataset_config, embeddings, methods_to_run, data_file, data_dir, data_type):
-    """Execute benchmarks directly without SLURM."""
+def execute_benchmarks(args, dataset_config, methods_to_run, data_file, data_dir, data_type):
+    """Execute benchmarks with optional SLURM array support."""
 
     # Get the project root directory
     project_root = Path(__file__).resolve().parent.parent
 
-    for embedding in embeddings:
-        # Set embedding-specific variables
-        if embedding == "dm":
-            analysis_layer = "dm"
-            layer_embedding = "X_pca"
-            mode_embedding = "DM"
-        else:
-            analysis_layer = "pca"
-            layer_embedding = "X_pca"
-            mode_embedding = "PCA"
+    # single processing approach
+    analysis_layer = "pca"  # Unified processing layer
+    layer_embedding = "X_pca"  # All methods start with PCA embedding
+    mode_embedding = "PCA"  # Mode is always PCA-based
 
-        print(f"Processing embedding: {embedding} ({mode_embedding})")
+    print(f"Processing with PCA-based embeddings")
 
-        # Execute for each parameter combination
+    # Check if running as SLURM array job
+    slurm_task_id = os.environ.get('SLURM_ARRAY_TASK_ID')
+    if slurm_task_id:
+        print(f"Running as SLURM array task {slurm_task_id}")
+        # Execute single task based on SLURM array task ID
+        execute_single_task(int(slurm_task_id), args, dataset_config, methods_to_run,
+                          data_file, data_dir, data_type, project_root, layer_embedding, mode_embedding)
+    else:
+        # Execute all parameter combinations locally
+        job_number = 0
         for pop in dataset_config['pops']:
             for seed in SEEDS:
                 for enrichment in ENRICHMENT_VALUES:
                     for batch_sd in dataset_config['batch_vec']:
                         for method_name in methods_to_run:
                             for iteration in range(args.iteration_num + 1):
-                                # Create paths
-                                unified_jobid = f"{args.dataset}-{pop}-{enrichment}-{seed}-{batch_sd}-{args.balance}"
-                                embedding_jobid = f"{unified_jobid}-{analysis_layer}"
-                                input_path = f"{data_dir}/{unified_jobid}"
-                                output_path = str(project_root / f"benchmark/{data_type}/{args.dataset}/{embedding_jobid}")
+                                job_number += 1
+                                execute_single_job(job_number, pop, seed, enrichment, batch_sd, method_name, iteration,
+                                                 args, dataset_config, methods_to_run, data_file, data_dir, data_type,
+                                                 project_root, layer_embedding, mode_embedding)
 
-                                # Create output directory (the Python methods create iteration_X subdirectories)
-                                os.makedirs(output_path, exist_ok=True)
+def execute_single_task(task_id, args, dataset_config, methods_to_run, data_file, data_dir, data_type,
+                       project_root, layer_embedding, mode_embedding):
+    """Execute a single task for SLURM array job."""
+    # Map task ID to parameter combination
+    job_number = 0
+    for pop in dataset_config['pops']:
+        for seed in SEEDS:
+            for enrichment in ENRICHMENT_VALUES:
+                for batch_sd in dataset_config['batch_vec']:
+                    for method_name in methods_to_run:
+                        for iteration in range(args.iteration_num + 1):
+                            job_number += 1
+                            if job_number == task_id:
+                                execute_single_job(job_number, pop, seed, enrichment, batch_sd, method_name, iteration,
+                                                 args, dataset_config, methods_to_run, data_file, data_dir, data_type,
+                                                 project_root, layer_embedding, mode_embedding)
+                                return
+    print(f"Error: Task ID {task_id} not found in job range")
 
-                                # Prepare parameters
-                                params = {
-                                    "dataset": args.dataset,
-                                    "pop": pop,
-                                    "enrichment": enrichment,
-                                    "seed": seed,
-                                    "batch_sd": batch_sd,
-                                    "n_dm": args.n_dm,
-                                    "data_file": data_file,
-                                    "input_path": input_path,
-                                    "output_path": output_path,
-                                    "layer_embedding": layer_embedding,
-                                    "mode_embedding": mode_embedding
-                                }
+def execute_single_job(job_number, pop, seed, enrichment, batch_sd, method_name, iteration,
+                      args, dataset_config, methods_to_run, data_file, data_dir, data_type,
+                      project_root, layer_embedding, mode_embedding):
+    """Execute a single benchmark job."""
+    # Create job identifiers
+    job_id = f"{args.dataset}-{pop}-{enrichment}-{seed}-{batch_sd}-{args.balance}"
+    input_path = f"{data_dir}/{job_id}"
+    output_path = str(project_root / f"benchmark/{data_type}/{args.dataset}/{job_id}")
 
-                                print(f"Running {embedding_jobid} method={method_name}...")
+    # Create output directory including iteration subdirectory for Python methods
+    iteration_output_path = Path(output_path) / f"iteration_{iteration}"
+    os.makedirs(iteration_output_path, exist_ok=True)
 
-                                # Execute method
-                                if args.method_type == "python":
-                                    method_config = methods_to_run[method_name]
-                                    result = run_python_method(method_name, method_config, dataset_config, params)
-                                else:
-                                    result = run_r_method(method_name, dataset_config, params)
+    # Prepare parameters
+    params = {
+        "dataset": args.dataset,
+        "pop": pop,
+        "enrichment": enrichment,
+        "seed": seed,
+        "batch_sd": batch_sd,
+        "n_dm": args.n_dm,
+        "data_file": data_file,
+        "input_path": input_path,
+        "output_path": output_path,
+        "layer_embedding": layer_embedding,
+        "mode_embedding": mode_embedding
+    }
 
-                                if result.returncode != 0:
-                                    print(f"Warning: {method_name} failed for {embedding_jobid}")
+    print(f"Running {job_id} method={method_name}...")
 
-def generate_slurm_job(args, dataset_config, embeddings, methods_to_run, data_file, data_dir, data_type):
+    # Execute method
+    if args.method_type == "python":
+        method_config = methods_to_run[method_name]
+        result = run_python_method(method_name, method_config, dataset_config, params)
+    else:
+        result = run_r_method(method_name, dataset_config, params)
+
+    if result.returncode != 0:
+        print(f"Warning: {method_name} failed for {job_id}")
+
+def generate_slurm_job(args, dataset_config, methods_to_run, data_file, data_dir, data_type):
     """Generate a SLURM array job for the benchmarks."""
-    # This would generate a SLURM script similar to the old approach but more streamlined
-    # For now, just execute directly
-    print("SLURM submission not implemented yet, executing directly...")
-    execute_benchmarks(args, dataset_config, embeddings, methods_to_run, data_file, data_dir, data_type)
+
+    # Calculate total number of parameter combinations
+    n_pops = len(dataset_config['pops'])
+    n_seeds = len(SEEDS)
+    n_enrichments = len(ENRICHMENT_VALUES)
+    n_batch_vec = len(dataset_config['batch_vec'])
+    n_methods = len(methods_to_run)
+
+    total_jobs = n_pops * n_seeds * n_enrichments * n_batch_vec * n_methods
+
+    print(f"Generating SLURM array job for {total_jobs} tasks...")
+    print(f"  Dataset: {args.dataset}")
+    print(f"  Methods: {list(methods_to_run.keys())}")
+    print(f"  Populations: {n_pops}")
+    print(f"  Seeds: {n_seeds}")
+    print(f"  Enrichments: {n_enrichments}")
+    print(f"  Batch effects: {n_batch_vec}")
+
+    # Create SLURM script
+    project_root = Path(__file__).resolve().parent.parent
+    script_name = f"slurm_benchmark_{args.dataset}_{args.method_type}.sh"
+    script_path = project_root / "benchmark_scripts" / script_name
+
+    # Ensure benchmark_scripts directory exists
+    os.makedirs(project_root / "benchmark_scripts", exist_ok=True)
+
+    # Prepare methods list for command line
+    methods_arg = ""
+    if hasattr(args, 'methods') and args.methods:
+        methods_str = " ".join(args.methods)
+        methods_arg = f" \\\n        --methods {methods_str}"
+
+    slurm_content = f"""#!/bin/bash
+#SBATCH --job-name=bm_{args.dataset}_{args.method_type}
+#SBATCH --array=1-{total_jobs}
+#SBATCH --partition=campus-new
+#SBATCH --time=6:00:00
+#SBATCH --mem=32G
+#SBATCH --output={project_root}/SlurmLog/benchmark_{args.dataset}_{args.method_type}_%A_%a.out
+#SBATCH --error={project_root}/SlurmLog/benchmark_{args.dataset}_{args.method_type}_%A_%a.err
+
+# Benchmark execution script
+# Generated automatically
+
+set -e
+
+# Load environment
+eval "$(micromamba shell hook --shell bash 2>/dev/null)" || echo "micromamba not available"
+
+# Navigate to project root
+cd {project_root}
+
+# Execute direct benchmark with SLURM array task ID
+if [ -n "${{MAMBA_EXE}}" ]; then
+    ${{MAMBA_EXE}} run -n benchmarkda python bin/direct_benchmark.py \\
+        --dataset {args.dataset} \\
+        --method_type {args.method_type} \\
+        --n_dm {args.n_dm} \\
+        --balance {args.balance} \\
+        --iteration_num {args.iteration_num}{methods_arg}
+else
+    python bin/direct_benchmark.py \\
+        --dataset {args.dataset} \\
+        --method_type {args.method_type} \\
+        --n_dm {args.n_dm} \\
+        --balance {args.balance} \\
+        --iteration_num {args.iteration_num}{methods_arg}
+fi
+
+echo "Benchmark completed for task $SLURM_ARRAY_TASK_ID"
+"""
+
+    # Write SLURM script
+    with open(script_path, 'w') as f:
+        f.write(slurm_content)
+
+    # Make script executable
+    os.chmod(script_path, 0o755)
+
+    print(f"SLURM script created: {script_path}")
+    print(f"Submit with: sbatch {script_path}")
+    print(f"Monitor with: squeue -u $USER")
+
+    return str(script_path)
 
 if __name__ == "__main__":
     main()

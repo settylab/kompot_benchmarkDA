@@ -104,7 +104,13 @@ class BenchmarkStatus:
             }
         }
 
-        # Check for DM files (if required)
+        # Check for PCA files (always required)
+        pca_file = data_dir / f"{dataset}_PCA_0.h5ad"
+        preprocessing_status["pca"]["complete"] = pca_file.exists()
+        if pca_file.exists():
+            preprocessing_status["pca"]["files"].append(str(pca_file))
+
+        # Check for DM files (if required, generated from PCA+batch effects)
         if n_dm > 0:
             dm_file = data_dir / f"{dataset}_DM_{n_dm}.h5ad"
             preprocessing_status["dm"]["complete"] = dm_file.exists()
@@ -112,12 +118,6 @@ class BenchmarkStatus:
                 preprocessing_status["dm"]["files"].append(str(dm_file))
         else:
             preprocessing_status["dm"]["complete"] = True  # Not required
-
-        # Check for PCA files
-        pca_file = data_dir / f"{dataset}_PCA_0.h5ad"
-        preprocessing_status["pca"]["complete"] = pca_file.exists()
-        if pca_file.exists():
-            preprocessing_status["pca"]["files"].append(str(pca_file))
 
         return preprocessing_status
 
@@ -193,54 +193,49 @@ class BenchmarkStatus:
             method_info = {
                 "complete": False,
                 "embeddings": {
-                    "dm": {"complete": False, "partial": False, "files": [], "jobs": 0, "completed": 0},
-                    "pca": {"complete": False, "partial": False, "files": [], "jobs": 0, "completed": 0}
+                    "unified": {"complete": False, "partial": False, "files": [], "jobs": 0, "completed": 0, "note": "standard"}
                 }
             }
 
-            for embedding in ["dm", "pca"]:
-                embedding_jobs = 0
-                embedding_completed = 0
+            # standard approach without embedding distinction
+            method_jobs = 0
+            method_completed = 0
 
-                for pop in config["pops"]:
-                    for seed in SEEDS:
-                        for enr in ENRICHMENT_VALUES:
-                            for batch_sd in config["batch_vec"]:
-                                # Job ID with embedding
-                                job_id = f"{dataset}-{pop}-{enr}-{seed}-{batch_sd}-No-{embedding}"
-                                job_dir = benchmark_dir / job_id / "iteration_0"
+            for pop in config["pops"]:
+                for seed in SEEDS:
+                    for enr in ENRICHMENT_VALUES:
+                        for batch_sd in config["batch_vec"]:
+                            # Unified job ID without embedding suffix
+                            job_id = f"{dataset}-{pop}-{enr}-{seed}-{batch_sd}-No"
+                            job_dir = benchmark_dir / job_id / "iteration_0"
 
-                                embedding_jobs += 1
-                                total_jobs += 1
+                            method_jobs += 1
+                            total_jobs += 1
 
-                                # Check if results exist
-                                if job_dir.exists() and any(job_dir.iterdir()):
-                                    # Look for method-specific result files
-                                    method_results = list(job_dir.glob(f"*{method_name}*"))
-                                    if method_results:
-                                        embedding_completed += 1
-                                        completed_jobs += 1
-                                        method_info["embeddings"][embedding]["files"].extend([str(f) for f in method_results])
+                            # Check if results exist
+                            if job_dir.exists() and any(job_dir.iterdir()):
+                                # Look for method-specific result files
+                                method_results = list(job_dir.glob(f"*{method_name}*"))
+                                if method_results:
+                                    method_completed += 1
+                                    completed_jobs += 1
+                                    # Store files in the unified structure
+                                    method_info["embeddings"]["unified"]["files"].extend([str(f) for f in method_results])
 
+            # Store counts for the unified approach
+            method_info["embeddings"]["unified"]["jobs"] = method_jobs
+            method_info["embeddings"]["unified"]["completed"] = method_completed
 
-                # Store counts for partial completion tracking
-                method_info["embeddings"][embedding]["jobs"] = embedding_jobs
-                method_info["embeddings"][embedding]["completed"] = embedding_completed
-
-                # Only consider complete if there were jobs to do AND they're all done
-                method_info["embeddings"][embedding]["complete"] = (
-                    embedding_jobs > 0 and embedding_completed == embedding_jobs
-                )
-                # Consider partial if some jobs are done but not all
-                method_info["embeddings"][embedding]["partial"] = (
-                    embedding_jobs > 0 and embedding_completed > 0 and embedding_completed < embedding_jobs
-                )
-
-            # Method is complete if both embeddings are complete, but show partial progress
-            method_info["complete"] = (
-                method_info["embeddings"]["dm"]["complete"] and
-                method_info["embeddings"]["pca"]["complete"]
+            # Method completion logic
+            method_info["embeddings"]["unified"]["complete"] = (
+                method_jobs > 0 and method_completed == method_jobs
             )
+            method_info["embeddings"]["unified"]["partial"] = (
+                method_jobs > 0 and method_completed > 0 and method_completed < method_jobs
+            )
+
+            # Method is complete if all jobs are complete
+            method_info["complete"] = method_info["embeddings"]["unified"]["complete"]
             method_status["methods"][method_name] = method_info
 
         method_status["total_jobs"] = total_jobs
@@ -359,19 +354,15 @@ class BenchmarkStatus:
             print(f"  Python Methods: {python_info['completed_jobs']}/{python_info['total_jobs']} jobs ({python_pct:.1f}%)")
 
             for method_name, method_info in python_info["methods"].items():
-                dm_jobs = method_info["embeddings"]["dm"]["jobs"]
-                dm_completed = method_info["embeddings"]["dm"]["completed"]
-                pca_jobs = method_info["embeddings"]["pca"]["jobs"]
-                pca_completed = method_info["embeddings"]["pca"]["completed"]
+                unified_jobs = method_info["embeddings"]["unified"]["jobs"]
+                unified_completed = method_info["embeddings"]["unified"]["completed"]
 
-                total_method_jobs = dm_jobs + pca_jobs
-                total_completed = dm_completed + pca_completed
-                method_pct = (total_completed / total_method_jobs * 100) if total_method_jobs > 0 else 0
+                method_pct = (unified_completed / unified_jobs * 100) if unified_jobs > 0 else 0
 
                 status_text = "COMPLETE" if method_info["complete"] else f"PROGRESS ({method_pct:.1f}%)"
                 print(f"    {method_name}: {status_text}")
-                if not method_info["complete"] and total_method_jobs > 0:
-                    print(f"      DM: {dm_completed}/{dm_jobs} | PCA: {pca_completed}/{pca_jobs}")
+                if not method_info["complete"] and unified_jobs > 0:
+                    print(f"      Jobs: {unified_completed}/{unified_jobs}")
 
             # R methods
             r_info = info["benchmarks"]["r"]
@@ -379,19 +370,15 @@ class BenchmarkStatus:
             print(f"  R Methods: {r_info['completed_jobs']}/{r_info['total_jobs']} jobs ({r_pct:.1f}%)")
 
             for method_name, method_info in r_info["methods"].items():
-                dm_jobs = method_info["embeddings"]["dm"]["jobs"]
-                dm_completed = method_info["embeddings"]["dm"]["completed"]
-                pca_jobs = method_info["embeddings"]["pca"]["jobs"]
-                pca_completed = method_info["embeddings"]["pca"]["completed"]
+                unified_jobs = method_info["embeddings"]["unified"]["jobs"]
+                unified_completed = method_info["embeddings"]["unified"]["completed"]
 
-                total_method_jobs = dm_jobs + pca_jobs
-                total_completed = dm_completed + pca_completed
-                method_pct = (total_completed / total_method_jobs * 100) if total_method_jobs > 0 else 0
+                method_pct = (unified_completed / unified_jobs * 100) if unified_jobs > 0 else 0
 
                 status_text = "COMPLETE" if method_info["complete"] else f"PROGRESS ({method_pct:.1f}%)"
                 print(f"    {method_name}: {status_text}")
-                if not method_info["complete"] and total_method_jobs > 0:
-                    print(f"      DM: {dm_completed}/{dm_jobs} | PCA: {pca_completed}/{pca_jobs}")
+                if not method_info["complete"] and unified_jobs > 0:
+                    print(f"      Jobs: {unified_completed}/{unified_jobs}")
 
         print()
 

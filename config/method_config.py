@@ -4,10 +4,29 @@ Contains method-specific parameters and command templates.
 """
 
 # Python method configurations
+# All methods use PCA by default, except mellon and kompot which use DM
 PYTHON_METHODS = {
+    # PCA-based methods (default for most methods)
+    "meld": {
+        "script": "meld_bm.py",
+        "description": "MELD with dataset-specific parameters (PCA-based)",
+        "params": {
+            "force_pca": True
+        }
+    },
+    "meld_default": {
+        "script": "meld_bm.py",
+        "description": "MELD with fixed beta=40 parameter (PCA-based)",
+        "params": {
+            "beta": 40,
+            "force_pca": True
+        }
+    },
+
+    # DM-based methods (only mellon and kompot use DM by default)
     "mellon": {
         "script": "Mellon_bm.py",
-        "description": "Mellon with standard fractal density estimation and hyperparameter sync",
+        "description": "Mellon with diffusion map embedding and hyperparameter sync",
         "params": {
             "mellon_d_method": "fractal",
             "norm_density": "No",
@@ -18,7 +37,7 @@ PYTHON_METHODS = {
     },
     "mellon_noSync": {
         "script": "Mellon_bm.py",
-        "description": "Mellon without hyperparameter synchronization",
+        "description": "Mellon without hyperparameter synchronization (DM-based)",
         "params": {
             "mellon_d_method": "fractal",
             "norm_density": "No",
@@ -29,7 +48,7 @@ PYTHON_METHODS = {
     },
     "mellon_corr": {
         "script": "Mellon_bm.py",
-        "description": "Mellon with batch correction",
+        "description": "Mellon with batch correction (DM-based)",
         "params": {
             "mellon_d_method": "fractal",
             "norm_density": "No",
@@ -38,27 +57,9 @@ PYTHON_METHODS = {
             "ls_factor": 1.5
         }
     },
-    "meld": {
-        "script": "meld_bm.py",
-        "description": "MELD with dataset-specific parameters",
-        "params": {}
-    },
-    "meld_default": {
-        "script": "meld_bm.py",
-        "description": "MELD with fixed beta=40 parameter",
-        "params": {
-            "beta": 40
-        }
-    },
-    # CNA methods temporarily disabled due to NumPy 2.0 compatibility issues
-    # "cna": {
-    #     "script": "CNA_bm.py",
-    #     "description": "Conditional Neighborhood Analysis",
-    #     "params": {}
-    # },
     "kompot": {
         "script": "kompot_bm.py",
-        "description": "Kompot differential abundance testing",
+        "description": "Kompot differential abundance testing (DM-based)",
         "params": {
             "ls_factor": 10.0,
             "n_landmarks": None,
@@ -66,20 +67,11 @@ PYTHON_METHODS = {
             "pvalue_threshold": 0.05
         }
     },
-    "kompot_pca": {
-        "script": "kompot_bm.py",
-        "description": "Kompot using PCA embedding",
-        "params": {
-            "ls_factor": 10.0,
-            "n_landmarks": None,
-            "log_fold_change_threshold": 1.0,
-            "pvalue_threshold": 0.05,
-            "force_pca": True
-        }
-    },
+
+    # PCA variants of normally DM-based methods
     "mellon_pca": {
         "script": "Mellon_bm.py",
-        "description": "Mellon using PCA embedding",
+        "description": "Mellon using PCA embedding instead of diffusion maps",
         "params": {
             "mellon_d_method": "fractal",
             "norm_density": "No",
@@ -89,17 +81,21 @@ PYTHON_METHODS = {
             "force_pca": True
         }
     },
-    "meld_pca": {
-        "script": "meld_bm.py",
-        "description": "MELD using PCA embedding",
+    "kompot_pca": {
+        "script": "kompot_bm.py",
+        "description": "Kompot using PCA embedding instead of diffusion maps",
         "params": {
+            "ls_factor": 10.0,
+            "n_landmarks": None,
+            "log_fold_change_threshold": 1.0,
+            "pvalue_threshold": 0.05,
             "force_pca": True
         }
     }
-    # CNA PCA method temporarily disabled due to NumPy 2.0 compatibility issues
-    # "cna_pca": {
+    # CNA methods temporarily disabled due to NumPy 2.0 compatibility issues
+    # "cna": {
     #     "script": "CNA_bm.py",
-    #     "description": "CNA using PCA embedding",
+    #     "description": "Conditional Neighborhood Analysis (PCA-based)",
     #     "params": {
     #         "force_pca": True
     #     }
@@ -132,8 +128,8 @@ R_METHODS = {
 
 # Common method parameters
 COMMON_PARAMS = {
-    "layer_embedding_pca": "X_pca",
-    "layer_embedding_dm": "DM_EigenVectors",
+    "layer_embedding_default": "X_pca",  # Default embedding for all methods
+    "layer_embedding_dm": "DM_EigenVectors",  # Only for mellon and kompot without force_pca
 }
 
 def get_method_description(method_name):

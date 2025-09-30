@@ -63,7 +63,7 @@ detect_benchmarkda_environment() {
     return 1
 }
 
-# Function to activate the benchmarkda environment
+# Function to activate the benchmarkda environment using shell hook
 activate_benchmarkda_environment() {
     local pkg_manager=$(detect_package_manager)
     local env_name=$(detect_benchmarkda_environment)
@@ -85,21 +85,54 @@ activate_benchmarkda_environment() {
     echo "Detected package manager: $pkg_manager"
     echo "Detected environment: $env_name"
 
-    # We don't actually activate here - instead we rely on the 'run' commands
-    # This avoids shell subprocess activation issues
+    # First, completely deactivate any existing mamba/conda environments
+    # This ensures module paths take precedence when we activate
+    echo "Deactivating any existing conda/mamba environments..."
     case "$pkg_manager" in
-        "mamba_exe"|"conda_exe")
-            echo "Using ${pkg_manager} for environment execution (no shell activation needed)"
-            return 0
+        "mamba_exe")
+            eval "$(${MAMBA_EXE} shell hook --shell bash)" 2>/dev/null
+            while [ ! -z "$CONDA_PREFIX" ]; do
+                mamba deactivate 2>/dev/null || break
+            done
+            ;;
+        "conda_exe")
+            eval "$(${CONDA_EXE} shell hook --shell bash)" 2>/dev/null
+            while [ ! -z "$CONDA_PREFIX" ]; do
+                conda deactivate 2>/dev/null || break
+            done
             ;;
         "micromamba")
-            # For micromamba, we can try traditional activation if desired
-            echo "WARNING: Using micromamba - consider setting MAMBA_EXE or CONDA_EXE for better compatibility" >&2
-            return 0
+            eval "$(micromamba shell hook --shell bash)" 2>/dev/null
+            while [ ! -z "$CONDA_PREFIX" ]; do
+                micromamba deactivate 2>/dev/null || break
+            done
             ;;
     esac
 
-    echo "Successfully detected environment: $env_name"
+    echo "All environments deactivated. CONDA_PREFIX is now: ${CONDA_PREFIX:-<empty>}"
+
+    # Now activate the benchmarkda environment
+    # Module paths (if loaded) will be at the front of PATH
+    case "$pkg_manager" in
+        "mamba_exe")
+            mamba activate "$env_name" 2>/dev/null
+            ;;
+        "conda_exe")
+            conda activate "$env_name" 2>/dev/null
+            ;;
+        "micromamba")
+            micromamba activate "$env_name" 2>/dev/null
+            ;;
+    esac
+
+    # Verify activation succeeded
+    if [ -z "$CONDA_PREFIX" ]; then
+        echo "ERROR: Failed to activate environment $env_name" >&2
+        return 1
+    fi
+
+    echo "Successfully activated environment: $env_name"
+    echo "CONDA_PREFIX: $CONDA_PREFIX"
     return 0
 }
 

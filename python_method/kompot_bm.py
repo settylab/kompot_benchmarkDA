@@ -63,7 +63,7 @@ def main():
 
         # Determine embedding mode: DM by default, PCA if n_dm=0 or force_pca=True
         n_dm = args.n_dm if args.n_dm is not None else 10
-        use_dm = (n_dm > 0) and not args.force_pca
+        use_dm = (n_dm > 0) and not getattr(args, 'force_pca', False)
 
         # Run Kompot with standardized embedding handling
         log_fold_change_mean, zscores = runKompot.runKOMPOT_with_params(

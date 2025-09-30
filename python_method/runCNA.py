@@ -63,7 +63,7 @@ def runCNA_func(
     # association test
     cna_res = cna.tl.association(md,
                                  getattr(md.samplem, "label_id"),
-                                 sid_name='sample_id',
+                                 'sample_id',
                                  covs=None,
                                  batches=getattr(md.samplem, "batch_id", None),
                                  allow_low_sample_size=True)

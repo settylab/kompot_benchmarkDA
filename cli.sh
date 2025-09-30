@@ -14,6 +14,70 @@ cd "$SCRIPT_DIR"
 # Source environment utilities
 source bin/environment_utils.sh
 
+# Function to load GCC module if needed for R compilation
+load_gcc_module_if_needed() {
+    # Only load module if module system is available and for R methods
+    if command -v module &> /dev/null; then
+        # Check GLIBC version
+        local GLIBC_VERSION=$(ldd --version 2>/dev/null | head -n1 | grep -o '[0-9]\+\.[0-9]\+' | head -n1 || echo "unknown")
+        local NEEDS_GCC_MODULE=false
+
+        if [ "$GLIBC_VERSION" != "unknown" ]; then
+            local GLIBC_MAJOR=$(echo $GLIBC_VERSION | cut -d. -f1)
+            local GLIBC_MINOR=$(echo $GLIBC_VERSION | cut -d. -f2)
+
+            # Only load module if GLIBC < 2.29
+            if [[ $GLIBC_MAJOR -lt 2 ]] || [[ $GLIBC_MAJOR -eq 2 && $GLIBC_MINOR -lt 29 ]]; then
+                NEEDS_GCC_MODULE=true
+                print_info "GLIBC $GLIBC_VERSION detected - loading GCC module for R compilation"
+            else
+                print_info "GLIBC $GLIBC_VERSION is compatible - no GCC module needed"
+            fi
+        else
+            NEEDS_GCC_MODULE=true
+            print_info "Could not detect GLIBC version - loading GCC module as precaution"
+        fi
+
+        if [ "$NEEDS_GCC_MODULE" = "true" ]; then
+            print_info "Module system detected, attempting to load GCC module for R compilation..."
+
+            # First, completely deactivate any existing mamba/conda environments
+            # This ensures module paths will take precedence when we later activate benchmarkda
+            print_info "Deactivating any existing conda/mamba environments..."
+
+            # Initialize shell hook if available
+            if [ -n "${MAMBA_EXE}" ]; then
+                eval "$(${MAMBA_EXE} shell hook --shell bash)" 2>/dev/null
+                while [ ! -z "$CONDA_PREFIX" ]; do
+                    mamba deactivate 2>/dev/null || break
+                done
+            elif [ -n "${CONDA_EXE}" ]; then
+                eval "$(${CONDA_EXE} shell hook --shell bash)" 2>/dev/null
+                while [ ! -z "$CONDA_PREFIX" ]; do
+                    conda deactivate 2>/dev/null || break
+                done
+            elif command -v micromamba &> /dev/null; then
+                eval "$(micromamba shell hook --shell bash)" 2>/dev/null
+                while [ ! -z "$CONDA_PREFIX" ]; do
+                    micromamba deactivate 2>/dev/null || break
+                done
+            fi
+
+            print_info "All environments deactivated before module load"
+
+            # Load GCC module (will be at front of PATH)
+            for gcc_version in "13.3.0" "13.2.0" "12.3.0" "12.2.0" "11.3.0" "11.2.0"; do
+                if module avail GCC/$gcc_version 2>&1 | grep -q "GCC/$gcc_version"; then
+                    print_info "Loading GCC/$gcc_version module for R compilation support"
+                    module load GCC/$gcc_version
+                    return 0
+                fi
+            done
+            print_warning "No compatible GCC modules found"
+        fi
+    fi
+}
+
 # Color codes for better output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -63,6 +127,7 @@ OPTIONS:
     -d, --datasets LIST     Datasets: linear,branch,cluster,covid19-pbmc,pancreas,bcr-xl,levine32
     -m, --methods LIST      Methods: python,r,all (default: all)
     -s, --skip-missing      Skip missing datasets without prompting
+    --slurm                Submit benchmarks as SLURM array jobs
     --dry-run              Show commands without executing
 
 STEPS:
@@ -89,10 +154,12 @@ R METHODS:
     milo, daseq, cydar, louvain
 
 EXAMPLES:
-    ./cli.sh                                     Complete pipeline
+    ./cli.sh                                     Complete pipeline (local)
+    ./cli.sh benchmark --slurm                   Submit ALL benchmarks to SLURM
     ./cli.sh status                              Check progress
     ./cli.sh --datasets linear preprocess        Preprocess one dataset
     ./cli.sh --methods python benchmark          Python methods only
+    ./cli.sh --methods r benchmark --slurm       Submit only R methods to SLURM
     ./cli.sh --dry-run                           Show commands without execution
 EOF
 }
@@ -124,6 +191,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         -s|--skip-missing)
             SKIP_MISSING=true
+            shift
+            ;;
+        --slurm)
+            USE_SLURM=true
             shift
             ;;
         --dry-run)
@@ -177,6 +248,9 @@ setup_environment() {
         exit 1
     fi
 
+    # Load GCC module first if needed (before mamba activation)
+    load_gcc_module_if_needed
+
     # Check if benchmarkda environment exists
     ENV_NAME=$(detect_benchmarkda_environment)
     if [[ -z "$ENV_NAME" ]]; then
@@ -198,7 +272,7 @@ setup_environment() {
         fi
     fi
 
-    # Activate environment
+    # Activate environment using shell hook (sets up environment for inheritance)
     print_info "Activating environment: $ENV_NAME"
     if ! activate_benchmarkda_environment; then
         print_error "Failed to activate environment"
@@ -350,10 +424,25 @@ run_benchmarks() {
         for method_type in "${SELECTED_METHODS[@]}"; do
             print_info "Running $method_type methods on $dataset with embeddings: ${SELECTED_EMBEDDINGS[*]}"
 
+            # Prepare SLURM flag if needed
+            local slurm_flag=""
+            if [ "$USE_SLURM" = true ]; then
+                slurm_flag="--slurm"
+            fi
+
             if [ "$DRY_RUN" = true ]; then
-                echo "[DRY RUN] python bin/direct_benchmark.py --dataset \"$dataset\" --method_type \"$method_type\" --n_dm \"$n_dm\""
+                echo "[DRY RUN] python bin/direct_benchmark.py --dataset \"$dataset\" --method_type \"$method_type\" --n_dm \"$n_dm\" $slurm_flag"
             else
-                print_info "Executing benchmarks"
+                if [ "$USE_SLURM" = true ]; then
+                    print_info "Submitting $method_type methods for $dataset to SLURM"
+                else
+                    print_info "Executing benchmarks"
+                fi
+
+                # Load GCC module if needed for R methods before mamba activation
+                if [ "$method_type" = "r" ]; then
+                    load_gcc_module_if_needed
+                fi
 
                 # Use proper environment execution command
                 local run_cmd=$(get_environment_run_command)
@@ -361,7 +450,8 @@ run_benchmarks() {
                     $run_cmd python bin/direct_benchmark.py \
                         --dataset "$dataset" \
                         --method_type "$method_type" \
-                        --n_dm "$n_dm" || {
+                        --n_dm "$n_dm" \
+                        $slurm_flag || {
                         print_warning "Direct benchmark execution failed for $dataset $method_type"
                     }
                 else
@@ -369,9 +459,21 @@ run_benchmarks() {
                     python bin/direct_benchmark.py \
                         --dataset "$dataset" \
                         --method_type "$method_type" \
-                        --n_dm "$n_dm" || {
+                        --n_dm "$n_dm" \
+                        $slurm_flag || {
                         print_warning "Direct benchmark execution failed for $dataset $method_type"
                     }
+                fi
+
+                # If using SLURM, submit the generated script
+                if [ "$USE_SLURM" = true ] && [ "$DRY_RUN" != true ]; then
+                    local script_path="benchmark_scripts/slurm_benchmark_${dataset}_${method_type}.sh"
+                    if [ -f "$script_path" ]; then
+                        local job_id=$(sbatch --export=ALL "$script_path" | awk '{print $NF}')
+                        print_success "Submitted SLURM job $job_id for $dataset $method_type"
+                    else
+                        print_warning "SLURM script not found: $script_path"
+                    fi
                 fi
             fi
         done

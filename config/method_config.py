@@ -225,6 +225,9 @@ def get_r_method_cmd(method, data_file, pop, pop_enr, pop_col, ds_type, batch_sd
     method_config = R_METHODS[method]
     method_name = method_config["method_name"]
 
+    # Force R methods to use PCA embeddings (n_dm=0) since they don't have DM embeddings
+    r_n_dm = 0
+
     cmd = f"Rscript {scripts_dir}/run_DA.r \\\n"
     cmd += f"    --file_path {data_file} \\\n"
     cmd += f"    --pop {pop} \\\n"
@@ -238,7 +241,7 @@ def get_r_method_cmd(method, data_file, pop, pop_enr, pop_col, ds_type, batch_sd
     cmd += f"    --layer_embedding {layer_embedding} \\\n"
     cmd += f"    --k {k} \\\n"
     cmd += f"    --resolution {resolution} \\\n"
-    cmd += f"    --n_dm {n_dm} \\\n"
+    cmd += f"    --n_dm {r_n_dm} \\\n"
     cmd += f"    --output_dir {output_dir}/"
     
     return cmd

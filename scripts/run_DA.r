@@ -3,6 +3,27 @@
 ### Modern R DA methods runner with unified interface ###
 ### Compatible with Python methods and batch-corrected embeddings ###
 
+# Reduce mamba cache warnings
+Sys.setenv(MAMBA_NO_BANNER = "1")
+Sys.setenv(CONDA_QUIET = "1")
+
+# Prioritize mamba environment packages over renv
+conda_env_path <- Sys.getenv("CONDA_PREFIX")
+if (conda_env_path != "") {
+    conda_r_lib <- file.path(conda_env_path, "lib", "R", "library")
+    if (dir.exists(conda_r_lib)) {
+        .libPaths(c(conda_r_lib, .libPaths()))
+        cat("Using mamba R library path:", conda_r_lib, "\n")
+    }
+} else {
+    # Fallback to known mamba environment path
+    fallback_lib <- "/fh/fast/setty_m/user/dotto/mamba/envs/benchmarkda/lib/R/library"
+    if (dir.exists(fallback_lib)) {
+        .libPaths(c(fallback_lib, .libPaths()))
+        cat("Using fallback mamba R library path:", fallback_lib, "\n")
+    }
+}
+
 suppressPackageStartupMessages({
     library(argparse)
     library(tidyverse)
@@ -46,6 +67,32 @@ print(paste("Using embedding:", args$layer_embedding, "with n_dm =", args$n_dm))
 print("Loading h5ad file...")
 adata <- read_h5ad(args$file_path)
 
+# Load processed metadata with synthetic labels from input directory
+print("Loading processed metadata...")
+input_dir <- args$input_file
+iteration_dir <- file.path(input_dir, "iteration_0")
+
+# Construct expected metadata filename
+metadata_filename <- paste0("benchmark_", args$ds_type, "_pop_", args$pop, "_enr", args$pop_enr, "_seed", args$seed, ".coldata.csv")
+metadata_path <- file.path(iteration_dir, metadata_filename)
+
+if (file.exists(metadata_path)) {
+    print(paste("Loading metadata from:", metadata_path))
+    processed_metadata <- read.csv(metadata_path, row.names = 1)
+
+    # Replace obs data with processed metadata containing synthetic labels
+    print("Merging processed metadata with base dataset...")
+    adata$obs <- processed_metadata
+} else {
+    print(paste("Warning: Processed metadata not found at:", metadata_path))
+    print("Available files in iteration directory:")
+    if (dir.exists(iteration_dir)) {
+        print(list.files(iteration_dir))
+    } else {
+        print("Iteration directory does not exist")
+    }
+}
+
 # Convert to SingleCellExperiment
 print("Converting to SingleCellExperiment...")
 sce <- SingleCellExperiment(
@@ -55,13 +102,19 @@ sce <- SingleCellExperiment(
 )
 
 # CRITICAL: Use the same batch-corrected embeddings as Python methods
-embedding_key <- if (args$n_dm > 0) "DM_EigenVectors_batch" else paste0(args$layer_embedding, "_batch")
+# Try batch-corrected embedding first, fall back to base embedding if not available
+primary_embedding_key <- if (args$n_dm > 0) "DM_EigenVectors_batch" else paste0(args$layer_embedding, "_batch")
+fallback_embedding_key <- if (args$n_dm > 0) "DM_EigenVectors" else args$layer_embedding
 
-print(paste("Using batch-corrected embedding:", embedding_key))
-
-# Check if the required embedding exists
-if (!embedding_key %in% names(adata$obsm)) {
-    stop(paste("Required embedding", embedding_key, "not found in data.",
+# Select the appropriate embedding
+if (primary_embedding_key %in% names(adata$obsm)) {
+    embedding_key <- primary_embedding_key
+    print(paste("Using batch-corrected embedding:", embedding_key))
+} else if (fallback_embedding_key %in% names(adata$obsm)) {
+    embedding_key <- fallback_embedding_key
+    print(paste("Batch-corrected embedding not found, using base embedding:", embedding_key))
+} else {
+    stop(paste("Neither", primary_embedding_key, "nor", fallback_embedding_key, "found in data.",
                "Available embeddings:", paste(names(adata$obsm), collapse = ", ")))
 }
 
@@ -70,6 +123,8 @@ embedding_matrix <- adata$obsm[[embedding_key]]
 
 # Add embedding to SingleCellExperiment
 reducedDim(sce, "embedding") <- embedding_matrix
+# Also add as "PCA" for milo compatibility (regardless of actual embedding type)
+reducedDim(sce, "PCA") <- embedding_matrix
 
 # Ensure required metadata columns exist
 required_cols <- c("synth_labels", "synth_samples", "synth_batches")

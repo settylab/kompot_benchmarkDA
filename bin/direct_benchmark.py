@@ -34,11 +34,11 @@ def run_python_method(method_name, method_config, dataset_config, params):
         "--pop_column", dataset_config["pop_col"],
         "--ds_type", params["dataset"],
         "--batch_sd", str(params["batch_sd"]),
-        "--input_file", f"{project_root / params['input_path']}/",
+        "--input_file", f"{str(project_root / params['input_path'])}/",
         "--package", method_name,
         "--seed", str(params["seed"]),
         "--layer_embedding", params["layer_embedding"],
-        "--output_dir", f"{project_root / params['output_path']}/"
+        "--output_dir", f"{str(project_root / params['output_path'])}/"
     ]
 
     # Add method-specific parameters
@@ -78,10 +78,13 @@ def run_python_method(method_name, method_config, dataset_config, params):
             cmd.append("--force_pca")
 
     print(f"Executing: {' '.join(cmd)}")
-    return subprocess.run(cmd, cwd="python_method", timeout=3600)  # 1 hour timeout
+    return subprocess.run(cmd, cwd="python_method", timeout=21600)  # 6 hour timeout
 
 def run_r_method(method_name, dataset_config, params):
     """Execute an R method directly."""
+    # Force R methods to use PCA embeddings (n_dm=0) since they don't have DM embeddings
+    r_n_dm = 0
+
     cmd = [
         "Rscript", "scripts/run_DA.r",
         "--file_path", params["data_file"],
@@ -96,12 +99,47 @@ def run_r_method(method_name, dataset_config, params):
         "--layer_embedding", params["layer_embedding"],
         "--k", str(dataset_config["k"]),
         "--resolution", str(dataset_config["resolution"]),
-        "--n_dm", str(params["n_dm"]),
+        "--n_dm", str(r_n_dm),
         "--output_dir", f"{params['output_path']}/"
     ]
 
     print(f"Executing: {' '.join(cmd)}")
-    return subprocess.run(cmd, timeout=3600)  # 1 hour timeout
+
+    # Set environment variables for R/renv compatibility in SLURM
+    env = os.environ.copy()
+    env["RENV_CONFIG_SANDBOX_ENABLED"] = "FALSE"  # Disable renv sandbox to avoid timeouts
+    env["R_LIBS_USER"] = ""  # Prioritize conda packages over user library
+
+    # Load GCC module only if needed (for R methods and GLIBC < 2.29)
+    needs_gcc_module = False
+    if subprocess.run(["which", "module"], capture_output=True).returncode == 0:
+        # Check GLIBC version
+        try:
+            glibc_output = subprocess.run(["ldd", "--version"], capture_output=True, text=True)
+            glibc_version = glibc_output.stdout.split('\n')[0].split()[-1]
+            major, minor = map(int, glibc_version.split('.'))
+
+            # Only load module if GLIBC < 2.29 (needed for modern R package compilation)
+            if major < 2 or (major == 2 and minor < 29):
+                needs_gcc_module = True
+                print(f"GLIBC {glibc_version} detected - need GCC module for R compilation")
+        except:
+            # If we can't detect GLIBC, err on the side of caution
+            needs_gcc_module = True
+            print("Could not detect GLIBC version - loading GCC module as precaution")
+
+    if needs_gcc_module:
+        # Check if GCC module is available and load it
+        gcc_versions = ["13.3.0", "13.2.0", "12.3.0", "12.2.0", "11.3.0", "11.2.0"]
+        for gcc_version in gcc_versions:
+            check_cmd = f"module avail GCC/{gcc_version} 2>&1 | grep -q 'GCC/{gcc_version}'"
+            if subprocess.run(check_cmd, shell=True, capture_output=True).returncode == 0:
+                load_cmd = f"module load GCC/{gcc_version}"
+                print(f"Loading GCC/{gcc_version} module for R compilation support")
+                cmd = ["/bin/bash", "-c", f"{load_cmd} && {' '.join(cmd)}"]
+                break
+
+    return subprocess.run(cmd, timeout=21600, env=env)  # 6 hour timeout
 
 def main():
     """Main function to execute benchmarks directly."""
@@ -302,31 +340,33 @@ def generate_slurm_job(args, dataset_config, methods_to_run, data_file, data_dir
 
 # Benchmark execution script
 # Generated automatically
+# Environment should be pre-activated before submitting this job
 
 set -e
 
-# Load environment
-eval "$(micromamba shell hook --shell bash 2>/dev/null)" || echo "micromamba not available"
+# Environment variables (including module variables) should be inherited from pre-activated environment
+# Verify that required environment variables are present
+if [ -z "$CONDA_PREFIX" ]; then
+    echo "Warning: CONDA_PREFIX not set - mamba environment may not be properly inherited"
+fi
+
+# Set additional environment variables for R package management
+export R_LIBS_USER=""
+export RENV_CONFIG_SANDBOX_ENABLED=FALSE
+export MAMBA_NO_BANNER=1
+export CONDA_QUIET=1
 
 # Navigate to project root
 cd {project_root}
 
 # Execute direct benchmark with SLURM array task ID
-if [ -n "${{MAMBA_EXE}}" ]; then
-    ${{MAMBA_EXE}} run -n benchmarkda python bin/direct_benchmark.py \\
-        --dataset {args.dataset} \\
-        --method_type {args.method_type} \\
-        --n_dm {args.n_dm} \\
-        --balance {args.balance} \\
-        --iteration_num {args.iteration_num}{methods_arg}
-else
-    python bin/direct_benchmark.py \\
-        --dataset {args.dataset} \\
-        --method_type {args.method_type} \\
-        --n_dm {args.n_dm} \\
-        --balance {args.balance} \\
-        --iteration_num {args.iteration_num}{methods_arg}
-fi
+# Environment is inherited from CLI via --export=ALL
+python bin/direct_benchmark.py \\
+    --dataset {args.dataset} \\
+    --method_type {args.method_type} \\
+    --n_dm {args.n_dm} \\
+    --balance {args.balance} \\
+    --iteration_num {args.iteration_num}{methods_arg}
 
 echo "Benchmark completed for task $SLURM_ARRAY_TASK_ID"
 """

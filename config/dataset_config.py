@@ -58,8 +58,7 @@ DATASET_CONFIGS = {
         "n_dm": 5   # Diffusion map components for this dataset
     },
     "levine32": {
-        "pops": ["CD4 T cells", "CD8 T cells", "Monocytes", "Mature B cells", "CD16- NK cells",
-                "CD16+ NK cells", "pDCs", "Pre B cells"],  # Major immune cell populations
+        "pops": ["pDCs", "CD4_T_cells", "CD8_T_cells", "Pre_B_cells", "Mature_B_cells", "Monocytes", "Basophils"],  # Major immune cell populations (7 total)
         "batch_vec": [0],
         "k": 30,
         "resolution": 0.5,

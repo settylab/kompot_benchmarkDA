@@ -172,6 +172,8 @@ R METHODS:
 
 EXAMPLES:
     ./cli.sh                                         Complete pipeline (local)
+    ./cli.sh labels --slurm                          Submit label generation as SLURM array (splits by population)
+    ./cli.sh --datasets bcr-xl labels --slurm        Submit labels for specific dataset(s)
     ./cli.sh benchmark --slurm                       Submit ALL benchmarks to SLURM
     ./cli.sh --methods milo benchmark --slurm --sbatch-options "--partition=largenode --mem=64G"    Submit with custom SLURM options
     ./cli.sh --methods milo benchmark --slurm        Submit only Milo method
@@ -181,7 +183,7 @@ EXAMPLES:
     ./cli.sh --datasets linear preprocess            Preprocess one dataset
     ./cli.sh --methods python benchmark              Python methods only
     ./cli.sh --methods r benchmark --slurm           Submit only R methods to SLURM
-    ./cli.sh --dry-run                               Show commands without execution
+    ./cli.sh --dry-run labels --slurm                Show what SLURM scripts would be generated
 EOF
 }
 
@@ -504,6 +506,12 @@ preprocess_datasets() {
 generate_labels() {
     print_step "Generating synthetic condition labels"
 
+    # Check if SLURM submission is requested
+    if [ "$USE_SLURM" = true ]; then
+        generate_labels_slurm
+        return
+    fi
+
     # Label generation needs environment active
     if [ "$DRY_RUN" != true ]; then
         # Load environment utilities
@@ -540,6 +548,7 @@ generate_labels() {
         print_info "Generating labels for $dataset"
 
         # Add skip-existing flag if only-missing is set
+        # (CLI uses --only-missing, but Python script uses --skip-existing)
         local skip_flag=""
         if [ "$ONLY_MISSING" = true ]; then
             skip_flag="--skip-existing"
@@ -556,6 +565,130 @@ generate_labels() {
     done
 
     print_success "Label generation completed"
+}
+
+generate_labels_slurm() {
+    print_step "Generating SLURM array job scripts for label generation"
+
+    mkdir -p benchmark_scripts SlurmLog
+
+    # Activate environment for getting populations from config
+    if [ "$DRY_RUN" != true ]; then
+        if [[ -f "bin/environment_utils.sh" ]]; then
+            source "bin/environment_utils.sh"
+        fi
+        if [ -z "$CONDA_PREFIX" ]; then
+            if ! activate_benchmarkda_environment; then
+                print_error "Failed to activate environment"
+                return 1
+            fi
+        fi
+    fi
+
+    for dataset in "${SELECTED_DATASETS[@]}"; do
+        # Get populations for this dataset
+        local pops_array=()
+        if [ -n "$FILTER_POPULATIONS" ]; then
+            # Use filtered populations
+            IFS=',' read -ra pops_array <<< "$FILTER_POPULATIONS"
+        else
+            # Get all populations from config
+            pops_array=($(python -c "
+import sys
+sys.path.append('.')
+from config.dataset_config import DATASET_CONFIGS
+pops = DATASET_CONFIGS.get('$dataset', {}).get('pops', [])
+print(' '.join(pops))
+" 2>/dev/null))
+        fi
+
+        if [ ${#pops_array[@]} -eq 0 ]; then
+            print_warning "No populations found for $dataset, skipping"
+            continue
+        fi
+
+        # Build filter arguments (excluding populations since we're splitting on that)
+        local filter_args=""
+        [ -n "$FILTER_SEEDS" ] && filter_args="$filter_args --seeds $FILTER_SEEDS"
+        [ -n "$FILTER_ENRICHMENTS" ] && filter_args="$filter_args --enrichments $FILTER_ENRICHMENTS"
+        [ -n "$FILTER_BATCH_SDS" ] && filter_args="$filter_args --batch-sds $FILTER_BATCH_SDS"
+
+        # Add only-missing flag if set
+        local skip_flag=""
+        if [ "$ONLY_MISSING" = true ]; then
+            skip_flag="--only-missing"
+        fi
+
+        local script_path="benchmark_scripts/slurm_labels_${dataset}.sh"
+        local num_pops=${#pops_array[@]}
+        local max_array_idx=$((num_pops - 1))
+
+        print_info "Creating SLURM array job for $dataset ($num_pops populations)"
+
+        # Create the SLURM script
+        cat > "$script_path" << EOF
+#!/bin/bash
+#SBATCH --job-name=labels_${dataset}
+#SBATCH --array=0-${max_array_idx}
+#SBATCH --cpus-per-task=8
+#SBATCH --time=2-00:00:00
+#SBATCH --output=SlurmLog/%x_%A_%a.out
+#SBATCH --error=SlurmLog/%x_%A_%a.err
+
+# BenchmarkDA Label Generation - SLURM Array Job
+# Generated: $(date)
+# Dataset: ${dataset}
+# Populations: ${pops_array[*]}
+
+# Define populations array
+pops=(${pops_array[@]@Q})
+
+# Get population for this task
+pop=\${pops[\$SLURM_ARRAY_TASK_ID]}
+
+echo "=========================================="
+echo "SLURM Array Job: Label Generation"
+echo "=========================================="
+echo "Job ID: \$SLURM_JOB_ID"
+echo "Array Task ID: \$SLURM_ARRAY_TASK_ID"
+echo "Dataset: ${dataset}"
+echo "Population: \$pop"
+echo "=========================================="
+echo ""
+
+# Change to project directory
+cd "${SCRIPT_DIR}"
+
+# Run label generation for this population
+./cli.sh --datasets ${dataset} --populations "\$pop" $filter_args $skip_flag labels
+
+echo ""
+echo "=========================================="
+echo "Task completed: \$pop"
+echo "=========================================="
+EOF
+
+        chmod +x "$script_path"
+
+        if [ "$DRY_RUN" = true ]; then
+            echo "[DRY RUN] Would create: $script_path"
+            echo "[DRY RUN] Would submit: sbatch $SBATCH_OPTIONS $script_path"
+        else
+            print_success "Created SLURM script: $script_path"
+
+            # Submit the job
+            local sbatch_cmd="sbatch --export=ALL"
+            if [ -n "$SBATCH_OPTIONS" ]; then
+                sbatch_cmd="$sbatch_cmd $SBATCH_OPTIONS"
+                print_info "Using custom SLURM options: $SBATCH_OPTIONS"
+            fi
+
+            local job_id=$($sbatch_cmd "$script_path" | awk '{print $NF}')
+            print_success "Submitted SLURM array job $job_id for $dataset (${num_pops} populations)"
+        fi
+    done
+
+    print_success "SLURM array job submission completed"
 }
 
 run_benchmarks() {

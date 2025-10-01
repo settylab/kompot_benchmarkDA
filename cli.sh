@@ -138,6 +138,7 @@ OPTIONS:
     -d, --datasets LIST     Datasets: $all_datasets (from config/dataset_config.py)
     -m, --methods LIST      Methods: python,r,all OR specific method names (default: all)
     -s, --skip-missing      Skip missing datasets without prompting
+    --only-missing          Generate only missing labels (skip existing combinations)
     --slurm                Submit benchmarks as SLURM array jobs
     --sbatch-options OPTS  Forward SLURM options to sbatch (e.g., "--partition=gpu --gres=gpu:1")
     --dry-run              Show commands without executing
@@ -192,6 +193,7 @@ EOF
 DATASETS=""
 METHODS="all"
 SKIP_MISSING=false
+ONLY_MISSING=false
 DRY_RUN=false
 STEPS=()
 FILTER_POPULATIONS=""
@@ -216,6 +218,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         -s|--skip-missing)
             SKIP_MISSING=true
+            shift
+            ;;
+        --only-missing)
+            ONLY_MISSING=true
             shift
             ;;
         --slurm)
@@ -516,11 +522,17 @@ generate_labels() {
     for dataset in "${SELECTED_DATASETS[@]}"; do
         print_info "Generating labels for $dataset"
 
+        # Add skip-existing flag if only-missing is set
+        local skip_flag=""
+        if [ "$ONLY_MISSING" = true ]; then
+            skip_flag="--skip-existing"
+        fi
+
         if [ "$DRY_RUN" = true ]; then
-            echo "[DRY RUN] python bin/generate_labels.py --dataset \"$dataset\" $filter_args"
+            echo "[DRY RUN] python bin/generate_labels.py --dataset \"$dataset\" $filter_args $skip_flag"
         else
             # Use unified utility (environment already activated above)
-            python bin/generate_labels.py --dataset "$dataset" $filter_args || {
+            python bin/generate_labels.py --dataset "$dataset" $filter_args $skip_flag || {
                 print_warning "Label generation failed for $dataset"
             }
         fi
@@ -544,8 +556,38 @@ run_benchmarks() {
                 slurm_flag="--slurm"
             fi
 
+            # Build methods argument if specific methods were requested (do this before dry-run)
+            local methods_arg=""
+            if [ ${#SPECIFIC_METHODS[@]} -gt 0 ]; then
+                # Filter specific methods for this method_type using config-derived arrays
+                local type_methods=()
+                for method in "${SPECIFIC_METHODS[@]}"; do
+                    # Check if method is in R methods array
+                    if echo "${AVAILABLE_R_METHODS[@]}" | grep -qw "$method"; then
+                        if [ "$method_type" = "r" ]; then
+                            type_methods+=("$method")
+                        fi
+                    # Otherwise assume it's a Python method
+                    elif echo "${AVAILABLE_PYTHON_METHODS[@]}" | grep -qw "$method"; then
+                        if [ "$method_type" = "python" ]; then
+                            type_methods+=("$method")
+                        fi
+                    fi
+                done
+
+                if [ ${#type_methods[@]} -gt 0 ]; then
+                    methods_arg="--methods ${type_methods[@]}"
+                fi
+            fi
+
+            # Add skip-existing flag if only-missing is set (do this before dry-run)
+            local skip_flag=""
+            if [ "$ONLY_MISSING" = true ]; then
+                skip_flag="--skip-existing"
+            fi
+
             if [ "$DRY_RUN" = true ]; then
-                echo "[DRY RUN] python bin/direct_benchmark.py --dataset \"$dataset\" --method_type \"$method_type\" --n_dm \"$n_dm\" $slurm_flag"
+                echo "[DRY RUN] python bin/direct_benchmark.py --dataset \"$dataset\" --method_type \"$method_type\" --n_dm \"$n_dm\" $methods_arg $skip_flag $slurm_flag"
             else
                 if [ "$USE_SLURM" = true ]; then
                     print_info "Submitting $method_type methods for $dataset to SLURM"
@@ -553,43 +595,16 @@ run_benchmarks() {
                     print_info "Executing benchmarks"
                 fi
 
-                # For SLURM submissions, we need to activate environment first
-                # The activated environment will be inherited by SLURM jobs via --export=ALL
-                if [ "$USE_SLURM" = true ]; then
-                    # Load GCC module if needed for R methods (before mamba activation)
-                    if [ "$method_type" = "r" ]; then
-                        load_gcc_module_if_needed
-                    fi
-
-                    # Activate environment (will be inherited by SLURM)
-                    if ! activate_benchmarkda_environment; then
-                        print_error "Failed to activate environment for SLURM submission"
-                        continue
-                    fi
+                # Activate environment for both SLURM and local runs
+                # Load GCC module if needed for R methods (before mamba activation)
+                if [ "$method_type" = "r" ]; then
+                    load_gcc_module_if_needed
                 fi
 
-                # Build methods argument if specific methods were requested
-                local methods_arg=""
-                if [ ${#SPECIFIC_METHODS[@]} -gt 0 ]; then
-                    # Filter specific methods for this method_type using config-derived arrays
-                    local type_methods=()
-                    for method in "${SPECIFIC_METHODS[@]}"; do
-                        # Check if method is in R methods array
-                        if echo "${AVAILABLE_R_METHODS[@]}" | grep -qw "$method"; then
-                            if [ "$method_type" = "r" ]; then
-                                type_methods+=("$method")
-                            fi
-                        # Otherwise assume it's a Python method
-                        elif echo "${AVAILABLE_PYTHON_METHODS[@]}" | grep -qw "$method"; then
-                            if [ "$method_type" = "python" ]; then
-                                type_methods+=("$method")
-                            fi
-                        fi
-                    done
-
-                    if [ ${#type_methods[@]} -gt 0 ]; then
-                        methods_arg="--methods ${type_methods[@]}"
-                    fi
+                # Activate environment
+                if ! activate_benchmarkda_environment; then
+                    print_error "Failed to activate environment"
+                    continue
                 fi
 
                 # Generate SLURM script (uses activated environment)
@@ -598,6 +613,7 @@ run_benchmarks() {
                     --method_type "$method_type" \
                     --n_dm "$n_dm" \
                     $methods_arg \
+                    $skip_flag \
                     $slurm_flag || {
                     print_warning "Direct benchmark execution failed for $dataset $method_type"
                 }

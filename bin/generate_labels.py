@@ -39,6 +39,7 @@ def main():
     parser.add_argument("--seeds", type=str, help="Filter: comma-separated seeds")
     parser.add_argument("--enrichments", type=str, help="Filter: comma-separated enrichments")
     parser.add_argument("--batch-sds", type=str, help="Filter: comma-separated batch SDs")
+    parser.add_argument("--skip-existing", action="store_true", help="Skip combinations that already have labels")
 
     args = parser.parse_args()
 
@@ -90,6 +91,7 @@ def main():
 
     success_count = 0
     fail_count = 0
+    skip_count = 0
 
     # Change to python_method directory for script execution
     os.chdir(project_root / "python_method")
@@ -103,6 +105,18 @@ def main():
                     # Create output directory
                     data_dir = project_root / "data" / data_type / dataset
                     output_dir = data_dir / "{}-{}-{}-{}-{}-No".format(dataset, pop, enrichment, seed, batch_sd)
+
+                    # Check if labels already exist
+                    if args.skip_existing:
+                        required_files = [
+                            output_dir / "synth_batches",
+                            output_dir / "synth_labels",
+                            output_dir / "synth_samples"
+                        ]
+                        if all(f.exists() for f in required_files):
+                            skip_count += 1
+                            continue
+
                     output_dir.mkdir(parents=True, exist_ok=True)
 
                     # Build command using config and pipeline constants
@@ -154,7 +168,10 @@ def main():
 
     print("")
     print("=" * 60)
-    print("Summary: {} succeeded, {} failed".format(success_count, fail_count))
+    if args.skip_existing and skip_count > 0:
+        print("Summary: {} succeeded, {} failed, {} skipped (already exist)".format(success_count, fail_count, skip_count))
+    else:
+        print("Summary: {} succeeded, {} failed".format(success_count, fail_count))
     print("=" * 60)
 
     return 0 if fail_count == 0 else 1

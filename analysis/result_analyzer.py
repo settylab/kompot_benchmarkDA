@@ -68,13 +68,27 @@ class ResultConfig:
     def __post_init__(self):
         """Set default values based on configuration."""
         if self.datasets is None:
-            self.datasets = ['linear', 'branch', 'cluster', 'covid19-pbmc', 'bcr-xl', 'levine32', 'pancreas']
+            # Get datasets from config
+            try:
+                import sys
+                from pathlib import Path
+                sys.path.insert(0, str(Path.cwd()))
+                from config.dataset_config import DATASET_CONFIGS, SEEDS, ENRICHMENT_VALUES
+                self.datasets = list(DATASET_CONFIGS.keys())
+                if self.seeds is None:
+                    self.seeds = SEEDS
+                if self.enrichments is None:
+                    self.enrichments = ENRICHMENT_VALUES
+            except ImportError:
+                # Fallback to hardcoded defaults
+                self.datasets = ['linear', 'branch', 'cluster', 'covid19-pbmc', 'bcr-xl', 'levine32', 'pancreas']
+                if self.seeds is None:
+                    self.seeds = [43, 44, 45]
+                if self.enrichments is None:
+                    self.enrichments = [0.75, 0.85, 0.95]
+
         if self.embeddings is None:
             self.embeddings = ['dm', 'pca']
-        if self.enrichments is None:
-            self.enrichments = [0.75, 0.85, 0.95]
-        if self.seeds is None:
-            self.seeds = [43, 44, 45]
         if self.batch_effects is None:
             self.batch_effects = [0.0, 0.75, 1.0, 1.25, 1.5]
 

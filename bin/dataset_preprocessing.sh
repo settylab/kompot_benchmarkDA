@@ -48,63 +48,32 @@ echo "$mode_embedding"
 
 
 
-if [ "$data_id" == "cluster" ]
-    then
+# Determine dataset type (synthetic vs real) - config-aware
+if [[ "$data_id" == "linear" || "$data_id" == "branch" || "$data_id" == "cluster" ]]; then
     data_dir=${root}/data/synthetic/$data_id
-    data_file=${data_dir}/cluster.h5ad
-    pop_col="celltype"
-    out_dir=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
-    out_dir_rds=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.rds
-elif [ "$data_id" == "linear" ]
-    then
-    data_dir=${root}/data/synthetic/$data_id
-    data_file=${data_dir}/linear.h5ad
-    pop_col="celltype"
-    out_dir=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
-    out_dir_rds=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.rds
-elif [ "$data_id" == "branch" ]
-    then
-    data_dir=${root}/data/synthetic/$data_id
-    data_file=${data_dir}/branch.h5ad
-    out_dir=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
-    pop_col="celltype"
-    out_dir_rds=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.rds
-elif [ "$data_id" == "aging" ]
-    then
+else
     data_dir=${root}/data/real/$data_id
-    data_file=${data_dir}/aging_hematopoiesis_data_benchmarking.h5ad
-    out_dir=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
-    out_dir_rds=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.rds
-    pop_col="midres_celltype_benchmarking"
-elif [[ "$data_id" == "covid19-pbmc" ]]
-    then
-    data_dir=${root}/data/real/$data_id
-    data_file=${data_dir}/covid19-pbmc.h5ad
-    out_dir=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
-    out_dir_rds=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.rds
-    pop_col="cell.type.coarse"
-elif [[ "$data_id" == "bcr-xl" ]]
-    then
-    data_dir=${root}/data/real/$data_id
-    data_file=${data_dir}/bcr-xl.h5ad
-    out_dir=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
-    out_dir_rds=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.rds
-    pop_col="cell_type"
-elif [[ "$data_id" == "pancreas" ]]
-    then
-    data_dir=${root}/data/real/$data_id
-    data_file=${data_dir}/pancreas.h5ad
-    out_dir=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
-    out_dir_rds=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.rds
-    pop_col="Factor.Value.inferred.cell.type...authors.labels."
-elif [[ "$data_id" == "levine32" ]]
-    then
-    data_dir=${root}/data/real/$data_id
-    data_file=${data_dir}/levine32.h5ad
-    out_dir=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
-    out_dir_rds=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.rds
-    pop_col="cell_type"
 fi
+
+# Get pop_col from config using Python
+pop_col=$(python -c "
+import sys
+sys.path.insert(0, '${root}')
+from config.dataset_config import DATASET_CONFIGS
+config = DATASET_CONFIGS.get('$data_id', {})
+print(config.get('pop_col', 'celltype'))
+" 2>/dev/null)
+
+# Fallback if Python fails
+if [ -z "$pop_col" ]; then
+    echo "Warning: Could not get pop_col from config for $data_id, using default 'celltype'"
+    pop_col="celltype"
+fi
+
+# Set file paths
+data_file=${data_dir}/${data_id}.h5ad
+out_dir=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.h5ad
+out_dir_rds=${data_dir}/${data_id}_${mode_embedding}_${n_dm}.rds
 
 
 #PB CD14_Monocyte CD8_T CD4_T Platelet NK Granulocyte CD16_Monocyte gd_T pDC DC

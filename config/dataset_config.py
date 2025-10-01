@@ -119,3 +119,10 @@ def get_output_dir(root, data_id, job_id, mode):
         return f"{root}/benchmark_pca/{'synthetic' if data_id in ['linear', 'branch', 'cluster'] else 'real'}/{data_id}/{job_id}"
     else:
         return f"{root}/benchmark_dm/{'synthetic' if data_id in ['linear', 'branch', 'cluster'] else 'real'}/{data_id}/{job_id}"
+
+# Default SLURM options (can be overridden via CLI with --sbatch-options)
+# These are reasonable defaults that work across most SLURM configurations
+DEFAULT_SLURM_OPTIONS = {
+    "time": "6:00:00",
+    "mem": "32G"
+}

@@ -84,9 +84,17 @@ BLUE='\033[0;34m'
 BOLD='\033[1m'
 NC='\033[0m'
 
-# Configuration - hardcoded for shell compatibility
+# Configuration - derived from dataset_config.py
+# Synthetic datasets are those listed in get_data_file_path as synthetic
 SYNTHETIC_DATASETS=(linear branch cluster)
-REAL_DATASETS=(covid19-pbmc pancreas bcr-xl levine32)
+# Get all datasets from config and filter out synthetic ones for real datasets
+ALL_DATASETS=($(sed -n '/^DATASET_CONFIGS = {/,/^}/p' config/dataset_config.py | grep '^\s*"[^"]*": {$' | sed 's/.*"\([^"]*\)".*/\1/'))
+REAL_DATASETS=()
+for ds in "${ALL_DATASETS[@]}"; do
+    if ! echo "${SYNTHETIC_DATASETS[@]}" | grep -qw "$ds"; then
+        REAL_DATASETS+=("$ds")
+    fi
+done
 
 print_header() {
     echo -e "${BOLD}${BLUE}========================================${NC}"
@@ -115,9 +123,10 @@ print_success() {
 }
 
 usage() {
-    # Get available methods dynamically from config file (no Python needed)
+    # Get available methods and datasets dynamically from config files (no Python needed)
     local python_methods=$(sed -n '/PYTHON_METHODS = {/,/^R_METHODS/p' config/method_config.py | grep '^\s*"[^"]*": {$' | grep -v '"params"' | sed 's/.*"\([^"]*\)".*/\1/' | tr '\n' ',' | sed 's/,$//')
     local r_methods=$(sed -n '/^R_METHODS = {/,/^}/p' config/method_config.py | grep '^\s*"[^"]*": {$' | grep -v '"params"' | sed 's/.*"\([^"]*\)".*/\1/' | tr '\n' ',' | sed 's/,$//')
+    local all_datasets=$(echo "${ALL_DATASETS[@]}" | tr ' ' ',')
 
     cat << EOF
 BenchmarkDA: Differential Abundance Benchmarking Pipeline
@@ -126,10 +135,11 @@ USAGE: ./cli.sh [OPTIONS] [STEPS...]
 
 OPTIONS:
     -h, --help              Show this help message
-    -d, --datasets LIST     Datasets: linear,branch,cluster,covid19-pbmc,pancreas,bcr-xl,levine32
+    -d, --datasets LIST     Datasets: $all_datasets (from config/dataset_config.py)
     -m, --methods LIST      Methods: python,r,all OR specific method names (default: all)
     -s, --skip-missing      Skip missing datasets without prompting
     --slurm                Submit benchmarks as SLURM array jobs
+    --sbatch-options OPTS  Forward SLURM options to sbatch (e.g., "--partition=gpu --gres=gpu:1")
     --dry-run              Show commands without executing
 
 FILTERING OPTIONS (for labels step):
@@ -162,6 +172,7 @@ R METHODS:
 EXAMPLES:
     ./cli.sh                                         Complete pipeline (local)
     ./cli.sh benchmark --slurm                       Submit ALL benchmarks to SLURM
+    ./cli.sh --methods milo benchmark --slurm --sbatch-options "--partition=largenode --mem=64G"    Submit with custom SLURM options
     ./cli.sh --methods milo benchmark --slurm        Submit only Milo method
     ./cli.sh --datasets branch --methods milo benchmark --slurm    Small test: branch + milo
     ./cli.sh --datasets branch --populations M2,M8 --seeds 43,44 --enrichments 0.75,0.95 --batch-sds 0.75,1.25,1.5 labels    Generate labels for specific combinations
@@ -187,6 +198,7 @@ FILTER_POPULATIONS=""
 FILTER_SEEDS=""
 FILTER_ENRICHMENTS=""
 FILTER_BATCH_SDS=""
+SBATCH_OPTIONS=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -228,6 +240,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --batch-sds)
             FILTER_BATCH_SDS="$2"
+            shift 2
+            ;;
+        --sbatch-options)
+            SBATCH_OPTIONS="$2"
             shift 2
             ;;
         setup|preprocess|labels|benchmark|status|all)
@@ -343,7 +359,11 @@ setup_environment() {
 
     # Create directory structure
     print_info "Creating directory structure"
-    mkdir -p {data/{synthetic,real/{bcr-xl,covid19-pbmc,levine32,pancreas}},SlurmLog,benchmark_scripts}
+    # Create directories for all datasets from config
+    mkdir -p data/synthetic data/real SlurmLog benchmark_scripts
+    for ds in "${REAL_DATASETS[@]}"; do
+        mkdir -p "data/real/$ds"
+    done
 
     print_success "Environment setup completed"
 }
@@ -551,21 +571,20 @@ run_benchmarks() {
                 # Build methods argument if specific methods were requested
                 local methods_arg=""
                 if [ ${#SPECIFIC_METHODS[@]} -gt 0 ]; then
-                    # Filter specific methods for this method_type
+                    # Filter specific methods for this method_type using config-derived arrays
                     local type_methods=()
                     for method in "${SPECIFIC_METHODS[@]}"; do
-                        case "$method" in
-                            milo|daseq|cydar|louvain)
-                                if [ "$method_type" = "r" ]; then
-                                    type_methods+=("$method")
-                                fi
-                                ;;
-                            *)
-                                if [ "$method_type" = "python" ]; then
-                                    type_methods+=("$method")
-                                fi
-                                ;;
-                        esac
+                        # Check if method is in R methods array
+                        if echo "${AVAILABLE_R_METHODS[@]}" | grep -qw "$method"; then
+                            if [ "$method_type" = "r" ]; then
+                                type_methods+=("$method")
+                            fi
+                        # Otherwise assume it's a Python method
+                        elif echo "${AVAILABLE_PYTHON_METHODS[@]}" | grep -qw "$method"; then
+                            if [ "$method_type" = "python" ]; then
+                                type_methods+=("$method")
+                            fi
+                        fi
                     done
 
                     if [ ${#type_methods[@]} -gt 0 ]; then
@@ -587,7 +606,13 @@ run_benchmarks() {
                 if [ "$USE_SLURM" = true ] && [ "$DRY_RUN" != true ]; then
                     local script_path="benchmark_scripts/slurm_benchmark_${dataset}_${method_type}.sh"
                     if [ -f "$script_path" ]; then
-                        local job_id=$(sbatch --export=ALL "$script_path" | awk '{print $NF}')
+                        # Build sbatch command with optional custom options
+                        local sbatch_cmd="sbatch --export=ALL"
+                        if [ -n "$SBATCH_OPTIONS" ]; then
+                            sbatch_cmd="$sbatch_cmd $SBATCH_OPTIONS"
+                            print_info "Using custom SLURM options: $SBATCH_OPTIONS"
+                        fi
+                        local job_id=$($sbatch_cmd "$script_path" | awk '{print $NF}')
                         print_success "Submitted SLURM job $job_id for $dataset $method_type"
                     else
                         print_warning "SLURM script not found: $script_path"
@@ -693,8 +718,8 @@ main() {
     print_info "Slurm logs: SlurmLog/"
     echo ""
     print_step "INDIVIDUAL EXECUTION EXAMPLES"
-    echo "# Run specific method on dataset:"
-    echo "python run_da_method.py kompot linear --embedding dm"
+    echo "# Run specific method on specific dataset:"
+    echo "./cli.sh --datasets linear --methods kompot benchmark"
     echo ""
     echo "# Run specific components:"
     echo "./cli.sh --datasets linear --methods python preprocess benchmark"

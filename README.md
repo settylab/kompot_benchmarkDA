@@ -21,7 +21,7 @@ micromamba activate benchmarkda   # For micromamba users
 python bin/status_report.py      # Check pipeline status
 ./cli.sh                         # Run complete pipeline
 ./cli.sh --datasets linear preprocess  # Run specific components
-python run_da_method.py kompot linear --embedding dm  # Individual methods
+./cli.sh --datasets linear --methods kompot benchmark  # Individual methods
 ```
 
 **IMPORTANT**: All Python commands require the `benchmarkda` environment. Either:
@@ -63,7 +63,6 @@ python run_da_method.py kompot linear --embedding dm  # Individual methods
 benchmarkDA_private/
 ├── cli.sh                           # Main CLI interface
 ├── setup_environment.sh             # Environment setup
-├── run_da_method.py                 # Individual method execution
 │
 ├── bin/
 │   ├── status_report.py             # Progress tracking and reporting
@@ -112,15 +111,15 @@ python bin/status_report.py --dataset levine32 --detailed  # Dataset status
 
 ### Individual Method Testing
 ```bash
-# Activate environment first
-conda activate benchmarkda  # or mamba/micromamba activate benchmarkda
+# Test specific methods on specific datasets
+./cli.sh --datasets linear --methods kompot benchmark
+./cli.sh --datasets branch --methods mellon benchmark
 
-# List available methods and datasets
-python run_da_method.py --list
+# Run multiple methods
+./cli.sh --datasets linear --methods kompot,mellon benchmark
 
-# Test specific methods
-python run_da_method.py kompot linear --embedding dm
-python run_da_method.py mellon branch --embedding pca --population M2
+# Use SLURM for larger runs
+./cli.sh --datasets linear --methods python benchmark --slurm
 ```
 
 ### Advanced Options

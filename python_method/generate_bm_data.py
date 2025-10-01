@@ -12,7 +12,7 @@ from sklearn.preprocessing import StandardScaler
 
 
 import condition_prob_centroid
-
+import calculate_diffusion_map
 import get_weight_matrix
 import helper_functions
 import read_file
@@ -52,7 +52,7 @@ def main():
     
     parser.add_argument('--mode_embedding', type=str, help='Embedding mode ,PCA or DiffusionMap')
     parser.add_argument('--layer_embedding', type=str, help='Layer embedding, X_pca or DM_EigenVectors')
-    #parser.add_argument('--n_dm', type=int, help='Number of diffusion component for Mellon value')
+    parser.add_argument('--n_dm', type=int, default=0, help='Number of diffusion components to compute on batch-simulated embeddings')
     parser.add_argument('--balance', type=str, help='whether we want to balance number of cells in each condition manually')
     parser.add_argument('--output_dir', type=str, required=True, help='Output directory path')
 
@@ -76,7 +76,7 @@ def main():
     cap_enr = None  # remains unchanged
     mode_embedding = args.mode_embedding
     layer_embedding = args.layer_embedding
-    #n_dm = args.n_dm
+    n_dm = args.n_dm
     balance = args.balance
     output_dir = args.output_dir
 
@@ -183,104 +183,136 @@ def main():
         
     
 
-        print("start to work on iteration")
+        print("Generating labels and batch-simulated embeddings")
 
-        #n_iteration = 1
-        #print(n_iteration)
-        for i in range(1):
-            print(i)
-            iteration_directory = output_dir / f'iteration_{i}'
-            iteration_directory.mkdir(parents=True, exist_ok=True)
-            if not isinstance(cond_probability, pd.DataFrame):
-        
-                cond_probability_temp = pd.DataFrame(cond_probability,index = adata.obs_names)
-            else:
-                cond_probability_temp = cond_probability
-                
-            temp_cond = cond_probability_temp.iloc[:,i]
-                
-            conditions,cond_probability_df = synth_labels.cap_probabilities(adata,temp_cond,conditions, balance, cap_enr=None)
-                
-                
-            adata = synth_labels.label_condition_and_rep_labels(adata,cond_probability_df,seed)
+        # Generate labels directly to output_dir (no iteration subdirectory)
+        if not isinstance(cond_probability, pd.DataFrame):
+            cond_probability_temp = pd.DataFrame(cond_probability,index = adata.obs_names)
+        else:
+            cond_probability_temp = cond_probability
+
+        temp_cond = cond_probability_temp.iloc[:,0]
+
+        conditions,cond_probability_df = synth_labels.cap_probabilities(adata,temp_cond,conditions, balance, cap_enr=None)
 
 
-            adata = synth_labels.label_condition_and_rep_other(adata,n_replicates, n_batches,seed)
-                
-            if balance == "Yes":
-                
-                adata = synth_labels.quantile_assign_label(adata,pop_column,pop_enr,pop)
-            elif balance == "No":
-                adata = synth_labels.quantile_assign_label_old(adata,pop_column,pop_enr,pop)
-            
-            if mode_embedding == "PCA":
-                adata = synth_labels.add_batch_effect_pca(adata,layer_embedding, batch_col="synth_batches", norm_sd=batch_sd,seed = seed)
-                X_pca = pd.DataFrame(adata.obsm[f"{layer_embedding}_batch"],index=adata.obs_names)
-                print("done")
-            #else mode_embedding == "DM":
-                # adata = synth_labels.add_batch_effect_dm(adata, batch_col="synth_batches", norm_sd=batch_sd,seed = seed)
-                #X_DM = pd.DataFrame(adata.obsm["X_DM_batch"],index=adata.obs_names)
-            else:
-                adata = synth_labels.add_batch_effect_pca(adata,layer_embedding, batch_col="synth_batches", norm_sd=batch_sd,seed = seed)
-                X_pca = pd.DataFrame(adata.obsm[f"{layer_embedding}_batch"],index=adata.obs_names)
-            
+        adata = synth_labels.label_condition_and_rep_labels(adata,cond_probability_df,seed)
 
-            # Assuming `adata` is your AnnData object
-            obs_df = adata.obs.copy()
 
-            # Add the index as a column named "rowname"
-            obs_df['rowname'] = obs_df.index
+        adata = synth_labels.label_condition_and_rep_other(adata,n_replicates, n_batches,seed)
 
-            cols = ['rowname'] + [col for col in obs_df.columns if col != 'rowname']
-            obs_df = obs_df[cols]
+        if balance == "Yes":
 
-            obs_df.to_csv(iteration_directory / f'benchmark_{ds_type}_pop_{pop}_enr{pop_enr}_seed{seed}.coldata.csv',index = False)
+            adata = synth_labels.quantile_assign_label(adata,pop_column,pop_enr,pop)
+        elif balance == "No":
+            adata = synth_labels.quantile_assign_label_old(adata,pop_column,pop_enr,pop)
 
-            str_batch = str(batch_sd)
-            int_batch = helper_functions.convert_number_str(str_batch)
+        if mode_embedding == "PCA":
+            adata = synth_labels.add_batch_effect_pca(adata,layer_embedding, batch_col="synth_batches", norm_sd=batch_sd,seed = seed)
 
-            X_pca["rowname"] = obs_df.index
-            cols = ['rowname'] + [col for col in X_pca.columns if col != 'rowname']
-            X_pca = X_pca[cols]
-            X_pca.to_csv(iteration_directory / f'benchmark_{ds_type}_pop_{pop}_enr{pop_enr}_seed{seed}_batchEffect{int_batch}.emb.csv', index = False,float_format='%.16f')
+            # Compute DM on batch-simulated embeddings if needed
+            if n_dm > 0:
+                print(f"Computing DM ({n_dm} components) on batch-simulated embeddings...")
+                adata = calculate_diffusion_map.calculate_dm(adata, f"{layer_embedding}_batch", n_dm)
+                print("DM computation on batch-simulated embeddings done")
+
+            X_pca = pd.DataFrame(adata.obsm[f"{layer_embedding}_batch"],index=adata.obs_names)
+            print("done")
+        else:
+            adata = synth_labels.add_batch_effect_pca(adata,layer_embedding, batch_col="synth_batches", norm_sd=batch_sd,seed = seed)
+
+            # Compute DM on batch-simulated embeddings if needed
+            if n_dm > 0:
+                print(f"Computing DM ({n_dm} components) on batch-simulated embeddings...")
+                adata = calculate_diffusion_map.calculate_dm(adata, f"{layer_embedding}_batch", n_dm)
+                print("DM computation on batch-simulated embeddings done")
+
+            X_pca = pd.DataFrame(adata.obsm[f"{layer_embedding}_batch"],index=adata.obs_names)
+
+
+        # Assuming `adata` is your AnnData object
+        obs_df = adata.obs.copy()
+
+        # Add the index as a column named "rowname"
+        obs_df['rowname'] = obs_df.index
+
+        cols = ['rowname'] + [col for col in obs_df.columns if col != 'rowname']
+        obs_df = obs_df[cols]
+
+        obs_df.to_csv(output_dir / f'benchmark_{ds_type}_pop_{pop}_enr{pop_enr}_seed{seed}.coldata.csv',index = False)
+
+        str_batch = str(batch_sd)
+        int_batch = helper_functions.convert_number_str(str_batch)
+
+        # Save X_pca_batch (for PCA-based methods like MELD, CNA, R methods)
+        X_pca["rowname"] = obs_df.index
+        cols = ['rowname'] + [col for col in X_pca.columns if col != 'rowname']
+        X_pca = X_pca[cols]
+        X_pca.to_csv(output_dir / f'benchmark_{ds_type}_pop_{pop}_enr{pop_enr}_seed{seed}_batchEffect{int_batch}.emb.csv', index = False,float_format='%.16f')
+
+        # Save DM_EigenVectors_batch separately (for DM-based methods like Mellon, Kompot)
+        if n_dm > 0:
+            X_dm = pd.DataFrame(adata.obsm["DM_EigenVectors_batch"], index=adata.obs_names)
+            X_dm["rowname"] = obs_df.index
+            cols = ['rowname'] + [col for col in X_dm.columns if col != 'rowname']
+            X_dm = X_dm[cols]
+            X_dm.to_csv(output_dir / f'benchmark_{ds_type}_pop_{pop}_enr{pop_enr}_seed{seed}_batchEffect{int_batch}.emb.dm.csv', index = False,float_format='%.16f')
 
     
     #"cluster" or
     elif ds_type ==  "cluster":
-        i = 0
-        iteration_directory = output_dir / f'iteration_{i}'
-        iteration_directory.mkdir(parents=True, exist_ok=True)
         adata = cluster_dataset_synth_labels.add_synth_label_cluster_labels(adata,pop,seed, pop_enr,pop_column,n_conditions,balance,cap_enr = None)
         adata = cluster_dataset_synth_labels.label_condition_and_rep_other(adata,n_replicates, n_batches,seed)
         if balance == "Yes":
-            
+
             adata = cluster_dataset_synth_labels.quantile_assign_label(adata,pop_column,pop_enr,pop)
         elif balance == "No":
             adata = cluster_dataset_synth_labels.quantile_assign_label_old(adata,pop_column,pop_enr,pop)
-                                        
+
         if mode_embedding == "PCA":
             adata = cluster_dataset_synth_labels.add_batch_effect_pca(adata, layer_embedding,batch_col="synth_batches", norm_sd=batch_sd,seed = seed)
+
+            # Compute DM on batch-simulated embeddings if needed
+            if n_dm > 0:
+                print(f"Computing DM ({n_dm} components) on batch-simulated embeddings...")
+                adata = calculate_diffusion_map.calculate_dm(adata, f"{layer_embedding}_batch", n_dm)
+                print("DM computation on batch-simulated embeddings done")
+
             X_pca = pd.DataFrame(adata.obsm[f"{layer_embedding}_batch"],index=adata.obs_names)
-            #else mode_embedding == "DM":
-                # adata = synth_labels.add_batch_effect_dm(adata, batch_col="synth_batches", norm_sd=batch_sd,seed = seed)
-                #X_DM = pd.DataFrame(adata.obsm["X_DM_batch"],index=adata.obs_names)
         else:
             adata = cluster_dataset_synth_labels.add_batch_effect_pca(adata,layer_embedding, batch_col="synth_batches", norm_sd=batch_sd,seed = seed)
+
+            # Compute DM on batch-simulated embeddings if needed
+            if n_dm > 0:
+                print(f"Computing DM ({n_dm} components) on batch-simulated embeddings...")
+                adata = calculate_diffusion_map.calculate_dm(adata, f"{layer_embedding}_batch", n_dm)
+                print("DM computation on batch-simulated embeddings done")
+
             X_pca = pd.DataFrame(adata.obsm[f"{layer_embedding}_batch"],index=adata.obs_names)
 
         obs_df = adata.obs.copy()
 
-            # Add the index as a column named "rowname"
+        # Add the index as a column named "rowname"
         obs_df['rowname'] = obs_df.index
         cols = ['rowname'] + [col for col in obs_df.columns if col != 'rowname']
         obs_df = obs_df[cols]
-        obs_df.to_csv(iteration_directory / f'benchmark_{ds_type}_pop_{pop}_enr{pop_enr}_seed{seed}.coldata.csv',index =False)
+        obs_df.to_csv(output_dir / f'benchmark_{ds_type}_pop_{pop}_enr{pop_enr}_seed{seed}.coldata.csv',index =False)
         str_batch = str(batch_sd)
         int_batch = helper_functions.convert_number_str(str_batch)
+
+        # Save X_pca_batch (for PCA-based methods like MELD, CNA, R methods)
         X_pca["rowname"] = obs_df.index
         cols = ['rowname'] + [col for col in X_pca.columns if col != 'rowname']
         X_pca = X_pca[cols]
-        X_pca.to_csv(iteration_directory / f'benchmark_{ds_type}_pop_{pop}_enr{pop_enr}_seed{seed}_batchEffect{int_batch}.emb.csv', index = False,float_format='%.16f')
+        X_pca.to_csv(output_dir / f'benchmark_{ds_type}_pop_{pop}_enr{pop_enr}_seed{seed}_batchEffect{int_batch}.emb.csv', index = False,float_format='%.16f')
+
+        # Save DM_EigenVectors_batch separately (for DM-based methods like Mellon, Kompot)
+        if n_dm > 0:
+            X_dm = pd.DataFrame(adata.obsm["DM_EigenVectors_batch"], index=adata.obs_names)
+            X_dm["rowname"] = obs_df.index
+            cols = ['rowname'] + [col for col in X_dm.columns if col != 'rowname']
+            X_dm = X_dm[cols]
+            X_dm.to_csv(output_dir / f'benchmark_{ds_type}_pop_{pop}_enr{pop_enr}_seed{seed}_batchEffect{int_batch}.emb.dm.csv', index = False,float_format='%.16f')
 
         
         

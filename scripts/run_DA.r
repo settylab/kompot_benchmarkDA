@@ -33,6 +33,13 @@ suppressPackageStartupMessages({
     library(reticulate)
 })
 
+# Configure reticulate to use the already-activated Python environment
+# This prevents reticulate from searching for/initializing conda environments
+python_path <- Sys.which("python")
+if (python_path != "") {
+    use_python(python_path, required = TRUE)
+}
+
 # Create argument parser with same interface as Python methods
 parser <- ArgumentParser(description = "Run R-based DA methods with unified interface")
 
@@ -67,14 +74,13 @@ print(paste("Using embedding:", args$layer_embedding, "with n_dm =", args$n_dm))
 print("Loading h5ad file...")
 adata <- read_h5ad(args$file_path)
 
-# Load processed metadata with synthetic labels from input directory
+# Load processed metadata with synthetic labels from label directory
 print("Loading processed metadata...")
-input_dir <- args$input_file
-iteration_dir <- file.path(input_dir, "iteration_0")
+label_dir <- args$input_file
 
 # Construct expected metadata filename
 metadata_filename <- paste0("benchmark_", args$ds_type, "_pop_", args$pop, "_enr", args$pop_enr, "_seed", args$seed, ".coldata.csv")
-metadata_path <- file.path(iteration_dir, metadata_filename)
+metadata_path <- file.path(label_dir, metadata_filename)
 
 if (file.exists(metadata_path)) {
     print(paste("Loading metadata from:", metadata_path))
@@ -85,11 +91,11 @@ if (file.exists(metadata_path)) {
     adata$obs <- processed_metadata
 } else {
     print(paste("Warning: Processed metadata not found at:", metadata_path))
-    print("Available files in iteration directory:")
-    if (dir.exists(iteration_dir)) {
-        print(list.files(iteration_dir))
+    print("Available files in label directory:")
+    if (dir.exists(label_dir)) {
+        print(list.files(label_dir))
     } else {
-        print("Iteration directory does not exist")
+        print("Label directory does not exist")
     }
 }
 
@@ -101,25 +107,27 @@ sce <- SingleCellExperiment(
     rowData = adata$var
 )
 
-# CRITICAL: Use the same batch-corrected embeddings as Python methods
-# Try batch-corrected embedding first, fall back to base embedding if not available
-primary_embedding_key <- if (args$n_dm > 0) "DM_EigenVectors_batch" else paste0(args$layer_embedding, "_batch")
-fallback_embedding_key <- if (args$n_dm > 0) "DM_EigenVectors" else args$layer_embedding
-
-# Select the appropriate embedding
-if (primary_embedding_key %in% names(adata$obsm)) {
-    embedding_key <- primary_embedding_key
-    print(paste("Using batch-corrected embedding:", embedding_key))
-} else if (fallback_embedding_key %in% names(adata$obsm)) {
-    embedding_key <- fallback_embedding_key
-    print(paste("Batch-corrected embedding not found, using base embedding:", embedding_key))
+# CRITICAL: Load batch-simulated embeddings from CSV files (same as Python methods)
+# R methods always use PCA embeddings (n_dm is forced to 0 in method_config.py)
+# Construct embedding filename with same logic as Python helper_functions.convert_number_str
+batch_float <- as.numeric(args$batch_sd)
+# If it's a whole number, convert to integer, otherwise keep as float
+if (batch_float == floor(batch_float)) {
+    int_batch <- as.integer(batch_float)
 } else {
-    stop(paste("Neither", primary_embedding_key, "nor", fallback_embedding_key, "found in data.",
-               "Available embeddings:", paste(names(adata$obsm), collapse = ", ")))
+    int_batch <- batch_float
 }
 
-# Get the batch-corrected embedding matrix
-embedding_matrix <- adata$obsm[[embedding_key]]
+embedding_filename <- paste0("benchmark_", args$ds_type, "_pop_", args$pop, "_enr", args$pop_enr, "_seed", args$seed, "_batchEffect", int_batch, ".emb.csv")
+embedding_path <- file.path(label_dir, embedding_filename)
+
+if (file.exists(embedding_path)) {
+    print(paste("Loading batch-simulated PCA embeddings from:", embedding_path))
+    embedding_matrix <- as.matrix(read.csv(embedding_path, row.names = 1))
+    print(paste("Loaded embedding with dimensions:", nrow(embedding_matrix), "x", ncol(embedding_matrix)))
+} else {
+    stop(paste("Embedding file not found:", embedding_path))
+}
 
 # Add embedding to SingleCellExperiment
 reducedDim(sce, "embedding") <- embedding_matrix
@@ -136,8 +144,7 @@ if (length(missing_cols) > 0) {
 # Set up output directory
 output_dir <- args$output_dir
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
-output_file <- file.path(output_dir, "iteration_0", paste0(args$package, "_package_performance.csv"))
-dir.create(dirname(output_file), recursive = TRUE, showWarnings = FALSE)
+output_file <- file.path(output_dir, paste0(args$package, "_package_performance.csv"))
 
 # Run the appropriate DA method
 print(paste("Running method:", args$package))

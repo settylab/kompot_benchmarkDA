@@ -153,11 +153,16 @@ def main():
     parser.add_argument("--embeddings", type=str, default="pca", help="LEGACY: Ignored")
 
     # Optional arguments
-    parser.add_argument("--iteration_num", type=int, default=0, help="Number of iterations")
     parser.add_argument("--balance", type=str, default="No", help="Balance flag")
     parser.add_argument("--methods", type=str, nargs="+", help="Specific methods to run")
     parser.add_argument("--slurm", action="store_true", help="Submit as SLURM array job")
     parser.add_argument("--skip-existing", action="store_true", help="Skip jobs that already have results")
+
+    # Filtering arguments (same as label generation)
+    parser.add_argument("--populations", type=str, help="Comma-separated list of populations to run")
+    parser.add_argument("--seeds", type=str, help="Comma-separated list of seeds to run")
+    parser.add_argument("--enrichments", type=str, help="Comma-separated list of enrichments to run")
+    parser.add_argument("--batch-sds", type=str, help="Comma-separated list of batch SDs to run")
 
     args = parser.parse_args()
 
@@ -165,6 +170,19 @@ def main():
     dataset_config = DATASET_CONFIGS.get(args.dataset)
     if not dataset_config:
         raise ValueError(f"Dataset {args.dataset} not found in configuration")
+
+    # Apply filtering if specified
+    populations = args.populations.split(',') if args.populations else dataset_config['pops']
+    seeds = [int(s) for s in args.seeds.split(',')] if args.seeds else SEEDS
+    enrichments = [float(e) for e in args.enrichments.split(',')] if args.enrichments else ENRICHMENT_VALUES
+    batch_sds = [float(b) for b in getattr(args, 'batch_sds', '').split(',')] if getattr(args, 'batch_sds', None) else dataset_config['batch_vec']
+
+    # Create a filtered config for this run
+    filtered_config = dataset_config.copy()
+    filtered_config['pops'] = populations
+    filtered_config['seeds'] = seeds
+    filtered_config['enrichments'] = enrichments
+    filtered_config['batch_vec'] = batch_sds
 
     # all methods use single processing approach
     # embeddings parameter ignored - kept for compatibility
@@ -198,10 +216,10 @@ def main():
 
     if args.slurm:
         # Generate and submit SLURM job
-        generate_slurm_job(args, dataset_config, methods_to_run, data_file, data_dir, data_type)
+        generate_slurm_job(args, filtered_config, methods_to_run, data_file, data_dir, data_type)
     else:
         # Execute directly
-        execute_benchmarks(args, dataset_config, methods_to_run, data_file, data_dir, data_type)
+        execute_benchmarks(args, filtered_config, methods_to_run, data_file, data_dir, data_type)
 
 def execute_benchmarks(args, dataset_config, methods_to_run, data_file, data_dir, data_type):
     """Execute benchmarks with optional SLURM array support."""
@@ -224,39 +242,37 @@ def execute_benchmarks(args, dataset_config, methods_to_run, data_file, data_dir
         execute_single_task(int(slurm_task_id), args, dataset_config, methods_to_run,
                           data_file, data_dir, data_type, project_root, layer_embedding, mode_embedding)
     else:
-        # Execute all parameter combinations locally
+        # Execute all parameter combinations locally (using filtered values from config)
         job_number = 0
         for pop in dataset_config['pops']:
-            for seed in SEEDS:
-                for enrichment in ENRICHMENT_VALUES:
+            for seed in dataset_config['seeds']:
+                for enrichment in dataset_config['enrichments']:
                     for batch_sd in dataset_config['batch_vec']:
                         for method_name in methods_to_run:
-                            for iteration in range(args.iteration_num + 1):
-                                job_number += 1
-                                execute_single_job(job_number, pop, seed, enrichment, batch_sd, method_name, iteration,
-                                                 args, dataset_config, methods_to_run, data_file, data_dir, data_type,
-                                                 project_root, layer_embedding, mode_embedding)
+                            job_number += 1
+                            execute_single_job(job_number, pop, seed, enrichment, batch_sd, method_name,
+                                             args, dataset_config, methods_to_run, data_file, data_dir, data_type,
+                                             project_root, layer_embedding, mode_embedding)
 
 def execute_single_task(task_id, args, dataset_config, methods_to_run, data_file, data_dir, data_type,
                        project_root, layer_embedding, mode_embedding):
-    """Execute a single task for SLURM array job."""
+    """Execute a single task for SLURM array job (using filtered config)."""
     # Map task ID to parameter combination
     job_number = 0
     for pop in dataset_config['pops']:
-        for seed in SEEDS:
-            for enrichment in ENRICHMENT_VALUES:
+        for seed in dataset_config['seeds']:
+            for enrichment in dataset_config['enrichments']:
                 for batch_sd in dataset_config['batch_vec']:
                     for method_name in methods_to_run:
-                        for iteration in range(args.iteration_num + 1):
-                            job_number += 1
-                            if job_number == task_id:
-                                execute_single_job(job_number, pop, seed, enrichment, batch_sd, method_name, iteration,
-                                                 args, dataset_config, methods_to_run, data_file, data_dir, data_type,
-                                                 project_root, layer_embedding, mode_embedding)
-                                return
+                        job_number += 1
+                        if job_number == task_id:
+                            execute_single_job(job_number, pop, seed, enrichment, batch_sd, method_name,
+                                             args, dataset_config, methods_to_run, data_file, data_dir, data_type,
+                                             project_root, layer_embedding, mode_embedding)
+                            return
     print(f"Error: Task ID {task_id} not found in job range")
 
-def execute_single_job(job_number, pop, seed, enrichment, batch_sd, method_name, iteration,
+def execute_single_job(job_number, pop, seed, enrichment, batch_sd, method_name,
                       args, dataset_config, methods_to_run, data_file, data_dir, data_type,
                       project_root, layer_embedding, mode_embedding):
     """Execute a single benchmark job."""
@@ -265,17 +281,14 @@ def execute_single_job(job_number, pop, seed, enrichment, batch_sd, method_name,
     input_path = f"{data_dir}/{job_id}"
     output_path = str(project_root / f"benchmark/{data_type}/{args.dataset}/{job_id}")
 
-    # Create output directory including iteration subdirectory for Python methods
-    iteration_output_path = Path(output_path) / f"iteration_{iteration}"
-
     # Check if results already exist
     if args.skip_existing:
-        result_file = iteration_output_path / f"benchmark_{args.dataset}_pop_{pop}_enr{enrichment}_seed{seed}_batchEffect{batch_sd}_package_performance.DAresults.{method_name}.csv"
+        result_file = Path(output_path) / f"benchmark_{args.dataset}_pop_{pop}_enr{enrichment}_seed{seed}_batchEffect{batch_sd}_package_performance.DAresults.{method_name}.csv"
         if result_file.exists():
             print(f"[SKIP] {job_id} method={method_name} (result exists)")
             return
 
-    os.makedirs(iteration_output_path, exist_ok=True)
+    os.makedirs(output_path, exist_ok=True)
 
     # Prepare parameters
     params = {
@@ -340,10 +353,10 @@ def generate_slurm_job(args, dataset_config, methods_to_run, data_file, data_dir
 
     project_root = Path(__file__).resolve().parent.parent
 
-    # Calculate total number of parameter combinations
+    # Calculate total number of parameter combinations (using filtered config)
     n_pops = len(dataset_config['pops'])
-    n_seeds = len(SEEDS)
-    n_enrichments = len(ENRICHMENT_VALUES)
+    n_seeds = len(dataset_config['seeds'])
+    n_enrichments = len(dataset_config['enrichments'])
     n_batch_vec = len(dataset_config['batch_vec'])
     n_methods = len(methods_to_run)
 
@@ -357,21 +370,19 @@ def generate_slurm_job(args, dataset_config, methods_to_run, data_file, data_dir
         job_number = 0
 
         for pop in dataset_config['pops']:
-            for seed in SEEDS:
-                for enrichment in ENRICHMENT_VALUES:
+            for seed in dataset_config['seeds']:
+                for enrichment in dataset_config['enrichments']:
                     for batch_sd in dataset_config['batch_vec']:
                         for method_name in methods_to_run:
-                            for iteration in range(args.iteration_num + 1):
-                                job_number += 1
+                            job_number += 1
 
-                                # Check if result exists
-                                job_id = f"{args.dataset}-{pop}-{enrichment}-{seed}-{batch_sd}-{args.balance}"
-                                output_path = project_root / f"benchmark/{data_type}/{args.dataset}/{job_id}"
-                                iteration_output_path = output_path / f"iteration_{iteration}"
-                                result_file = iteration_output_path / f"benchmark_{args.dataset}_pop_{pop}_enr{enrichment}_seed{seed}_batchEffect{batch_sd}_package_performance.DAresults.{method_name}.csv"
+                            # Check if result exists
+                            job_id = f"{args.dataset}-{pop}-{enrichment}-{seed}-{batch_sd}-{args.balance}"
+                            output_path = project_root / f"benchmark/{data_type}/{args.dataset}/{job_id}"
+                            result_file = output_path / f"benchmark_{args.dataset}_pop_{pop}_enr{enrichment}_seed{seed}_batchEffect{batch_sd}_package_performance.DAresults.{method_name}.csv"
 
-                                if not result_file.exists():
-                                    incomplete_tasks.append(job_number)
+                            if not result_file.exists():
+                                incomplete_tasks.append(job_number)
 
         if incomplete_tasks:
             task_list = incomplete_tasks
@@ -447,8 +458,7 @@ python bin/direct_benchmark.py \\
     --dataset {args.dataset} \\
     --method_type {args.method_type} \\
     --n_dm {args.n_dm} \\
-    --balance {args.balance} \\
-    --iteration_num {args.iteration_num}{methods_arg}{skip_arg}
+    --balance {args.balance}{methods_arg}{skip_arg}
 
 echo "Benchmark completed for task $SLURM_ARRAY_TASK_ID"
 """

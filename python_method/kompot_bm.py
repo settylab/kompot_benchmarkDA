@@ -42,69 +42,65 @@ def main():
 
     # Set up directories
     output_dir = Path(args.output_dir)
-    input_file = Path(args.input_file)
+    label_directory = Path(args.input_file)
 
-    # Process each iteration
-    for i in range(1):
-        iteration_directory = input_file / f'iteration_{i}'
-        output_dir_i = output_dir / f'iteration_{i}'
+    # Determine embedding mode: DM by default, PCA if n_dm=0 or force_pca=True
+    n_dm = args.n_dm if args.n_dm is not None else 10
+    use_dm = (n_dm > 0) and not getattr(args, 'force_pca', False)
 
-        # Load dataset
-        adata = data_loader.load_dataset(
-            args.file_path,
-            iteration_directory,
-            args.ds_type,
-            args.pop,
-            args.pop_enr,
-            args.seed,
-            args.batch_sd,
-            args.layer_embedding
-        )
+    # Load dataset with appropriate embeddings
+    adata = data_loader.load_dataset(
+        args.file_path,
+        label_directory,
+        args.ds_type,
+        args.pop,
+        args.pop_enr,
+        args.seed,
+        args.batch_sd,
+        args.layer_embedding,
+        use_dm=use_dm
+    )
 
-        # Determine embedding mode: DM by default, PCA if n_dm=0 or force_pca=True
-        n_dm = args.n_dm if args.n_dm is not None else 10
-        use_dm = (n_dm > 0) and not getattr(args, 'force_pca', False)
+    # Run Kompot with standardized embedding handling
+    log_fold_change_mean, zscores = runKompot.runKOMPOT_with_params(
+        adata=adata,
+        label_col="synth_labels",
+        use_dm=use_dm,
+        dm_comp=n_dm,
+        ls_factor=args.ls_factor,
+        n_landmarks=args.n_landmarks,
+        log_fold_change_threshold=args.log_fold_change_threshold,
+        pvalue_threshold=args.pvalue_threshold,
+        random_state=args.seed
+    )
 
-        # Run Kompot with standardized embedding handling
-        log_fold_change_mean, zscores = runKompot.runKOMPOT_with_params(
-            adata=adata,
-            label_col="synth_labels",
-            use_dm=use_dm,
-            dm_comp=n_dm,
-            ls_factor=args.ls_factor,
-            n_landmarks=args.n_landmarks,
-            log_fold_change_threshold=args.log_fold_change_threshold,
-            pvalue_threshold=args.pvalue_threshold,
-            random_state=args.seed
-        )
+    # Prepare results
+    df_kompot_lfc = pd.DataFrame(
+        log_fold_change_mean.reshape(-1, 1),
+        columns=[f"col_{i}" for i in range(log_fold_change_mean.reshape(-1,1).shape[1])],
+        index=adata.obs_names
+    )
 
-        # Prepare results
-        df_kompot_lfc = pd.DataFrame(
-            log_fold_change_mean.reshape(-1, 1),
-            columns=[f"col_{i}" for i in range(log_fold_change_mean.reshape(-1,1).shape[1])],
-            index=adata.obs_names
-        )
+    df_kompot_zscore = pd.DataFrame(
+        zscores.reshape(-1, 1),
+        columns=[f"col_{i}" for i in range(zscores.reshape(-1,1).shape[1])],
+        index=adata.obs_names
+    )
 
-        df_kompot_zscore = pd.DataFrame(
-            zscores.reshape(-1, 1),
-            columns=[f"col_{i}" for i in range(zscores.reshape(-1,1).shape[1])],
-            index=adata.obs_names
-        )
+    # Save results
+    data_loader.save_results(
+        df_kompot_lfc,
+        output_dir,
+        args.ds_type,
+        args.pop,
+        args.pop_enr,
+        args.seed,
+        args.batch_sd,
+        args.package,
+        "_package_performance"
+    )
 
-        # Save results
-        data_loader.save_results(
-            df_kompot_lfc,
-            output_dir_i,
-            args.ds_type,
-            args.pop,
-            args.pop_enr,
-            args.seed,
-            args.batch_sd,
-            args.package,
-            "_package_performance"
-        )
-
-        df_kompot_zscore.to_csv(output_dir_i / "kompot_zscore.csv")
+    df_kompot_zscore.to_csv(output_dir / "kompot_zscore.csv")
 
 if __name__ == "__main__":
     main()

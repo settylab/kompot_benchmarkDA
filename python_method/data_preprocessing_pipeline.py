@@ -45,26 +45,35 @@ def main():
     
 
 
+    # Load dataset
+    print(f"  Loading: {file_path}")
     adata = read_file.read_dataset(file_path, embedding_layer)
-    print(file_path)
+    print(f"  Shape: {adata.shape[0]} cells × {adata.shape[1]} features")
+
     ## detecting whether there is the space inside the cell names string, replace the space with the underline.
-    adata = preprocessing.replace_space_in_string(adata, pop_col)
+    ## Only do this if pop_col exists in the data (preprocessing embeddings doesn't require this)
+    if pop_col in adata.obs.columns:
+        adata = preprocessing.replace_space_in_string(adata, pop_col)
+        print(f"  Cell type column: '{pop_col}' (spaces replaced with underscores)")
 
     if mode_embedding == "DM":
-        print("start to calculate Diffusion Map")
-        adata = calculate_diffusion_map.calculate_dm(adata,embedding_layer,n_dm)
-    elif mode_embedding != "DM":
-        adata = adata
-    
-    if preprocessing.has_duplicate_rows(adata) == True:
-        print("Start de-duplication")
-        adata = preprocessing.remove_duplicate_cells(adata,keep = "first")
+        print(f"  Computing diffusion map ({n_dm} components) from {embedding_layer}...")
+        adata = calculate_diffusion_map.calculate_dm(adata, embedding_layer, n_dm)
+        print(f"  ✓ DM_EigenVectors computed")
     else:
-        print("No duplicated cells, good to go")
-        adata = adata
+        print(f"  Embedding layer '{embedding_layer}' prepared")
 
+    # Check for duplicates
+    if preprocessing.has_duplicate_rows(adata):
+        print("  Removing duplicate cells...")
+        adata = preprocessing.remove_duplicate_cells(adata, keep="first")
+        print(f"  ✓ Duplicates removed, {adata.shape[0]} unique cells remain")
+    else:
+        print("  ✓ No duplicate cells found")
+
+    print(f"  Writing output to: {output_dir}")
     adata.write(output_dir)
-    print("saved!")
+    print(f"  ✓ Saved successfully")
 
 
 if __name__ == "__main__":

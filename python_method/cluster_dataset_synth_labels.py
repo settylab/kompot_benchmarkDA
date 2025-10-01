@@ -201,41 +201,53 @@ def quantile_assign_label(adata,pop_col,pop_enr,pop):
     
     return adata
     
-def add_batch_effect_pca(adata, layer_embedding,batch_col="synth_batches", norm_sd=0.5,seed = 43):
+def add_batch_effect_pca(adata, layer_embedding, batch_col="synth_batches", norm_sd=0.5, seed=43):
     """
     Adds a batch effect to the PCA results stored in an AnnData object.
-    
+
+    Batch effects are scaled by the sqrt of sum of component variances to make
+    the norm_sd parameter comparable across datasets.
+
     Parameters:
-    - adata: AnnData object containing single-cell data with PCA results in .obsm['X_pca']
-    - later_embedding: indicate which embedding layer will be used for the simulation of batch effect
+    - adata: AnnData object containing single-cell data with embeddings in .obsm[layer_embedding]
+    - layer_embedding: Name of embedding layer to use (e.g., 'X_pca', 'DM_EigenVectors')
     - batch_col: The column in .obs corresponding to batch information
-    - norm_sd: The standard deviation of the normal distribution for generating batch effects
-    
+    - norm_sd: Batch effect strength as fraction of data variance
+               (0 = no effect, 1 = effect size equals data std)
+    - seed: Random seed for reproducibility
+
     Returns:
-    - Modified AnnData object with added batch effects in .obsm['X_pca_batch']
+    - Modified AnnData object with added batch effects in .obsm['{layer_embedding}_batch']
     """
 
     np.random.seed(seed)
-    # Extract PCA results
-    X_pca = adata.obsm[layer_embedding]
-    
-    X_pca_df = pd.DataFrame(adata.obsm[layer_embedding],index = adata.obs_names)
-    
-    # Initialize X_pca_batch with the original PCA results
-    X_pca_batch = X_pca_df.copy()
-    
+    # Extract embeddings
+    X_emb = adata.obsm[layer_embedding]
+
+    X_emb_df = pd.DataFrame(X_emb, index=adata.obs_names)
+
+    # Initialize batch-corrected version with the original
+    X_emb_batch = X_emb_df.copy()
+
+    # Calculate scaling factor: sqrt of sum of variances across all components
+    # This makes batch effect strength comparable across different datasets
+    component_vars = np.var(X_emb, axis=0)
+    variance_scale = np.sqrt(np.sum(component_vars))
+
     # Split cells by batch
     cell_batches = adata.obs[batch_col]
-    
+
     # Add batch effect for each batch
+    # norm_sd=0 means no effect, norm_sd=1 means effect ~ data std
     for batch in cell_batches.unique():
-        batch_effect = np.random.normal(loc=0, scale=norm_sd, size=X_pca.shape[1])
+        # Generate batch effect scaled by data variance
+        batch_effect = np.random.normal(loc=0, scale=norm_sd * variance_scale, size=X_emb.shape[1])
         batch_indices = list(cell_batches[cell_batches == batch].index)
-        X_pca_batch.loc[batch_indices] += batch_effect
-    
-    # Store the modified PCA results with batch effects
-    adata.obsm[f"{layer_embedding}_batch"] = X_pca_batch
-    
+        X_emb_batch.loc[batch_indices] += batch_effect
+
+    # Store the modified embeddings with batch effects
+    adata.obsm[f"{layer_embedding}_batch"] = X_emb_batch.values
+
     return adata
 
 

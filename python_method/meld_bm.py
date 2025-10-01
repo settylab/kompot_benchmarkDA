@@ -39,59 +39,55 @@ def main():
 
     # Set up directories
     output_dir = Path(args.output_dir)
-    input_file = Path(args.input_file)
+    label_directory = Path(args.input_file)
 
-    # Process each iteration
-    for i in range(1):
-        iteration_directory = input_file / f'iteration_{i}'
-        output_dir_i = output_dir / f'iteration_{i}'
-        
-        # Load dataset
-        adata = data_loader.load_dataset(
-            args.file_path, 
-            iteration_directory, 
-            args.ds_type, 
-            args.pop, 
-            args.pop_enr, 
-            args.seed, 
-            args.batch_sd, 
-            args.layer_embedding
-        )
-        
-        # Determine embedding mode: DM by default, PCA if n_dm=0
-        use_dm = (args.n_dm > 0)
+    # Load dataset (MELD is PCA-based, always use PCA embeddings)
+    adata = data_loader.load_dataset(
+        args.file_path,
+        label_directory,
+        args.ds_type,
+        args.pop,
+        args.pop_enr,
+        args.seed,
+        args.batch_sd,
+        args.layer_embedding,
+        use_dm=False
+    )
 
-        # Run MELD with standardized embedding handling
-        sample_likelihoods_meld, samplem = runMELD.runMELD(
-            adata,
-            args.k_meld,
-            "synth_samples",
-            "synth_labels",
-            args.layer_embedding,
-            args.beta,
-            use_dm=use_dm,
-            dm_comp=args.n_dm
-        )
-        
-        # Prepare results
-        df_meld = pd.DataFrame(
-            sample_likelihoods_meld, 
-            columns=[f"col_{i}" for i in range(sample_likelihoods_meld.reshape(-1,1).shape[1])],
-            index=adata.obs_names
-        )
-        
-        # Save results
-        data_loader.save_results(
-            df_meld, 
-            output_dir_i, 
-            args.ds_type, 
-            args.pop, 
-            args.pop_enr, 
-            args.seed, 
-            args.batch_sd, 
-            args.package, 
-            "_package_performance"
-        )
+    # Determine embedding mode: DM by default, PCA if n_dm=0
+    use_dm = (args.n_dm > 0)
+
+    # Run MELD with standardized embedding handling
+    sample_likelihoods_meld, samplem = runMELD.runMELD(
+        adata,
+        args.k_meld,
+        "synth_samples",
+        "synth_labels",
+        args.layer_embedding,
+        args.beta,
+        use_dm=use_dm,
+        dm_comp=args.n_dm
+    )
+
+    # Prepare results
+    df_meld = pd.DataFrame(
+        sample_likelihoods_meld,
+        columns=[f"col_{i}" for i in range(sample_likelihoods_meld.reshape(-1,1).shape[1])],
+        index=adata.obs_names
+    )
+
+    # Save results
+    data_loader.save_results(
+        df_meld,
+        output_dir,
+        args.ds_type,
+        args.pop,
+        args.pop_enr,
+        args.seed,
+        args.batch_sd,
+        args.package,
+        "_package_performance"
+    )
 
 if __name__ == "__main__":
     main()

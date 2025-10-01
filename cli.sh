@@ -454,6 +454,23 @@ check_datasets() {
 preprocess_datasets() {
     print_step "Preprocessing datasets"
 
+    # Preprocessing needs environment active
+    if [ "$DRY_RUN" != true ]; then
+        # Load environment utilities
+        if [[ -f "bin/environment_utils.sh" ]]; then
+            source "bin/environment_utils.sh"
+        fi
+
+        # Activate environment if not already active
+        if [ -z "$CONDA_PREFIX" ]; then
+            print_info "Activating environment for preprocessing"
+            if ! activate_benchmarkda_environment; then
+                print_error "Failed to activate environment"
+                return 1
+            fi
+        fi
+    fi
+
     for dataset in "${SELECTED_DATASETS[@]}"; do
         local n_dm=$(get_n_dm_for_dataset "$dataset")
 
@@ -586,8 +603,15 @@ run_benchmarks() {
                 skip_flag="--skip-existing"
             fi
 
+            # Build filter arguments (all optional)
+            local filter_args=""
+            [ -n "$FILTER_POPULATIONS" ] && filter_args="$filter_args --populations $FILTER_POPULATIONS"
+            [ -n "$FILTER_SEEDS" ] && filter_args="$filter_args --seeds $FILTER_SEEDS"
+            [ -n "$FILTER_ENRICHMENTS" ] && filter_args="$filter_args --enrichments $FILTER_ENRICHMENTS"
+            [ -n "$FILTER_BATCH_SDS" ] && filter_args="$filter_args --batch-sds $FILTER_BATCH_SDS"
+
             if [ "$DRY_RUN" = true ]; then
-                echo "[DRY RUN] python bin/direct_benchmark.py --dataset \"$dataset\" --method_type \"$method_type\" --n_dm \"$n_dm\" $methods_arg $skip_flag $slurm_flag"
+                echo "[DRY RUN] python bin/direct_benchmark.py --dataset \"$dataset\" --method_type \"$method_type\" --n_dm \"$n_dm\" $methods_arg $skip_flag $slurm_flag $filter_args"
             else
                 if [ "$USE_SLURM" = true ]; then
                     print_info "Submitting $method_type methods for $dataset to SLURM"
@@ -614,7 +638,8 @@ run_benchmarks() {
                     --n_dm "$n_dm" \
                     $methods_arg \
                     $skip_flag \
-                    $slurm_flag || {
+                    $slurm_flag \
+                    $filter_args || {
                     print_warning "Direct benchmark execution failed for $dataset $method_type"
                 }
 

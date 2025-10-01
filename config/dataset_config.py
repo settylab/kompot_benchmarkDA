@@ -7,76 +7,83 @@ Contains dataset-specific parameters used across different scripts.
 DATASET_CONFIGS = {
     "cluster": {
         "pops": ["M1", "M2", "M3"],
-        "batch_vec": [0, 0.75, 1, 1.25, 1.5],
+        "batch_vec": [0, 0.05, 0.1, 0.2, 0.4, 1, 2, 4],  # Variance-based batch effect strengths
         "k": 30,
         "resolution": 0.2,
         "beta": 33,
         "downsample": 3,
         "pop_col": "celltype",
-        "n_dm": 10  # Diffusion map components for this dataset
+        "n_dm": 10,  # Diffusion map components for this dataset
+        "layer_embedding": "X_pca"  # Embedding layer to use
     },
     "linear": {
         "pops": ["M1", "M2", "M3", "M4", "M5", "M6", "M7"],
-        "batch_vec": [0, 0.75, 1, 1.25, 1.5],
+        "batch_vec": [0, 0.05, 0.1, 0.2, 0.4, 1, 2, 4],  # Variance-based batch effect strengths
         "k": 30,
         "resolution": 1,
         "beta": 71,
         "downsample": 3,
         "pop_col": "celltype",
-        "n_dm": 10  # Diffusion map components for this dataset
+        "n_dm": 10,  # Diffusion map components for this dataset
+        "layer_embedding": "X_pca"  # Embedding layer to use
     },
     "branch": {
         "pops": ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8"],
-        "batch_vec": [0, 0.75, 1, 1.25, 1.5],
+        "batch_vec": [0, 0.05, 0.1, 0.2, 0.4, 1, 2, 4],  # Variance-based batch effect strengths
         "k": 30,
         "resolution": 1,
         "beta": 65,
         "downsample": 3,
         "pop_col": "celltype",
-        "n_dm": 10  # Diffusion map components for this dataset
+        "n_dm": 10,  # Diffusion map components for this dataset
+        "layer_embedding": "X_pca"  # Embedding layer to use
     },
     "covid19-pbmc": {
         "pops": ["PB", "CD14_Monocyte", "CD8_T", "CD4_T", "Platelet", "NK", "Granulocyte",
                 "CD16_Monocyte", "gd_T", "pDC", "DC"],
-        "batch_vec": [0],
+        "batch_vec": [0, 0.05, 0.1, 0.2, 0.4, 1, 2, 4],  # Variance-based batch effect strengths
         "k": 30,
         "resolution": 0.5,
         "beta": 40,
         "downsample": 3,
         "pop_col": "cell.type.coarse",
-        "n_dm": 30  # Diffusion map components for this dataset
+        "n_dm": 30,  # Diffusion map components for this dataset
+        "layer_embedding": "X_pca"  # Embedding layer to use
     },
     "bcr-xl": {
-        "pops": ["naive_CD4_T", "memory_CD4_T", "naive_CD8_T", "memory_CD8_T", "CD56_NK",
-                "naive_B", "memory_B", "DC", "CD14_Mono", "CD16_Mono", "pDCs"],
-        "batch_vec": [0],
+        "pops": ["CD4_T-cells", "CD8_T-cells", "NK_cells", "B-cells_IgM+", "B-cells_IgM-",
+                "monocytes", "DC"],
+        "batch_vec": [0, 0.05, 0.1, 0.2, 0.4, 1, 2, 4],  # Variance-based batch effect strengths
         "k": 30,
         "resolution": 0.5,
         "beta": 40,
         "downsample": 3,
         "pop_col": "cell_type",
-        "n_dm": 5   # Diffusion map components for this dataset
+        "n_dm": 5,   # Diffusion map components for this dataset
+        "layer_embedding": "X_pca"  # Embedding layer to use (preprocessing creates X_pca from X_x for CyTOF)
     },
     "levine32": {
         "pops": ["pDCs", "CD4_T_cells", "CD8_T_cells", "Pre_B_cells", "Mature_B_cells", "Monocytes", "Basophils"],  # Major immune cell populations (7 total)
-        "batch_vec": [0],
+        "batch_vec": [0, 0.05, 0.1, 0.2, 0.4, 1, 2, 4],  # Variance-based batch effect strengths
         "k": 30,
         "resolution": 0.5,
         "beta": 40,
         "downsample": 3,
         "pop_col": "cell_type",
-        "n_dm": 5   # Diffusion map components for this dataset
+        "n_dm": 5,   # Diffusion map components for this dataset
+        "layer_embedding": "X_pca"  # Embedding layer to use (preprocessing creates X_pca from X_x for CyTOF)
     },
     "pancreas": {
-        "pops": ["alpha cell", "beta cell", "delta cell", "gamma cell", "ductal cell",
-                "acinar cell", "endothelial cell", "PSC cell"],  # Major pancreatic cell types
-        "batch_vec": [0],
+        "pops": ["alpha_cell", "beta_cell", "delta_cell", "gamma_cell", "ductal_cell",
+                "acinar_cell", "endothelial_cell", "PSC_cell"],  # Major pancreatic cell types
+        "batch_vec": [0, 0.05, 0.1, 0.2, 0.4, 1, 2, 4],  # Variance-based batch effect strengths
         "k": 30,
         "resolution": 0.5,
         "beta": 40,
         "downsample": 3,
         "pop_col": "Factor.Value.inferred.cell.type...authors.labels.",
-        "n_dm": 30  # Diffusion map components for this dataset
+        "n_dm": 30,  # Diffusion map components for this dataset
+        "layer_embedding": "X_pca"  # Embedding layer to use
     }
 }
 

@@ -60,6 +60,7 @@ def main():
 
     # Get all dataset-specific settings from config
     pop_col = dataset_config.get('pop_col', 'celltype')
+    n_dm = dataset_config.get('n_dm', 0)
 
     # Determine dataset type and data file
     if dataset in ['linear', 'branch', 'cluster']:
@@ -84,6 +85,7 @@ def main():
     print("  Enrichments: {}".format(enrichments))
     print("  Batch SDs: {}".format(batch_sds))
     print("  Population column: {}".format(pop_col))
+    print("  DM components: {}".format(n_dm))
     print("")
     print("Total combinations: {}".format(total_combinations))
     print("=" * 60)
@@ -92,6 +94,7 @@ def main():
     success_count = 0
     fail_count = 0
     skip_count = 0
+    current_task = 0
 
     # Change to python_method directory for script execution
     os.chdir(project_root / "python_method")
@@ -100,6 +103,7 @@ def main():
         for seed in seeds:
             for enrichment in enrichments:
                 for batch_sd in batch_sds:
+                    current_task += 1
                     combo_id = "{}-{}-{}-{}-{}".format(dataset, pop, enrichment, seed, batch_sd)
 
                     # Create output directory
@@ -108,16 +112,14 @@ def main():
 
                     # Check if labels already exist
                     if args.skip_existing:
-                        required_files = [
-                            output_dir / "synth_batches",
-                            output_dir / "synth_labels",
-                            output_dir / "synth_samples"
-                        ]
-                        if all(f.exists() for f in required_files):
+                        coldata_file = output_dir / "benchmark_{}_pop_{}_enr{}_seed{}.coldata.csv".format(dataset, pop, enrichment, seed)
+                        if coldata_file.exists():
                             skip_count += 1
+                            print("[SKIP {}/{}] {}".format(current_task, total_combinations, combo_id))
                             continue
 
                     output_dir.mkdir(parents=True, exist_ok=True)
+                    print("[{}/{}] Generating labels for {}...".format(current_task, total_combinations, combo_id))
 
                     # Build command using config and pipeline constants
                     cmd = [
@@ -137,6 +139,7 @@ def main():
                         "--a_logit", str(PIPELINE_CONSTANTS["a_logit"]),
                         "--mode_embedding", PIPELINE_CONSTANTS["mode_embedding"],
                         "--layer_embedding", PIPELINE_CONSTANTS["layer_embedding"],
+                        "--n_dm", str(n_dm),
                         "--balance", PIPELINE_CONSTANTS["balance"],
                         "--output_dir", str(output_dir) + "/"
                     ]
@@ -147,12 +150,12 @@ def main():
                             check=True,
                             capture_output=True,
                             text=True,
-                            timeout=300
+                            timeout=3600  # 1 hour timeout for large datasets with DM computation
                         )
-                        print("[OK] {}".format(combo_id))
+                        print("[OK {}/{}] {}".format(current_task, total_combinations, combo_id))
                         success_count += 1
                     except subprocess.CalledProcessError as e:
-                        print("[FAIL] {}".format(combo_id))
+                        print("[FAIL {}/{}] {}".format(current_task, total_combinations, combo_id))
                         if e.stderr:
                             # Show first and last lines of error
                             error_lines = e.stderr.strip().split('\n')
@@ -163,7 +166,7 @@ def main():
                                 print("  Error: {}".format(e.stderr[:200]))
                         fail_count += 1
                     except subprocess.TimeoutExpired:
-                        print("[TIMEOUT] {}".format(combo_id))
+                        print("[TIMEOUT {}/{}] {}".format(current_task, total_combinations, combo_id))
                         fail_count += 1
 
     print("")

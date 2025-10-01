@@ -36,6 +36,7 @@ def main():
     parser.add_argument('--corrected', type=str, help='Whether correct the log fold change mean of Mellon')
     parser.add_argument('--ls_factor', type=float, help='LS factor')
     parser.add_argument('--ls_mode', type=str, help='LS mode, PCA or DM')
+    parser.add_argument('--force_pca', action='store_true', help='Force PCA mode even if n_dm > 0')
     parser.add_argument('--output_dir', type=str, required=True, help='Output directory path')
 
     # Parse arguments
@@ -43,62 +44,63 @@ def main():
 
     # Set up directories
     output_dir = Path(args.output_dir)
-    input_file = Path(args.input_file)
+    label_directory = Path(args.input_file)
 
-    # Process each iteration
-    for i in range(1):
-        iteration_directory = input_file / f'iteration_{i}'
-        output_dir_i = output_dir / f'iteration_{i}'
-        # Load dataset
-        adata = data_loader.load_dataset(
-            args.file_path,
-            iteration_directory,
-            args.ds_type,
-            args.pop,
-            args.pop_enr,
-            args.seed,
-            args.batch_sd,
-            args.layer_embedding
+    # Determine embedding mode: DM by default, PCA if n_dm=0 or force_pca=True
+    n_dm = args.n_dm if args.n_dm is not None else 10
+    use_dm = (n_dm > 0) and not getattr(args, 'force_pca', False)
+
+    # Load dataset with appropriate embeddings
+    adata = data_loader.load_dataset(
+        args.file_path,
+        label_directory,
+        args.ds_type,
+        args.pop,
+        args.pop_enr,
+        args.seed,
+        args.batch_sd,
+        args.layer_embedding,
+        use_dm=use_dm
+    )
+
+    # Run Mellon with appropriate parameters
+    if args.hyperparameter == "No":
+        log_fold_change_mean, zscores = runMellon.runMELLON(
+            adata, args.mellon_d_method, args.norm_density, "synth_labels", args.ls_mode, args.layer_embedding, args.n_dm, args.ls_factor
+        )
+    elif args.hyperparameter == "Yes":
+        log_fold_change_mean, zscores = runMellon.runMELLON_synchronized(
+            adata, args.mellon_d_method, args.norm_density, args.corrected, "synth_labels", args.n_dm,
+            args.ls_factor, args.ls_mode, args.layer_embedding
         )
 
-        # Run Mellon with appropriate parameters
-        if args.hyperparameter == "No":
-            log_fold_change_mean, zscores = runMellon.runMELLON(
-                adata, args.mellon_d_method, args.norm_density, "synth_labels", args.ls_mode, args.layer_embedding, args.n_dm, args.ls_factor
-            )
-        elif args.hyperparameter == "Yes":
-            log_fold_change_mean, zscores = runMellon.runMELLON_synchronized(
-                adata, args.mellon_d_method, args.norm_density, args.corrected, "synth_labels", args.n_dm,
-                args.ls_factor, args.ls_mode, args.layer_embedding
-            )
-        
-        # Prepare results
-        df_mellon_lfc = pd.DataFrame(
-            log_fold_change_mean, 
-            columns=[f"col_{i}" for i in range(log_fold_change_mean.reshape(-1,1).shape[1])],
-            index=adata.obs_names
-        )
-        
-        df_mellon_zscore = pd.DataFrame(
-            zscores, 
-            columns=[f"col_{i}" for i in range(zscores.reshape(-1,1).shape[1])],
-            index=adata.obs_names
-        )
-        
-        # Save results
-        data_loader.save_results(
-            df_mellon_lfc, 
-            output_dir_i, 
-            args.ds_type, 
-            args.pop, 
-            args.pop_enr, 
-            args.seed, 
-            args.batch_sd, 
-            args.package, 
-            "_package_performance"
-        )
-        
-        df_mellon_zscore.to_csv(output_dir_i / "mellon_zscore.csv")
+    # Prepare results
+    df_mellon_lfc = pd.DataFrame(
+        log_fold_change_mean,
+        columns=[f"col_{i}" for i in range(log_fold_change_mean.reshape(-1,1).shape[1])],
+        index=adata.obs_names
+    )
+
+    df_mellon_zscore = pd.DataFrame(
+        zscores,
+        columns=[f"col_{i}" for i in range(zscores.reshape(-1,1).shape[1])],
+        index=adata.obs_names
+    )
+
+    # Save results
+    data_loader.save_results(
+        df_mellon_lfc,
+        output_dir,
+        args.ds_type,
+        args.pop,
+        args.pop_enr,
+        args.seed,
+        args.batch_sd,
+        args.package,
+        "_package_performance"
+    )
+
+    df_mellon_zscore.to_csv(output_dir / "mellon_zscore.csv")
 
 if __name__ == "__main__":
     main()

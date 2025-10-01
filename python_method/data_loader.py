@@ -10,16 +10,16 @@ import anndata as ad
 from pathlib import Path
 import helper_functions
 
-def load_dataset(file_path, iteration_directory, ds_type, pop, pop_enr, seed, batch_sd, layer_embedding):
+def load_dataset(file_path, label_directory, ds_type, pop, pop_enr, seed, batch_sd, layer_embedding, use_dm=False):
     """
     Load a dataset and associated metadata for differential abundance analysis.
-    
+
     Parameters:
     -----------
     file_path : str
         Path to the main dataset file
-    iteration_directory : str or Path
-        Directory containing iteration-specific files
+    label_directory : str or Path
+        Directory containing label files
     ds_type : str
         Dataset type identifier
     pop : str
@@ -32,36 +32,49 @@ def load_dataset(file_path, iteration_directory, ds_type, pop, pop_enr, seed, ba
         Batch standard deviation
     layer_embedding : str
         Layer embedding name (e.g., 'X_pca', 'DM_EigenVectors')
-    
+    use_dm : bool, optional
+        If True, load DM embeddings (.emb.dm.csv), otherwise load PCA embeddings (.emb.csv)
+        Default is False (load PCA embeddings)
+
     Returns:
     --------
     adata : AnnData
         Annotated data object with loaded metadata and embeddings
     """
     # Convert to Path objects
-    iteration_directory = Path(iteration_directory)
-    
+    label_directory = Path(label_directory)
+
     # Load the main dataset
     adata = read_dataset(file_path)
-    
+
     # Convert batch_sd to string format
     str_batch = str(batch_sd)
     int_batch = helper_functions.convert_number_str(str_batch)
-    
+
+    # Determine which embedding file to load
+    if use_dm:
+        # Load DM embeddings for DM-based methods (Mellon, Kompot)
+        emb_suffix = '.emb.dm.csv'
+        embedding_key = 'DM_EigenVectors_batch'
+    else:
+        # Load PCA embeddings for PCA-based methods (MELD, CNA, R methods)
+        emb_suffix = '.emb.csv'
+        embedding_key = f'{layer_embedding}_batch'
+
     # Load embedding data
-    adata.obsm[f"{layer_embedding}_batch"] = np.array(
+    adata.obsm[embedding_key] = np.array(
         pd.read_csv(
-            iteration_directory / f'benchmark_{ds_type}_pop_{pop}_enr{pop_enr}_seed{seed}_batchEffect{int_batch}.emb.csv',
+            label_directory / f'benchmark_{ds_type}_pop_{pop}_enr{pop_enr}_seed{seed}_batchEffect{int_batch}{emb_suffix}',
             index_col=0
         )
     )
-    
+
     # Load observation metadata
     adata.obs = pd.read_csv(
-        iteration_directory / f'benchmark_{ds_type}_pop_{pop}_enr{pop_enr}_seed{seed}.coldata.csv',
+        label_directory / f'benchmark_{ds_type}_pop_{pop}_enr{pop_enr}_seed{seed}.coldata.csv',
         index_col=0
     )
-    
+
     return adata
 
 def read_dataset(filename):

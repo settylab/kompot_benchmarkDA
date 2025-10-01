@@ -63,8 +63,6 @@ load_gcc_module_if_needed() {
                 done
             fi
 
-            print_info "All environments deactivated before module load"
-
             # Load GCC module (will be at front of PATH)
             for gcc_version in "13.3.0" "13.2.0" "12.3.0" "12.2.0" "11.3.0" "11.2.0"; do
                 if module avail GCC/$gcc_version 2>&1 | grep -q "GCC/$gcc_version"; then
@@ -117,6 +115,10 @@ print_success() {
 }
 
 usage() {
+    # Get available methods dynamically from config file (no Python needed)
+    local python_methods=$(sed -n '/PYTHON_METHODS = {/,/^R_METHODS/p' config/method_config.py | grep '^\s*"[^"]*": {$' | grep -v '"params"' | sed 's/.*"\([^"]*\)".*/\1/' | tr '\n' ',' | sed 's/,$//')
+    local r_methods=$(sed -n '/^R_METHODS = {/,/^}/p' config/method_config.py | grep '^\s*"[^"]*": {$' | grep -v '"params"' | sed 's/.*"\([^"]*\)".*/\1/' | tr '\n' ',' | sed 's/,$//')
+
     cat << EOF
 BenchmarkDA: Differential Abundance Benchmarking Pipeline
 
@@ -125,10 +127,16 @@ USAGE: ./cli.sh [OPTIONS] [STEPS...]
 OPTIONS:
     -h, --help              Show this help message
     -d, --datasets LIST     Datasets: linear,branch,cluster,covid19-pbmc,pancreas,bcr-xl,levine32
-    -m, --methods LIST      Methods: python,r,all (default: all)
+    -m, --methods LIST      Methods: python,r,all OR specific method names (default: all)
     -s, --skip-missing      Skip missing datasets without prompting
     --slurm                Submit benchmarks as SLURM array jobs
     --dry-run              Show commands without executing
+
+FILTERING OPTIONS (for labels step):
+    --populations LIST      Filter by populations (e.g., M2,M8)
+    --seeds LIST           Filter by seeds (e.g., 43,44)
+    --enrichments LIST     Filter by enrichment values (e.g., 0.75,0.95)
+    --batch-sds LIST       Filter by batch standard deviations (e.g., 0.75,1.25)
 
 STEPS:
     setup                   Setup environment and directories
@@ -146,21 +154,22 @@ STATUS OUTPUT:
     [Complete] = Finished   [Partial] = In progress   [Missing] = Not started
 
 PYTHON METHODS:
-    mellon, mellon_noSync, mellon_corr, mellon_pca
-    meld, meld_default, meld_pca
-    kompot, kompot_pca
+    ${python_methods}
 
 R METHODS:
-    milo, daseq, cydar, louvain
+    ${r_methods}
 
 EXAMPLES:
-    ./cli.sh                                     Complete pipeline (local)
-    ./cli.sh benchmark --slurm                   Submit ALL benchmarks to SLURM
-    ./cli.sh status                              Check progress
-    ./cli.sh --datasets linear preprocess        Preprocess one dataset
-    ./cli.sh --methods python benchmark          Python methods only
-    ./cli.sh --methods r benchmark --slurm       Submit only R methods to SLURM
-    ./cli.sh --dry-run                           Show commands without execution
+    ./cli.sh                                         Complete pipeline (local)
+    ./cli.sh benchmark --slurm                       Submit ALL benchmarks to SLURM
+    ./cli.sh --methods milo benchmark --slurm        Submit only Milo method
+    ./cli.sh --datasets branch --methods milo benchmark --slurm    Small test: branch + milo
+    ./cli.sh --datasets branch --populations M2,M8 --seeds 43,44 --enrichments 0.75,0.95 --batch-sds 0.75,1.25,1.5 labels    Generate labels for specific combinations
+    ./cli.sh status                                  Check progress
+    ./cli.sh --datasets linear preprocess            Preprocess one dataset
+    ./cli.sh --methods python benchmark              Python methods only
+    ./cli.sh --methods r benchmark --slurm           Submit only R methods to SLURM
+    ./cli.sh --dry-run                               Show commands without execution
 EOF
 }
 
@@ -174,6 +183,10 @@ METHODS="all"
 SKIP_MISSING=false
 DRY_RUN=false
 STEPS=()
+FILTER_POPULATIONS=""
+FILTER_SEEDS=""
+FILTER_ENRICHMENTS=""
+FILTER_BATCH_SDS=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -201,6 +214,22 @@ while [[ $# -gt 0 ]]; do
             DRY_RUN=true
             shift
             ;;
+        --populations)
+            FILTER_POPULATIONS="$2"
+            shift 2
+            ;;
+        --seeds)
+            FILTER_SEEDS="$2"
+            shift 2
+            ;;
+        --enrichments)
+            FILTER_ENRICHMENTS="$2"
+            shift 2
+            ;;
+        --batch-sds)
+            FILTER_BATCH_SDS="$2"
+            shift 2
+            ;;
         setup|preprocess|labels|benchmark|status|all)
             STEPS+=("$1")
             shift
@@ -225,11 +254,44 @@ else
     IFS=',' read -ra SELECTED_DATASETS <<< "$DATASETS"
 fi
 
-# Parse methods
+# Get available methods from config file directly (no Python needed)
+AVAILABLE_PYTHON_METHODS=($(sed -n '/PYTHON_METHODS = {/,/^R_METHODS/p' config/method_config.py | grep '^\s*"[^"]*": {$' | grep -v '"params"' | sed 's/.*"\([^"]*\)".*/\1/'))
+AVAILABLE_R_METHODS=($(sed -n '/^R_METHODS = {/,/^}/p' config/method_config.py | grep '^\s*"[^"]*": {$' | grep -v '"params"' | sed 's/.*"\([^"]*\)".*/\1/'))
+
+# Parse methods - support both method types (python/r) and individual method names (milo, kompot, etc)
+SPECIFIC_METHODS=()
 if [ "$METHODS" = "all" ]; then
     SELECTED_METHODS=("python" "r")
 else
-    IFS=',' read -ra SELECTED_METHODS <<< "$METHODS"
+    IFS=',' read -ra METHOD_LIST <<< "$METHODS"
+    SELECTED_METHODS=()
+    for method in "${METHOD_LIST[@]}"; do
+        case "$method" in
+            python|r)
+                SELECTED_METHODS+=("$method")
+                ;;
+            *)
+                # Check if it's a valid Python method
+                if [[ " ${AVAILABLE_PYTHON_METHODS[@]} " =~ " $method " ]]; then
+                    if [[ ! " ${SELECTED_METHODS[@]} " =~ " python " ]]; then
+                        SELECTED_METHODS+=("python")
+                    fi
+                    SPECIFIC_METHODS+=("$method")
+                # Check if it's a valid R method
+                elif [[ " ${AVAILABLE_R_METHODS[@]} " =~ " $method " ]]; then
+                    if [[ ! " ${SELECTED_METHODS[@]} " =~ " r " ]]; then
+                        SELECTED_METHODS+=("r")
+                    fi
+                    SPECIFIC_METHODS+=("$method")
+                else
+                    print_error "Unknown method: $method"
+                    print_error "Available Python methods: ${AVAILABLE_PYTHON_METHODS[*]}"
+                    print_error "Available R methods: ${AVAILABLE_R_METHODS[*]}"
+                    exit 1
+                fi
+                ;;
+        esac
+    done
 fi
 
 # =============================================================================
@@ -399,14 +461,46 @@ preprocess_datasets() {
 generate_labels() {
     print_step "Generating synthetic condition labels"
 
+    # Label generation needs environment active
+    if [ "$DRY_RUN" != true ]; then
+        # Load environment utilities
+        if [[ -f "bin/environment_utils.sh" ]]; then
+            source "bin/environment_utils.sh"
+        fi
+
+        # Activate environment if not already active
+        if [ -z "$CONDA_PREFIX" ]; then
+            print_info "Activating environment for label generation"
+            if ! activate_benchmarkda_environment; then
+                print_error "Failed to activate environment"
+                return 1
+            fi
+        fi
+    fi
+
+    # Build filter arguments (all optional)
+    local filter_args=""
+    [ -n "$FILTER_POPULATIONS" ] && filter_args="$filter_args --populations $FILTER_POPULATIONS"
+    [ -n "$FILTER_SEEDS" ] && filter_args="$filter_args --seeds $FILTER_SEEDS"
+    [ -n "$FILTER_ENRICHMENTS" ] && filter_args="$filter_args --enrichments $FILTER_ENRICHMENTS"
+    [ -n "$FILTER_BATCH_SDS" ] && filter_args="$filter_args --batch-sds $FILTER_BATCH_SDS"
+
+    if [ -n "$filter_args" ]; then
+        print_info "Using filtered label generation:"
+        [ -n "$FILTER_POPULATIONS" ] && print_info "  Populations: $FILTER_POPULATIONS"
+        [ -n "$FILTER_SEEDS" ] && print_info "  Seeds: $FILTER_SEEDS"
+        [ -n "$FILTER_ENRICHMENTS" ] && print_info "  Enrichments: $FILTER_ENRICHMENTS"
+        [ -n "$FILTER_BATCH_SDS" ] && print_info "  Batch SDs: $FILTER_BATCH_SDS"
+    fi
+
     for dataset in "${SELECTED_DATASETS[@]}"; do
         print_info "Generating labels for $dataset"
 
         if [ "$DRY_RUN" = true ]; then
-            echo "[DRY RUN] bash bin/modified_benchmarkda_dm_all.sh \"$dataset\" labels No PCA 0"
+            echo "[DRY RUN] python bin/generate_labels.py --dataset \"$dataset\" $filter_args"
         else
-            # Generate labels once per dataset
-            bash bin/modified_benchmarkda_dm_all.sh "$dataset" labels No PCA 0 || {
+            # Use unified utility (environment already activated above)
+            python bin/generate_labels.py --dataset "$dataset" $filter_args || {
                 print_warning "Label generation failed for $dataset"
             }
         fi
@@ -439,31 +533,55 @@ run_benchmarks() {
                     print_info "Executing benchmarks"
                 fi
 
-                # Load GCC module if needed for R methods before mamba activation
-                if [ "$method_type" = "r" ]; then
-                    load_gcc_module_if_needed
+                # For SLURM submissions, we need to activate environment first
+                # The activated environment will be inherited by SLURM jobs via --export=ALL
+                if [ "$USE_SLURM" = true ]; then
+                    # Load GCC module if needed for R methods (before mamba activation)
+                    if [ "$method_type" = "r" ]; then
+                        load_gcc_module_if_needed
+                    fi
+
+                    # Activate environment (will be inherited by SLURM)
+                    if ! activate_benchmarkda_environment; then
+                        print_error "Failed to activate environment for SLURM submission"
+                        continue
+                    fi
                 fi
 
-                # Use proper environment execution command
-                local run_cmd=$(get_environment_run_command)
-                if [ -n "$run_cmd" ]; then
-                    $run_cmd python bin/direct_benchmark.py \
-                        --dataset "$dataset" \
-                        --method_type "$method_type" \
-                        --n_dm "$n_dm" \
-                        $slurm_flag || {
-                        print_warning "Direct benchmark execution failed for $dataset $method_type"
-                    }
-                else
-                    print_warning "No suitable environment execution command found, trying direct execution"
-                    python bin/direct_benchmark.py \
-                        --dataset "$dataset" \
-                        --method_type "$method_type" \
-                        --n_dm "$n_dm" \
-                        $slurm_flag || {
-                        print_warning "Direct benchmark execution failed for $dataset $method_type"
-                    }
+                # Build methods argument if specific methods were requested
+                local methods_arg=""
+                if [ ${#SPECIFIC_METHODS[@]} -gt 0 ]; then
+                    # Filter specific methods for this method_type
+                    local type_methods=()
+                    for method in "${SPECIFIC_METHODS[@]}"; do
+                        case "$method" in
+                            milo|daseq|cydar|louvain)
+                                if [ "$method_type" = "r" ]; then
+                                    type_methods+=("$method")
+                                fi
+                                ;;
+                            *)
+                                if [ "$method_type" = "python" ]; then
+                                    type_methods+=("$method")
+                                fi
+                                ;;
+                        esac
+                    done
+
+                    if [ ${#type_methods[@]} -gt 0 ]; then
+                        methods_arg="--methods ${type_methods[@]}"
+                    fi
                 fi
+
+                # Generate SLURM script (uses activated environment)
+                python bin/direct_benchmark.py \
+                    --dataset "$dataset" \
+                    --method_type "$method_type" \
+                    --n_dm "$n_dm" \
+                    $methods_arg \
+                    $slurm_flag || {
+                    print_warning "Direct benchmark execution failed for $dataset $method_type"
+                }
 
                 # If using SLURM, submit the generated script
                 if [ "$USE_SLURM" = true ] && [ "$DRY_RUN" != true ]; then

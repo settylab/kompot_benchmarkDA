@@ -109,8 +109,6 @@ activate_benchmarkda_environment() {
             ;;
     esac
 
-    echo "All environments deactivated. CONDA_PREFIX is now: ${CONDA_PREFIX:-<empty>}"
-
     # Now activate the benchmarkda environment
     # Module paths (if loaded) will be at the front of PATH
     case "$pkg_manager" in

@@ -4,11 +4,16 @@ import pandas as pd
 import scanpy as sc
 import anndata as ad
 from sklearn.preprocessing import StandardScaler
+import sys
+from pathlib import Path
 
-from find_centroid import find_centroid
-from euclidean_distance import euclidean_distance
-from weight_calculation import calculate_weights_centroid
-from helper_functions import log_function
+# Add project root to path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from lib.find_centroid import find_centroid
+from lib.euclidean_distance import euclidean_distance
+from lib.weight_calculation import calculate_weights_centroid
+from lib.helper_functions import log_function
 
 
 

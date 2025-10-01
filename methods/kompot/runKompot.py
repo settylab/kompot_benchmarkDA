@@ -4,7 +4,13 @@ import pandas as pd
 import scanpy as sc
 import anndata as ad
 import logging
-import shared_embedding_utils
+import sys
+from pathlib import Path
+
+# Add project root to path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+from lib import shared_embedding_utils
 
 logger = logging.getLogger("kompot")
 

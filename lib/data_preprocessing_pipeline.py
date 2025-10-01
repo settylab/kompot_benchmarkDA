@@ -9,11 +9,12 @@ from pathlib import Path
 
 
 
-import read_file
+# Add project root to path
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-
-import calculate_diffusion_map
-import preprocessing
+from lib import read_file
+from lib import calculate_diffusion_map
+from lib import preprocessing
 
 import argparse
 import numpy as np

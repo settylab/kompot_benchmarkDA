@@ -4,8 +4,13 @@ import pandas as pd
 import scanpy as sc
 import anndata as ad
 from sklearn.preprocessing import StandardScaler
+import sys
+from pathlib import Path
 
-from helper_functions import scale
+# Add project root to path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from lib.helper_functions import scale
 
 def generate_enr_prob(pop,pop_enr,w_logit,cell_type_dict = None):
     
@@ -50,7 +55,7 @@ def normalize_enr_prob(w_logit,enr_scores, condition_balance):
 
     for i, col in enumerate(w_logit.columns):
         min_val = 0.5*condition_balance
-        max_val = enr_scores[i]
+        max_val = enr_scores.iloc[i]
         enr_prob[col] = scale(w_logit[col],min_val,max_val)
     return enr_prob
 

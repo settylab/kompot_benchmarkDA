@@ -8,7 +8,7 @@ import numpy as np
 import scanpy as sc
 import anndata as ad
 from pathlib import Path
-import helper_functions
+from lib import helper_functions
 
 def load_dataset(file_path, label_directory, ds_type, pop, pop_enr, seed, batch_sd, layer_embedding, use_dm=False):
     """
@@ -52,16 +52,19 @@ def load_dataset(file_path, label_directory, ds_type, pop, pop_enr, seed, batch_
     int_batch = helper_functions.convert_number_str(str_batch)
 
     # Determine which embedding file to load
+    # The CSV files already have batch effects applied (indicated by _batchEffect in filename)
+    # Load them into standard keys (X_pca, DM_EigenVectors) since these ARE the versions with batch effects
     if use_dm:
         # Load DM embeddings for DM-based methods (Mellon, Kompot)
+        # These DMs were computed FROM batch-affected PCA during label generation
         emb_suffix = '.emb.dm.csv'
-        embedding_key = 'DM_EigenVectors_batch'
+        embedding_key = 'DM_EigenVectors'
     else:
         # Load PCA embeddings for PCA-based methods (MELD, CNA, R methods)
         emb_suffix = '.emb.csv'
-        embedding_key = f'{layer_embedding}_batch'
+        embedding_key = layer_embedding  # Usually 'X_pca'
 
-    # Load embedding data
+    # Load embedding data - these already have batch effects applied
     adata.obsm[embedding_key] = np.array(
         pd.read_csv(
             label_directory / f'benchmark_{ds_type}_pop_{pop}_enr{pop_enr}_seed{seed}_batchEffect{int_batch}{emb_suffix}',

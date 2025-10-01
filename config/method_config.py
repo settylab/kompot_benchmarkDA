@@ -5,17 +5,20 @@ Contains method-specific parameters and command templates.
 
 # Python method configurations
 # All methods use PCA by default, except mellon and kompot which use DM
+# All methods now use the unified run_method.py wrapper
 PYTHON_METHODS = {
     # PCA-based methods (default for most methods)
     "meld": {
-        "script": "meld_bm.py",
+        "script": "run_method.py",
+        "method_name": "meld",
         "description": "MELD with dataset-specific parameters (PCA-based)",
         "params": {
             "force_pca": True
         }
     },
     "meld_default": {
-        "script": "meld_bm.py",
+        "script": "run_method.py",
+        "method_name": "meld",
         "description": "MELD with fixed beta=40 parameter (PCA-based)",
         "params": {
             "beta": 40,
@@ -25,7 +28,8 @@ PYTHON_METHODS = {
 
     # DM-based methods (only mellon and kompot use DM by default)
     "mellon": {
-        "script": "Mellon_bm.py",
+        "script": "run_method.py",
+        "method_name": "mellon",
         "description": "Mellon with diffusion map embedding and hyperparameter sync",
         "params": {
             "mellon_d_method": "fractal",
@@ -36,7 +40,8 @@ PYTHON_METHODS = {
         }
     },
     "mellon_noSync": {
-        "script": "Mellon_bm.py",
+        "script": "run_method.py",
+        "method_name": "mellon",
         "description": "Mellon without hyperparameter synchronization (DM-based)",
         "params": {
             "mellon_d_method": "fractal",
@@ -47,7 +52,8 @@ PYTHON_METHODS = {
         }
     },
     "mellon_corr": {
-        "script": "Mellon_bm.py",
+        "script": "run_method.py",
+        "method_name": "mellon",
         "description": "Mellon with batch correction (DM-based)",
         "params": {
             "mellon_d_method": "fractal",
@@ -58,7 +64,8 @@ PYTHON_METHODS = {
         }
     },
     "kompot": {
-        "script": "kompot_bm.py",
+        "script": "run_method.py",
+        "method_name": "kompot",
         "description": "Kompot differential abundance testing (DM-based)",
         "params": {
             "ls_factor": 10.0,
@@ -70,7 +77,8 @@ PYTHON_METHODS = {
 
     # PCA variants of normally DM-based methods
     "mellon_pca": {
-        "script": "Mellon_bm.py",
+        "script": "run_method.py",
+        "method_name": "mellon",
         "description": "Mellon using PCA embedding instead of diffusion maps",
         "params": {
             "mellon_d_method": "fractal",
@@ -82,7 +90,8 @@ PYTHON_METHODS = {
         }
     },
     "kompot_pca": {
-        "script": "kompot_bm.py",
+        "script": "run_method.py",
+        "method_name": "kompot",
         "description": "Kompot using PCA embedding instead of diffusion maps",
         "params": {
             "ls_factor": 10.0,
@@ -94,7 +103,8 @@ PYTHON_METHODS = {
     }
     # CNA methods temporarily disabled due to NumPy 2.0 compatibility issues
     # "cna": {
-    #     "script": "CNA_bm.py",
+    #     "script": "run_method.py",
+    #     "method_name": "cna",
     #     "description": "Conditional Neighborhood Analysis (PCA-based)",
     #     "params": {
     #         "force_pca": True

@@ -12,6 +12,7 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from config.method_config import PYTHON_METHODS, R_METHODS
 
+
 def main():
     """Print available methods."""
     if len(sys.argv) > 1 and sys.argv[1] == "--type":
@@ -27,6 +28,7 @@ def main():
         # Print all methods
         all_methods = list(PYTHON_METHODS.keys()) + list(R_METHODS.keys())
         print(" ".join(all_methods))
+
 
 if __name__ == "__main__":
     main()

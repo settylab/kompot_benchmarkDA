@@ -6,18 +6,6 @@ import anndata as ad
 import palantir
 
 
-import rpy2.robjects as robjects
-from rpy2.robjects import pandas2ri, r, ListVector
-
-#import rpy2.robjects as ro
-from rpy2.robjects.packages import importr
-from rpy2.robjects import pandas2ri
-from rpy2.robjects.conversion import localconverter
-
-import pandas as pd
-from rpy2.robjects import pandas2ri
-
-
 
 def add_synth_label_cluster_labels(adata,pop,seed, pop_enr,pop_col, n_conditions,balance = "Yes",cap_enr = None):
     
@@ -65,32 +53,16 @@ def add_synth_label_cluster_labels(adata,pop,seed, pop_enr,pop_col, n_conditions
     #conditions,cond_probability_df,w_logit,centroid_distance
     
     
-    # synth_labels = [
-    #         np.random.choice(a=conditions,replace=False,p=cond_probability_df.iloc[i, :])
-    #         for i in range(len(cond_probability_df))
-    # ]
+    # Use numpy for weighted random sampling (replaces R code)
+    np.random.seed(seed)
+    synth_labels = []
 
-    # Suppress pandas2ri deprecation warning and convert DataFrame
-    import warnings
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", DeprecationWarning)
-        # Convert the pandas DataFrame to an R data frame within a conversion context
-        with localconverter(robjects.default_converter + pandas2ri.converter):
-            r_cond_probability = robjects.conversion.py2rpy(cond_probability_df)
-
-    # Assign the R data frame to an R variable in the global environment
-    robjects.globalenv['cond_probability'] = r_cond_probability
-
-    robjects.globalenv['seed'] = seed 
-    # Execute the R code
-    robjects.r('''
-    set.seed(seed)
-    synth_labels <- sapply(1:nrow(cond_probability), function(i) sample(colnames(cond_probability), size = 1, prob = cond_probability[i,]))
-    ''')
-
-    # Convert the R vector back to a pandas Series
-    with localconverter(robjects.default_converter + pandas2ri.converter):
-        synth_labels = list(robjects.globalenv['synth_labels'])
+    for i in range(len(cond_probability_df)):
+        # Get probabilities for this cell
+        probs = cond_probability_df.iloc[i].values
+        # Weighted random choice
+        label = np.random.choice(conditions, p=probs)
+        synth_labels.append(label)
     
     adata.obs["synth_labels"] = synth_labels
     # adata.obs["synth_samples"] = synth_samples

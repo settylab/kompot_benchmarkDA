@@ -19,6 +19,7 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 from config.dataset_config import DATASET_CONFIGS, SEEDS, ENRICHMENT_VALUES
 from config.method_config import PYTHON_METHODS, R_METHODS
 
+
 class BenchmarkStatus:
     def __init__(self, root_dir="."):
         self.root_dir = Path(root_dir)
@@ -33,8 +34,8 @@ class BenchmarkStatus:
                 "total_datasets": 0,
                 "preprocessing_complete": 0,
                 "labels_complete": 0,
-                "benchmarks_complete": 0
-            }
+                "benchmarks_complete": 0,
+            },
         }
 
         # Get all available datasets
@@ -46,11 +47,17 @@ class BenchmarkStatus:
 
             # Update summary counts
             status["summary"]["total_datasets"] += 1
-            if dataset_status["preprocessing"]["dm"]["complete"] and dataset_status["preprocessing"]["pca"]["complete"]:
+            if (
+                dataset_status["preprocessing"]["dm"]["complete"]
+                and dataset_status["preprocessing"]["pca"]["complete"]
+            ):
                 status["summary"]["preprocessing_complete"] += 1
             if dataset_status["labels"]["complete"]:
                 status["summary"]["labels_complete"] += 1
-            if dataset_status["benchmarks"]["python"]["complete"] and dataset_status["benchmarks"]["r"]["complete"]:
+            if (
+                dataset_status["benchmarks"]["python"]["complete"]
+                and dataset_status["benchmarks"]["r"]["complete"]
+            ):
                 status["summary"]["benchmarks_complete"] += 1
 
         return status
@@ -60,7 +67,7 @@ class BenchmarkStatus:
         config = DATASET_CONFIGS[dataset]
 
         # Determine data paths
-        if dataset in ['linear', 'branch', 'cluster']:
+        if dataset in ["linear", "branch", "cluster"]:
             data_dir = self.root_dir / "data" / "synthetic" / dataset
             result_type = "synthetic"
         else:
@@ -74,15 +81,15 @@ class BenchmarkStatus:
                 "pops": config["pops"],
                 "seeds": SEEDS,
                 "enrichment_values": ENRICHMENT_VALUES,
-                "batch_vec": config["batch_vec"]
+                "batch_vec": config["batch_vec"],
             },
             "data_file": {
                 "exists": (data_dir / f"{dataset}.h5ad").exists(),
-                "path": str(data_dir / f"{dataset}.h5ad")
+                "path": str(data_dir / f"{dataset}.h5ad"),
             },
             "preprocessing": self._check_preprocessing_status(dataset, data_dir),
             "labels": self._check_labels_status(dataset, data_dir, config),
-            "benchmarks": self._check_benchmarks_status(dataset, result_type, config)
+            "benchmarks": self._check_benchmarks_status(dataset, result_type, config),
         }
 
         return dataset_status
@@ -92,16 +99,8 @@ class BenchmarkStatus:
         n_dm = self._get_n_dm_for_dataset(dataset)
 
         preprocessing_status = {
-            "dm": {
-                "required": n_dm > 0,
-                "complete": False,
-                "files": []
-            },
-            "pca": {
-                "required": True,
-                "complete": False,
-                "files": []
-            }
+            "dm": {"required": n_dm > 0, "complete": False, "files": []},
+            "pca": {"required": True, "complete": False, "files": []},
         }
 
         # Check for PCA files (always required)
@@ -128,15 +127,15 @@ class BenchmarkStatus:
             "total_combinations": 0,
             "completed_combinations": 0,
             "missing_combinations": [],
-            "files": []
+            "files": [],
         }
 
         # Calculate total combinations needed
         total_combinations = (
-            len(config["pops"]) *
-            len(SEEDS) *
-            len(ENRICHMENT_VALUES) *
-            len(config["batch_vec"])
+            len(config["pops"])
+            * len(SEEDS)
+            * len(ENRICHMENT_VALUES)
+            * len(config["batch_vec"])
         )
         labels_status["total_combinations"] = total_combinations
 
@@ -156,15 +155,19 @@ class BenchmarkStatus:
                             labels_status["missing_combinations"].append(label_id)
 
         labels_status["completed_combinations"] = completed_count
-        labels_status["complete"] = total_combinations > 0 and completed_count == total_combinations
+        labels_status["complete"] = (
+            total_combinations > 0 and completed_count == total_combinations
+        )
 
         return labels_status
 
     def _check_benchmarks_status(self, dataset, result_type, config):
         """Check benchmark completion status."""
         benchmark_status = {
-            "python": self._check_method_type_status(dataset, result_type, config, "python"),
-            "r": self._check_method_type_status(dataset, result_type, config, "r")
+            "python": self._check_method_type_status(
+                dataset, result_type, config, "python"
+            ),
+            "r": self._check_method_type_status(dataset, result_type, config, "r"),
         }
 
         return benchmark_status
@@ -183,7 +186,7 @@ class BenchmarkStatus:
             "methods": {},
             "total_jobs": 0,
             "completed_jobs": 0,
-            "embeddings": ["dm", "pca"]
+            "embeddings": ["dm", "pca"],
         }
 
         total_jobs = 0
@@ -193,8 +196,15 @@ class BenchmarkStatus:
             method_info = {
                 "complete": False,
                 "embeddings": {
-                    "unified": {"complete": False, "partial": False, "files": [], "jobs": 0, "completed": 0, "note": "standard"}
-                }
+                    "unified": {
+                        "complete": False,
+                        "partial": False,
+                        "files": [],
+                        "jobs": 0,
+                        "completed": 0,
+                        "note": "standard",
+                    }
+                },
             }
 
             # standard approach without embedding distinction
@@ -220,7 +230,9 @@ class BenchmarkStatus:
                                     method_completed += 1
                                     completed_jobs += 1
                                     # Store files in the unified structure
-                                    method_info["embeddings"]["unified"]["files"].extend([str(f) for f in method_results])
+                                    method_info["embeddings"]["unified"][
+                                        "files"
+                                    ].extend([str(f) for f in method_results])
 
             # Store counts for the unified approach
             method_info["embeddings"]["unified"]["jobs"] = method_jobs
@@ -231,7 +243,9 @@ class BenchmarkStatus:
                 method_jobs > 0 and method_completed == method_jobs
             )
             method_info["embeddings"]["unified"]["partial"] = (
-                method_jobs > 0 and method_completed > 0 and method_completed < method_jobs
+                method_jobs > 0
+                and method_completed > 0
+                and method_completed < method_jobs
             )
 
             # Method is complete if all jobs are complete
@@ -249,27 +263,28 @@ class BenchmarkStatus:
         # Try to get from config, fallback to hardcoded values
         try:
             from config.dataset_config import get_n_dm_for_dataset
+
             return get_n_dm_for_dataset(dataset)
         except ImportError:
             # Fallback hardcoded values
-            if dataset in ['linear', 'branch', 'cluster']:
+            if dataset in ["linear", "branch", "cluster"]:
                 return 10
-            elif dataset in ['covid19-pbmc', 'pancreas']:
+            elif dataset in ["covid19-pbmc", "pancreas"]:
                 return 30
-            elif dataset in ['bcr-xl', 'levine32']:
+            elif dataset in ["bcr-xl", "levine32"]:
                 return 5
             else:
                 return 10
 
     def save_status(self, status):
         """Save status to JSON file."""
-        with open(self.status_file, 'w') as f:
+        with open(self.status_file, "w") as f:
             json.dump(status, f, indent=2)
 
     def load_status(self):
         """Load status from JSON file."""
         if self.status_file.exists():
-            with open(self.status_file, 'r') as f:
+            with open(self.status_file, "r") as f:
                 return json.load(f)
         return None
 
@@ -283,18 +298,32 @@ class BenchmarkStatus:
 
         # Pipeline stage completion
         print("PIPELINE COMPLETION OVERVIEW:")
-        print(f"  Data Preprocessing: {status['summary']['preprocessing_complete']}/{status['summary']['total_datasets']} complete")
-        print(f"  Label Generation:   {status['summary']['labels_complete']}/{status['summary']['total_datasets']} complete")
-        print(f"  Method Benchmarks:  {status['summary']['benchmarks_complete']}/{status['summary']['total_datasets']} complete")
+        print(
+            f"  Data Preprocessing: {status['summary']['preprocessing_complete']}/{status['summary']['total_datasets']} complete"
+        )
+        print(
+            f"  Label Generation:   {status['summary']['labels_complete']}/{status['summary']['total_datasets']} complete"
+        )
+        print(
+            f"  Method Benchmarks:  {status['summary']['benchmarks_complete']}/{status['summary']['total_datasets']} complete"
+        )
         print()
 
         # Calculate overall completion rate
-        total_stages = status['summary']['total_datasets'] * 3  # preprocessing, labels, benchmarks
-        completed_stages = (status['summary']['preprocessing_complete'] +
-                          status['summary']['labels_complete'] +
-                          status['summary']['benchmarks_complete'])
-        completion_pct = (completed_stages / total_stages * 100) if total_stages > 0 else 0
-        print(f"Overall Pipeline Progress: {completed_stages}/{total_stages} stages ({completion_pct:.1f}%)")
+        total_stages = (
+            status["summary"]["total_datasets"] * 3
+        )  # preprocessing, labels, benchmarks
+        completed_stages = (
+            status["summary"]["preprocessing_complete"]
+            + status["summary"]["labels_complete"]
+            + status["summary"]["benchmarks_complete"]
+        )
+        completion_pct = (
+            (completed_stages / total_stages * 100) if total_stages > 0 else 0
+        )
+        print(
+            f"Overall Pipeline Progress: {completed_stages}/{total_stages} stages ({completion_pct:.1f}%)"
+        )
         print()
 
     def print_detailed_status(self, status):
@@ -309,7 +338,9 @@ class BenchmarkStatus:
             # Configuration summary
             config = info["config"]
             print(f"Configuration:")
-            print(f"  Populations: {len(config['pops'])} ({', '.join(config['pops'][:3])}{'...' if len(config['pops']) > 3 else ''})")
+            print(
+                f"  Populations: {len(config['pops'])} ({', '.join(config['pops'][:3])}{'...' if len(config['pops']) > 3 else ''})"
+            )
             print(f"  Seeds: {config['seeds']}")
             print(f"  Enrichments: {config['enrichment_values']}")
             print(f"  Batch Effects: {config['batch_vec']}")
@@ -324,23 +355,41 @@ class BenchmarkStatus:
             # Preprocessing status
             print(f"\nPreprocessing Status:")
             if info["preprocessing"]["dm"]["required"]:
-                dm_status = "COMPLETE" if info["preprocessing"]["dm"]["complete"] else "PENDING"
+                dm_status = (
+                    "COMPLETE" if info["preprocessing"]["dm"]["complete"] else "PENDING"
+                )
                 print(f"  Diffusion Maps (DM): {dm_status}")
                 if info["preprocessing"]["dm"]["files"]:
                     print(f"    Files: {len(info['preprocessing']['dm']['files'])}")
             else:
                 print(f"  Diffusion Maps (DM): NOT REQUIRED")
 
-            pca_status = "COMPLETE" if info["preprocessing"]["pca"]["complete"] else "PENDING"
+            pca_status = (
+                "COMPLETE" if info["preprocessing"]["pca"]["complete"] else "PENDING"
+            )
             print(f"  PCA Embeddings: {pca_status}")
             if info["preprocessing"]["pca"]["files"]:
                 print(f"    Files: {len(info['preprocessing']['pca']['files'])}")
 
             # Labels status
-            labels_pct = (info["labels"]["completed_combinations"] / info["labels"]["total_combinations"] * 100) if info["labels"]["total_combinations"] > 0 else 0
-            labels_status = "COMPLETE" if info["labels"]["complete"] else f"IN PROGRESS ({labels_pct:.1f}%)"
+            labels_pct = (
+                (
+                    info["labels"]["completed_combinations"]
+                    / info["labels"]["total_combinations"]
+                    * 100
+                )
+                if info["labels"]["total_combinations"] > 0
+                else 0
+            )
+            labels_status = (
+                "COMPLETE"
+                if info["labels"]["complete"]
+                else f"IN PROGRESS ({labels_pct:.1f}%)"
+            )
             print(f"\nLabel Generation: {labels_status}")
-            print(f"  Combinations: {info['labels']['completed_combinations']}/{info['labels']['total_combinations']}")
+            print(
+                f"  Combinations: {info['labels']['completed_combinations']}/{info['labels']['total_combinations']}"
+            )
             if info["labels"]["missing_combinations"]:
                 missing_count = len(info["labels"]["missing_combinations"])
                 print(f"  Missing: {missing_count} combinations")
@@ -350,32 +399,56 @@ class BenchmarkStatus:
 
             # Python methods
             python_info = info["benchmarks"]["python"]
-            python_pct = (python_info["completed_jobs"] / python_info["total_jobs"] * 100) if python_info["total_jobs"] > 0 else 0
-            print(f"  Python Methods: {python_info['completed_jobs']}/{python_info['total_jobs']} jobs ({python_pct:.1f}%)")
+            python_pct = (
+                (python_info["completed_jobs"] / python_info["total_jobs"] * 100)
+                if python_info["total_jobs"] > 0
+                else 0
+            )
+            print(
+                f"  Python Methods: {python_info['completed_jobs']}/{python_info['total_jobs']} jobs ({python_pct:.1f}%)"
+            )
 
             for method_name, method_info in python_info["methods"].items():
                 unified_jobs = method_info["embeddings"]["unified"]["jobs"]
                 unified_completed = method_info["embeddings"]["unified"]["completed"]
 
-                method_pct = (unified_completed / unified_jobs * 100) if unified_jobs > 0 else 0
+                method_pct = (
+                    (unified_completed / unified_jobs * 100) if unified_jobs > 0 else 0
+                )
 
-                status_text = "COMPLETE" if method_info["complete"] else f"PROGRESS ({method_pct:.1f}%)"
+                status_text = (
+                    "COMPLETE"
+                    if method_info["complete"]
+                    else f"PROGRESS ({method_pct:.1f}%)"
+                )
                 print(f"    {method_name}: {status_text}")
                 if not method_info["complete"] and unified_jobs > 0:
                     print(f"      Jobs: {unified_completed}/{unified_jobs}")
 
             # R methods
             r_info = info["benchmarks"]["r"]
-            r_pct = (r_info["completed_jobs"] / r_info["total_jobs"] * 100) if r_info["total_jobs"] > 0 else 0
-            print(f"  R Methods: {r_info['completed_jobs']}/{r_info['total_jobs']} jobs ({r_pct:.1f}%)")
+            r_pct = (
+                (r_info["completed_jobs"] / r_info["total_jobs"] * 100)
+                if r_info["total_jobs"] > 0
+                else 0
+            )
+            print(
+                f"  R Methods: {r_info['completed_jobs']}/{r_info['total_jobs']} jobs ({r_pct:.1f}%)"
+            )
 
             for method_name, method_info in r_info["methods"].items():
                 unified_jobs = method_info["embeddings"]["unified"]["jobs"]
                 unified_completed = method_info["embeddings"]["unified"]["completed"]
 
-                method_pct = (unified_completed / unified_jobs * 100) if unified_jobs > 0 else 0
+                method_pct = (
+                    (unified_completed / unified_jobs * 100) if unified_jobs > 0 else 0
+                )
 
-                status_text = "COMPLETE" if method_info["complete"] else f"PROGRESS ({method_pct:.1f}%)"
+                status_text = (
+                    "COMPLETE"
+                    if method_info["complete"]
+                    else f"PROGRESS ({method_pct:.1f}%)"
+                )
                 print(f"    {method_name}: {status_text}")
                 if not method_info["complete"] and unified_jobs > 0:
                     print(f"      Jobs: {unified_completed}/{unified_jobs}")
@@ -394,27 +467,49 @@ class BenchmarkStatus:
             if not info["data_file"]["exists"]:
                 missing_items.append("Data file download required")
 
-            if info["preprocessing"]["dm"]["required"] and not info["preprocessing"]["dm"]["complete"]:
+            if (
+                info["preprocessing"]["dm"]["required"]
+                and not info["preprocessing"]["dm"]["complete"]
+            ):
                 missing_items.append("Diffusion map preprocessing")
 
             if not info["preprocessing"]["pca"]["complete"]:
                 missing_items.append("PCA preprocessing")
 
             if not info["labels"]["complete"]:
-                remaining = info['labels']['total_combinations'] - info['labels']['completed_combinations']
-                missing_items.append(f"Label generation ({remaining} of {info['labels']['total_combinations']} combinations pending)")
+                remaining = (
+                    info["labels"]["total_combinations"]
+                    - info["labels"]["completed_combinations"]
+                )
+                missing_items.append(
+                    f"Label generation ({remaining} of {info['labels']['total_combinations']} combinations pending)"
+                )
 
             python_info = info["benchmarks"]["python"]
             if python_info["total_jobs"] > 0 and not python_info["complete"]:
-                remaining_jobs = python_info["total_jobs"] - python_info["completed_jobs"]
-                incomplete_methods = [m for m, method_status in python_info["methods"].items() if not method_status["complete"]]
-                missing_items.append(f"Python benchmarks ({remaining_jobs} jobs, methods: {', '.join(incomplete_methods)})")
+                remaining_jobs = (
+                    python_info["total_jobs"] - python_info["completed_jobs"]
+                )
+                incomplete_methods = [
+                    m
+                    for m, method_status in python_info["methods"].items()
+                    if not method_status["complete"]
+                ]
+                missing_items.append(
+                    f"Python benchmarks ({remaining_jobs} jobs, methods: {', '.join(incomplete_methods)})"
+                )
 
             r_info = info["benchmarks"]["r"]
             if r_info["total_jobs"] > 0 and not r_info["complete"]:
                 remaining_jobs = r_info["total_jobs"] - r_info["completed_jobs"]
-                incomplete_methods = [m for m, method_status in r_info["methods"].items() if not method_status["complete"]]
-                missing_items.append(f"R benchmarks ({remaining_jobs} jobs, methods: {', '.join(incomplete_methods)})")
+                incomplete_methods = [
+                    m
+                    for m, method_status in r_info["methods"].items()
+                    if not method_status["complete"]
+                ]
+                missing_items.append(
+                    f"R benchmarks ({remaining_jobs} jobs, methods: {', '.join(incomplete_methods)})"
+                )
 
             if missing_items:
                 any_missing = True
@@ -445,9 +540,9 @@ class BenchmarkStatus:
                 continue
 
             needs_preprocessing = (
-                (info["preprocessing"]["dm"]["required"] and not info["preprocessing"]["dm"]["complete"]) or
-                not info["preprocessing"]["pca"]["complete"]
-            )
+                info["preprocessing"]["dm"]["required"]
+                and not info["preprocessing"]["dm"]["complete"]
+            ) or not info["preprocessing"]["pca"]["complete"]
             if needs_preprocessing:
                 datasets_need_preprocessing.append(dataset)
 
@@ -464,7 +559,9 @@ class BenchmarkStatus:
         if datasets_missing_data:
             print("Data Download Required:")
             print("  Download these datasets from:")
-            print("  https://drive.google.com/drive/folders/15wWFD5FMe0VdzN1pUnaUUpQ17OXkeebH")
+            print(
+                "  https://drive.google.com/drive/folders/15wWFD5FMe0VdzN1pUnaUUpQ17OXkeebH"
+            )
             for dataset in datasets_missing_data:
                 print(f"    - {dataset}.h5ad")
             print()
@@ -508,13 +605,24 @@ class BenchmarkStatus:
         print("  ./cli.sh --datasets <name> status  # Specific dataset")
         print()
 
+
 def main():
     parser = argparse.ArgumentParser(description="BenchmarkDA Status Report")
-    parser.add_argument("--detailed", action="store_true", help="Show detailed status for each dataset")
-    parser.add_argument("--missing", action="store_true", help="Show missing items only")
-    parser.add_argument("--commands", action="store_true", help="Suggest CLI commands to complete missing work")
+    parser.add_argument(
+        "--detailed", action="store_true", help="Show detailed status for each dataset"
+    )
+    parser.add_argument(
+        "--missing", action="store_true", help="Show missing items only"
+    )
+    parser.add_argument(
+        "--commands",
+        action="store_true",
+        help="Suggest CLI commands to complete missing work",
+    )
     parser.add_argument("--save", action="store_true", help="Save status to JSON file")
-    parser.add_argument("--dataset", type=str, help="Show status for specific dataset only")
+    parser.add_argument(
+        "--dataset", type=str, help="Show status for specific dataset only"
+    )
 
     args = parser.parse_args()
 
@@ -530,15 +638,26 @@ def main():
             filtered_status = {
                 "last_updated": status["last_updated"],
                 "datasets": {args.dataset: status["datasets"][args.dataset]},
-                "summary": {"total_datasets": 1, "preprocessing_complete": 0, "labels_complete": 0, "benchmarks_complete": 0}
+                "summary": {
+                    "total_datasets": 1,
+                    "preprocessing_complete": 0,
+                    "labels_complete": 0,
+                    "benchmarks_complete": 0,
+                },
             }
             # Recalculate summary for single dataset
             info = filtered_status["datasets"][args.dataset]
-            if info["preprocessing"]["dm"]["complete"] and info["preprocessing"]["pca"]["complete"]:
+            if (
+                info["preprocessing"]["dm"]["complete"]
+                and info["preprocessing"]["pca"]["complete"]
+            ):
                 filtered_status["summary"]["preprocessing_complete"] = 1
             if info["labels"]["complete"]:
                 filtered_status["summary"]["labels_complete"] = 1
-            if info["benchmarks"]["python"]["complete"] and info["benchmarks"]["r"]["complete"]:
+            if (
+                info["benchmarks"]["python"]["complete"]
+                and info["benchmarks"]["r"]["complete"]
+            ):
                 filtered_status["summary"]["benchmarks_complete"] = 1
             status = filtered_status
         else:
@@ -563,6 +682,7 @@ def main():
         reporter.print_summary(status)
         reporter.print_missing_items(status)
         reporter.suggest_commands(status)
+
 
 if __name__ == "__main__":
     main()

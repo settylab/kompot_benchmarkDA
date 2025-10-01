@@ -12,7 +12,13 @@ from sklearn import metrics
 
 from sklearn.preprocessing import normalize
 import graphtools as gt
-import shared_embedding_utils
+import sys
+from pathlib import Path
+
+# Add project root to path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+from lib import shared_embedding_utils
 
 def replicate_normalize_densities(sample_densities, replicate):
     sample_likelihoods = sample_densities.copy()
@@ -26,7 +32,7 @@ def runMELD(adata,k,sample_col, label_col, layer_embedding,beta, use_dm=False, d
     # add sample and label dataframe to adata
     samplem = pd.DataFrame(index=pd.Series(adata.obs[sample_col]).unique())
     samplem.loc[:,label_col] = \
-        adata.obs[[sample_col, label_col]].groupby(by=sample_col).aggregate(lambda x: x[0])
+        adata.obs[[sample_col, label_col]].groupby(by=sample_col).aggregate(lambda x: x.iloc[0])
     adata.uns['samplem'] = samplem
 
     if adata.n_vars <= 50:

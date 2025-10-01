@@ -15,15 +15,21 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 # Import configurations
 from config.dataset_config import DATASET_CONFIGS, SEEDS, ENRICHMENT_VALUES
-from config.dataset_config import get_data_file_path, get_job_id, get_input_dir, get_output_dir
+from config.dataset_config import (
+    get_data_file_path,
+    get_job_id,
+    get_input_dir,
+    get_output_dir,
+)
 from config.method_config import PYTHON_METHODS, R_METHODS
 from config.method_config import get_python_method_cmd, get_r_method_cmd
+
 
 def generate_benchmark_script(args):
     """Generate a standard shell script for running benchmark analyses."""
 
     # Parse embeddings list
-    embeddings = [e.strip() for e in args.embeddings.split(',')]
+    embeddings = [e.strip() for e in args.embeddings.split(",")]
 
     # Base script content with user-agnostic environment setup
     script_content = """#!/bin/bash
@@ -179,7 +185,7 @@ for embedding in $(echo "$embeddings" | tr ',' ' '); do
         # Add Python method conditionals
         for method in PYTHON_METHODS:
             method_config = PYTHON_METHODS[method]
-            script_name = method_config["script"].replace('.py', '')
+            script_name = method_config["script"].replace(".py", "")
             script_content += f"""                            if [[ "$method" == "{method}" ]]; then
                                 {script_name}_cmd
                             fi
@@ -225,7 +231,7 @@ done
     if args.method_type == "python":
         for method in PYTHON_METHODS:
             method_config = PYTHON_METHODS[method]
-            script_name = method_config["script"].replace('.py', '')
+            script_name = method_config["script"].replace(".py", "")
             script_content += f"""
 {script_name}_cmd() {{
     python "{method_config['script']}" \\
@@ -239,10 +245,10 @@ done
         --package "{method}" \\
         --seed "${{seed}}" \\
         --layer_embedding "${{layer_embedding}}"""
-            
+
             # Add method-specific parameters
-            if method_config['script'] == "Mellon_bm.py":
-                params = method_config['params']
+            if method_config["script"] == "Mellon_bm.py":
+                params = method_config["params"]
                 script_content += f""" \\
         --n_dm "${{n_dm}}" \\
         --mellon_d_method "{params.get('mellon_d_method', 'fractal')}" \\
@@ -251,16 +257,16 @@ done
         --corrected "{params.get('corrected', 'No')}" \\
         --ls_factor "{params.get('ls_factor', 1.5)}" \\
         --ls_mode "${{mode_embedding}}"""
-            elif method_config['script'] == "meld_bm.py":
-                params = method_config['params']
-                beta_value = params.get('beta', "${{beta}}")
+            elif method_config["script"] == "meld_bm.py":
+                params = method_config["params"]
+                beta_value = params.get("beta", "${{beta}}")
                 script_content += f""" \\
         --beta "{beta_value}" \\
         --k_meld "${{k}}"""
-            elif method_config['script'] == "CNA_bm.py":
+            elif method_config["script"] == "CNA_bm.py":
                 script_content += f""" \\
         --k_cna "${{k}}"""
-            
+
             script_content += f""" \\
         --output_dir "${{save_path}}/"
 }}
@@ -281,42 +287,68 @@ fi
 
     return script_content
 
+
 def main():
     """Main function to parse arguments and generate script."""
     parser = argparse.ArgumentParser(description="Generate benchmark scripts")
-    
+
     # Required arguments
-    parser.add_argument("--dataset", type=str, required=True, help="Dataset name (e.g., linear, branch, cluster, covid19-pbmc)")
-    parser.add_argument("--method_type", type=str, required=True, choices=["python", "r"], help="Method type: python or r")
-    parser.add_argument("--embeddings", type=str, required=True, help="Comma-separated list of embeddings (dm,pca)")
-    parser.add_argument("--n_dm", type=int, required=True, help="Number of diffusion map components")
+    parser.add_argument(
+        "--dataset",
+        type=str,
+        required=True,
+        help="Dataset name (e.g., linear, branch, cluster, covid19-pbmc)",
+    )
+    parser.add_argument(
+        "--method_type",
+        type=str,
+        required=True,
+        choices=["python", "r"],
+        help="Method type: python or r",
+    )
+    parser.add_argument(
+        "--embeddings",
+        type=str,
+        required=True,
+        help="Comma-separated list of embeddings (dm,pca)",
+    )
+    parser.add_argument(
+        "--n_dm", type=int, required=True, help="Number of diffusion map components"
+    )
 
     # Optional arguments with defaults
-    parser.add_argument("--iteration_num", type=int, default=0, help="Number of iterations (default: 0)")
-    parser.add_argument("--balance", type=str, default="No", help="Balance flag (default: No)")
-    parser.add_argument("--methods", type=str, nargs="+", help="Methods to run (space-separated list)")
+    parser.add_argument(
+        "--iteration_num", type=int, default=0, help="Number of iterations (default: 0)"
+    )
+    parser.add_argument(
+        "--balance", type=str, default="No", help="Balance flag (default: No)"
+    )
+    parser.add_argument(
+        "--methods", type=str, nargs="+", help="Methods to run (space-separated list)"
+    )
     parser.add_argument("--output", type=str, help="Output script path")
-    
+
     args = parser.parse_args()
-    
+
     # Generate script
     script_content = generate_benchmark_script(args)
-    
+
     # Determine output path
     if args.output:
         output_path = args.output
     else:
         output_path = f"./run_benchmark_{args.dataset}_{args.method_type}.sh"
-    
+
     # Write script to file
     with open(output_path, "w") as f:
         f.write(script_content)
-    
+
     # Make executable
     os.chmod(output_path, 0o755)
-    
+
     print(f"Benchmark script generated: {output_path}")
     print(f"Run with: bash {output_path}")
+
 
 if __name__ == "__main__":
     main()

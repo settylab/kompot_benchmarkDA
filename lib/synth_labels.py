@@ -4,19 +4,6 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import scanpy as sc
 import anndata as ad
-
-import rpy2.robjects as robjects
-from rpy2.robjects import pandas2ri, r, ListVector
-
-#import rpy2.robjects as ro
-from rpy2.robjects.packages import importr
-from rpy2.robjects import pandas2ri
-from rpy2.robjects.conversion import localconverter
-
-import pandas as pd
-from rpy2.robjects import pandas2ri
-
-
 import os
 import sys
 
@@ -54,32 +41,17 @@ def label_condition_and_rep_labels(adata,cond_probability,seed):
     Based on n_replicates and synth_labels to label samples.
     
     """
-    # cond_probability = pd.DataFrame()
-    # cond_probability.loc[:,0] = adata.obs["condition1_prob"]
-    # cond_probability.loc[:,1] = adata.obs["condition2_prob"]
-    # cond_probability.columns = conditions
-    #np.random.seed(seed)
-    # Suppress pandas2ri deprecation warning and convert DataFrame
-    import warnings
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", DeprecationWarning)
-        # Convert the pandas DataFrame to an R data frame within a conversion context
-        with localconverter(robjects.default_converter + pandas2ri.converter):
-            r_cond_probability = robjects.conversion.py2rpy(cond_probability)
+    # Use numpy for weighted random sampling (replaces R code)
+    np.random.seed(seed)
+    conditions = cond_probability.columns.tolist()
+    synth_labels = []
 
-    # Assign the R data frame to an R variable in the global environment
-    robjects.globalenv['cond_probability'] = r_cond_probability
-
-    robjects.globalenv['seed'] = seed 
-    # Execute the R code
-    robjects.r('''
-    set.seed(seed)
-    synth_labels <- sapply(1:nrow(cond_probability), function(i) sample(colnames(cond_probability), size = 1, prob = cond_probability[i,]))
-    ''')
-
-    # Convert the R vector back to a pandas Series
-    with localconverter(robjects.default_converter + pandas2ri.converter):
-        synth_labels = list(robjects.globalenv['synth_labels'])
+    for i in range(len(cond_probability)):
+        # Get probabilities for this cell
+        probs = cond_probability.iloc[i].values
+        # Weighted random choice
+        label = np.random.choice(conditions, p=probs)
+        synth_labels.append(label)
     
 #     replicates = [f"R{i}" for i in range(1, n_replicates + 1)]
     

@@ -9,3 +9,5 @@ __pycache__/
 status.json
 benchmark/
 benchmark_scripts/
+logs/
+data/

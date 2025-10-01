@@ -24,7 +24,13 @@ import os.path as osp
 
 import cna
 from multianndata import MultiAnnData
-import shared_embedding_utils
+import sys
+from pathlib import Path
+
+# Add project root to path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+from lib import shared_embedding_utils
 
 def runCNA_func(
     adata: anndata.AnnData,

@@ -234,13 +234,14 @@ if (args$package == "milo") {
 
     print("Running CyDAR analysis...")
 
-    # Prepare data for CyDAR
-    exprs_matrix <- t(logcounts(sce))
+    # Prepare data for CyDAR using embedding space (not raw expression)
+    # CyDAR expects cells as rows, features as columns
+    embedding_matrix <- reducedDim(sce, "embedding")
     sample_ids <- colData(sce)$synth_samples
     condition <- colData(sce)$synth_labels
 
     # Create CyDAR input
-    cd <- prepareCellData(exprs_matrix)
+    cd <- prepareCellData(embedding_matrix)
 
     # Count cells in hyperspheres
     cnt <- countCells(cd, tol = 0.5, BPPARAM = SerialParam())
@@ -280,7 +281,10 @@ if (args$package == "milo") {
     print("Running Louvain clustering-based DA...")
 
     # Build KNN graph
-    knn_graph <- buildKNNGraph(reducedDim(sce, "embedding"), k = args$k)
+    # buildKNNGraph expects cells as columns, but reducedDim returns cells as rows
+    # So we need to transpose
+    embedding_mat <- reducedDim(sce, "embedding")
+    knn_graph <- buildKNNGraph(t(embedding_mat), k = args$k)
 
     # Perform Louvain clustering
     clusters <- cluster_louvain(knn_graph, resolution = args$resolution)$membership

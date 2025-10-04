@@ -217,7 +217,7 @@ class BenchmarkStatus:
                         for batch_sd in config["batch_vec"]:
                             # Unified job ID without embedding suffix
                             job_id = f"{dataset}-{pop}-{enr}-{seed}-{batch_sd}-No"
-                            job_dir = benchmark_dir / job_id / "iteration_0"
+                            job_dir = benchmark_dir / job_id
 
                             method_jobs += 1
                             total_jobs += 1
@@ -422,7 +422,7 @@ class BenchmarkStatus:
                     else f"PROGRESS ({method_pct:.1f}%)"
                 )
                 print(f"    {method_name}: {status_text}")
-                if not method_info["complete"] and unified_jobs > 0:
+                if unified_jobs > 0:
                     print(f"      Jobs: {unified_completed}/{unified_jobs}")
 
             # R methods
@@ -450,7 +450,7 @@ class BenchmarkStatus:
                     else f"PROGRESS ({method_pct:.1f}%)"
                 )
                 print(f"    {method_name}: {status_text}")
-                if not method_info["complete"] and unified_jobs > 0:
+                if unified_jobs > 0:
                     print(f"      Jobs: {unified_completed}/{unified_jobs}")
 
         print()

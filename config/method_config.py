@@ -35,7 +35,6 @@ PYTHON_METHODS = {
             "mellon_d_method": "fractal",
             "norm_density": "No",
             "hyperparameter": "Yes",
-            "corrected": "No",
             "ls_factor": 1.5
         }
     },
@@ -47,19 +46,6 @@ PYTHON_METHODS = {
             "mellon_d_method": "fractal",
             "norm_density": "No",
             "hyperparameter": "No",
-            "corrected": "No",
-            "ls_factor": 1.5
-        }
-    },
-    "mellon_corr": {
-        "script": "run_method.py",
-        "method_name": "mellon",
-        "description": "Mellon with batch correction (DM-based)",
-        "params": {
-            "mellon_d_method": "fractal",
-            "norm_density": "No",
-            "hyperparameter": "Yes",
-            "corrected": "Yes",
             "ls_factor": 1.5
         }
     },
@@ -84,7 +70,6 @@ PYTHON_METHODS = {
             "mellon_d_method": "fractal",
             "norm_density": "No",
             "hyperparameter": "Yes",
-            "corrected": "No",
             "ls_factor": 1.5,
             "force_pca": True
         }
@@ -119,16 +104,18 @@ R_METHODS = {
         "description": "Neighborhood-based differential abundance testing",
         "params": {}
     },
-    "daseq": {
-        "method_name": "daseq",
-        "description": "Differential abundance region detection",
-        "params": {}
-    },
-    "cydar": {
-        "method_name": "cydar",
-        "description": "Hypersphere-based differential abundance testing",
-        "params": {}
-    },
+    # Installation issues
+    # "daseq": {
+    #     "method_name": "daseq",
+    #     "description": "Differential abundance region detection",
+    #     "params": {}
+    # },
+    # Installation issues
+    # "cydar": {
+    #     "method_name": "cydar",
+    #     "description": "Hypersphere-based differential abundance testing",
+    #     "params": {}
+    # },
     "louvain": {
         "method_name": "louvain",
         "description": "Clustering-based differential abundance testing",

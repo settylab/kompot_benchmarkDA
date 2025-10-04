@@ -48,7 +48,6 @@ class ResultConfig:
     # Filters
     datasets: Optional[List[str]] = None
     methods: Optional[List[str]] = None
-    embeddings: Optional[List[str]] = None
     populations: Optional[List[str]] = None
     enrichments: Optional[List[float]] = None
     seeds: Optional[List[int]] = None
@@ -66,39 +65,69 @@ class ResultConfig:
     iteration: int = 0  # Iteration number
 
     def __post_init__(self):
-        """Set default values based on configuration."""
-        if self.datasets is None:
-            # Get datasets from config
-            try:
-                import sys
-                from pathlib import Path
-                sys.path.insert(0, str(Path.cwd()))
-                from config.dataset_config import DATASET_CONFIGS, SEEDS, ENRICHMENT_VALUES
-                self.datasets = list(DATASET_CONFIGS.keys())
-                if self.seeds is None:
-                    self.seeds = SEEDS
-                if self.enrichments is None:
-                    self.enrichments = ENRICHMENT_VALUES
-            except ImportError:
-                # Fallback to hardcoded defaults
-                self.datasets = ['linear', 'branch', 'cluster', 'covid19-pbmc', 'bcr-xl', 'levine32', 'pancreas']
-                if self.seeds is None:
-                    self.seeds = [43, 44, 45]
-                if self.enrichments is None:
-                    self.enrichments = [0.75, 0.85, 0.95]
+        """Set default values from dataset configuration."""
+        # Always load from dataset config - no hardcoded defaults
+        import sys
+        from pathlib import Path
 
-        if self.embeddings is None:
-            self.embeddings = ['dm', 'pca']
+        # Add project root to path to ensure we can import config
+        project_root = Path.cwd()
+        for _ in range(3):  # Check up to 3 levels up
+            if (project_root / "config" / "dataset_config.py").exists():
+                break
+            parent = project_root.parent
+            if parent == project_root:
+                break
+            project_root = parent
+
+        sys.path.insert(0, str(project_root))
+
+        from config.dataset_config import DATASET_CONFIGS, SEEDS, ENRICHMENT_VALUES
+
+        if self.datasets is None:
+            self.datasets = list(DATASET_CONFIGS.keys())
+
+        if self.seeds is None:
+            self.seeds = SEEDS
+
+        if self.enrichments is None:
+            self.enrichments = ENRICHMENT_VALUES
+
         if self.batch_effects is None:
-            self.batch_effects = [0.0, 0.75, 1.0, 1.25, 1.5]
+            # Get batch_vec from first dataset config (all should have same batch_vec)
+            first_dataset = list(DATASET_CONFIGS.keys())[0]
+            self.batch_effects = DATASET_CONFIGS[first_dataset]['batch_vec']
 
 class ResultAnalyzer:
     """Main analyzer class for BenchmarkDA results."""
 
     def __init__(self, config: ResultConfig):
         self.config = config
-        self.project_root = Path.cwd()
+        # Find project root by looking for cli.sh or benchmark directory
+        self.project_root = self._find_project_root()
         self._load_dataset_info()
+
+    def _find_project_root(self) -> Path:
+        """Find project root directory by looking for marker files."""
+        current = Path.cwd()
+
+        # Try current directory and up to 2 levels up
+        for _ in range(3):
+            # Check for marker files/directories that indicate project root
+            if (current / "cli.sh").exists() or \
+               (current / "benchmark").exists() or \
+               (current / "config" / "dataset_config.py").exists():
+                return current
+
+            # Try parent directory
+            parent = current.parent
+            if parent == current:  # Reached filesystem root
+                break
+            current = parent
+
+        # Fallback to current directory if not found
+        print(f"Warning: Could not find project root, using {Path.cwd()}")
+        return Path.cwd()
 
     def _load_dataset_info(self):
         """Load dataset configuration information."""
@@ -145,17 +174,30 @@ class ResultAnalyzer:
                 job_dirs = [d for d in dataset_path.iterdir() if d.is_dir()]
 
                 for job_dir in job_dirs:
-                    # Parse job directory name: dataset-pop-enr-seed-batch-balance-embedding
-                    job_parts = job_dir.name.split('-')
-                    if len(job_parts) < 7:
+                    # Parse job directory name: dataset-pop-enr-seed-batch-balance
+                    # Unified structure: no embedding suffix, no iteration subdirectory
+                    # NOTE: dataset and population names may contain dashes (e.g., covid19-pbmc, B-cells_IgM+)
+                    # Format: {dataset}-{pop}-{enr}-{seed}-{batch}-{balance}
+                    # We know the last 4 dashes separate: enr-seed-batch-balance
+                    # So we use rsplit with maxsplit=4 to get the last 4 parts, then pop is everything before that
+
+                    if not job_dir.name.startswith(dataset + '-'):
                         continue
 
-                    job_dataset, pop, enr, seed, batch, balance, embedding = job_parts[:7]
+                    # Remove dataset prefix
+                    remaining = job_dir.name[len(dataset)+1:]  # +1 for the dash
+
+                    # Split from the right: the last 4 dashes separate enr-seed-batch-balance
+                    # This leaves population name intact even if it contains dashes
+                    job_parts = remaining.rsplit('-', maxsplit=4)
+
+                    if len(job_parts) != 5:  # Should have exactly: pop, enr, seed, batch, balance
+                        continue
+
+                    pop, enr, seed, batch, balance = job_parts
 
                     # Apply filters
                     if self.config.populations and pop not in self.config.populations:
-                        continue
-                    if self.config.embeddings and embedding not in self.config.embeddings:
                         continue
                     if self.config.enrichments and float(enr) not in self.config.enrichments:
                         continue
@@ -164,18 +206,14 @@ class ResultAnalyzer:
                     if self.config.batch_effects and float(batch) not in self.config.batch_effects:
                         continue
 
-                    # Look for iteration directory
-                    iter_dir = job_dir / f"iteration_{self.config.iteration}"
-                    if not iter_dir.exists():
-                        continue
-
+                    # Results are directly in job_dir (no iteration subdirectory)
                     # Find result files
-                    result_files = list(iter_dir.glob("*.csv"))
+                    result_files = list(job_dir.glob("*.csv"))
                     if not result_files:
                         continue
 
                     # Store results
-                    job_key = f"{dataset}_{pop}_{enr}_{seed}_{batch}_{balance}_{embedding}"
+                    job_key = f"{dataset}_{pop}_{enr}_{seed}_{batch}_{balance}"
 
                     if dataset not in results:
                         results[dataset] = {}
@@ -186,19 +224,24 @@ class ResultAnalyzer:
                             'enrichment': float(enr),
                             'seed': int(seed),
                             'batch_effect': float(batch),
-                            'embedding': embedding,
                             'job_dir': job_dir,
-                            'iter_dir': iter_dir,
                             'result_files': result_files,
                             'methods': {}
                         }
 
                     # Parse result files by method
                     for result_file in result_files:
+                        method_name = None
+
+                        # Python methods: benchmark_*_DAresults.{method}.csv
                         if 'DAresults' in result_file.name:
-                            method = result_file.name.split('.')[-2]  # Extract method name
-                            if self.config.methods is None or method in self.config.methods:
-                                results[dataset][job_key]['methods'][method] = result_file
+                            method_name = result_file.name.split('.')[-2]
+                        # R methods: {method}_package_performance.csv
+                        elif '_package_performance.csv' in result_file.name:
+                            method_name = result_file.name.split('_package_performance')[0]
+
+                        if method_name and (self.config.methods is None or method_name in self.config.methods):
+                            results[dataset][job_key]['methods'][method_name] = result_file
 
         total_jobs = sum(len(jobs) for jobs in results.values())
         print(f"📊 Found {total_jobs} result combinations across {len(results)} datasets")
@@ -211,8 +254,11 @@ class ResultAnalyzer:
         # Try to find ground truth in the data generation output
         data_type = 'synthetic' if dataset in ['linear', 'branch', 'cluster'] else 'real'
 
+        # Format batch_effect as int if it's a whole number, otherwise as float
+        batch_str = str(int(batch_effect)) if batch_effect == int(batch_effect) else str(batch_effect)
+
         # Construct unified job ID for label data
-        unified_jobid = f"{dataset}-{population}-{enrichment}-{seed}-{batch_effect}-{self.config.balance_direction}"
+        unified_jobid = f"{dataset}-{population}-{enrichment}-{seed}-{batch_str}-{self.config.balance_direction}"
         data_dir = self.project_root / self.config.data_root / data_type / dataset / unified_jobid
 
         # Look for coldata file
@@ -258,15 +304,29 @@ class ResultAnalyzer:
         """Compute all specified metrics for a method's predictions."""
         metrics = {}
 
-        if predictions.empty or method not in predictions.columns:
+        if predictions.empty:
             return {metric: np.nan for metric in self.config.metrics}
 
-        y_pred = predictions[method].values
-        y_true_lfc = ground_truth['lfc_truth'].values
+        # Use 'col_0' column which is the standard format for all method outputs
+        if 'col_0' not in predictions.columns:
+            return {metric: np.nan for metric in self.config.metrics}
+
+        # Align ground truth and predictions by index (common cells)
+        common_idx = ground_truth.index.intersection(predictions.index)
+        if len(common_idx) == 0:
+            print(f"Warning: No common cells between ground truth and predictions for {method}")
+            return {metric: np.nan for metric in self.config.metrics}
+
+        # Use aligned data
+        ground_truth_aligned = ground_truth.loc[common_idx]
+        predictions_aligned = predictions.loc[common_idx]
+
+        y_pred = predictions_aligned['col_0'].values
+        y_true_lfc = ground_truth_aligned['lfc_truth'].values
 
         # Get label arrays
-        true_labels = ground_truth['true_labels'].values
-        da_labels = ground_truth['da_labels'].values
+        true_labels = ground_truth_aligned['true_labels'].values
+        da_labels = ground_truth_aligned['da_labels'].values
 
         true_neg = (true_labels == 'NegLFC')
         true_pos = (true_labels == 'PosLFC')
@@ -380,7 +440,6 @@ class ResultAnalyzer:
                         'enrichment': job_info['enrichment'],
                         'seed': job_info['seed'],
                         'batch_effect': job_info['batch_effect'],
-                        'embedding': job_info['embedding'],
                         'method': method,
                         'job_key': job_key,
                         **metrics
@@ -397,7 +456,6 @@ class ResultAnalyzer:
                                   group_by: str = 'enrichment',
                                   datasets: Optional[List[str]] = None,
                                   methods: Optional[List[str]] = None,
-                                  embeddings: Optional[List[str]] = None,
                                   figsize: Tuple[int, int] = (15, 5)) -> plt.Figure:
         """Create performance comparison plots."""
 
@@ -407,8 +465,6 @@ class ResultAnalyzer:
             plot_df = plot_df[plot_df['dataset'].isin(datasets)]
         if methods:
             plot_df = plot_df[plot_df['method'].isin(methods)]
-        if embeddings:
-            plot_df = plot_df[plot_df['embedding'].isin(embeddings)]
 
         if plot_df.empty:
             print("No data to plot after filtering")

@@ -7,7 +7,7 @@ Contains dataset-specific parameters used across different scripts.
 DATASET_CONFIGS = {
     "cluster": {
         "pops": ["M1", "M2", "M3"],
-        "batch_vec": [0, 0.05, 0.1, 0.2, 0.4, 1, 2, 4],  # Variance-based batch effect strengths
+        "batch_vec": [0, 0.01, 0.02, 0.05, 0.1, 0.2, 0.4, 1, 2, 4],  # Variance-based batch effect strengths
         "k": 30,
         "resolution": 0.2,
         "beta": 33,
@@ -18,7 +18,7 @@ DATASET_CONFIGS = {
     },
     "linear": {
         "pops": ["M1", "M2", "M3", "M4", "M5", "M6", "M7"],
-        "batch_vec": [0, 0.05, 0.1, 0.2, 0.4, 1, 2, 4],  # Variance-based batch effect strengths
+        "batch_vec": [0, 0.01, 0.02, 0.05, 0.1, 0.2, 0.4, 1, 2, 4],  # Variance-based batch effect strengths
         "k": 30,
         "resolution": 1,
         "beta": 71,
@@ -29,7 +29,7 @@ DATASET_CONFIGS = {
     },
     "branch": {
         "pops": ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8"],
-        "batch_vec": [0, 0.05, 0.1, 0.2, 0.4, 1, 2, 4],  # Variance-based batch effect strengths
+        "batch_vec": [0, 0.01, 0.02, 0.05, 0.1, 0.2, 0.4, 1, 2, 4],  # Variance-based batch effect strengths
         "k": 30,
         "resolution": 1,
         "beta": 65,
@@ -41,7 +41,7 @@ DATASET_CONFIGS = {
     "covid19-pbmc": {
         "pops": ["PB", "CD14_Monocyte", "CD8_T", "CD4_T", "Platelet", "NK", "Granulocyte",
                 "CD16_Monocyte", "gd_T", "pDC", "DC"],
-        "batch_vec": [0, 0.05, 0.1, 0.2, 0.4, 1, 2, 4],  # Variance-based batch effect strengths
+        "batch_vec": [0, 0.01, 0.02, 0.05, 0.1, 0.2, 0.4, 1, 2, 4],  # Variance-based batch effect strengths
         "k": 30,
         "resolution": 0.5,
         "beta": 40,
@@ -53,7 +53,7 @@ DATASET_CONFIGS = {
     "bcr-xl": {
         "pops": ["CD4_T-cells", "CD8_T-cells", "NK_cells", "B-cells_IgM+", "B-cells_IgM-",
                 "monocytes", "DC"],
-        "batch_vec": [0, 0.05, 0.1, 0.2, 0.4, 1, 2, 4],  # Variance-based batch effect strengths
+        "batch_vec": [0, 0.01, 0.02, 0.05, 0.1, 0.2, 0.4, 1, 2, 4],  # Variance-based batch effect strengths
         "k": 30,
         "resolution": 0.5,
         "beta": 40,
@@ -64,7 +64,7 @@ DATASET_CONFIGS = {
     },
     "levine32": {
         "pops": ["pDCs", "CD4_T_cells", "CD8_T_cells", "Pre_B_cells", "Mature_B_cells", "Monocytes", "Basophils"],  # Major immune cell populations (7 total)
-        "batch_vec": [0, 0.05, 0.1, 0.2, 0.4, 1, 2, 4],  # Variance-based batch effect strengths
+        "batch_vec": [0, 0.01, 0.02, 0.05, 0.1, 0.2, 0.4, 1, 2, 4],  # Variance-based batch effect strengths
         "k": 30,
         "resolution": 0.5,
         "beta": 40,
@@ -76,7 +76,7 @@ DATASET_CONFIGS = {
     "pancreas": {
         "pops": ["alpha_cell", "beta_cell", "delta_cell", "gamma_cell", "ductal_cell",
                 "acinar_cell", "endothelial_cell", "PSC_cell"],  # Major pancreatic cell types
-        "batch_vec": [0, 0.05, 0.1, 0.2, 0.4, 1, 2, 4],  # Variance-based batch effect strengths
+        "batch_vec": [0, 0.01, 0.02, 0.05, 0.1, 0.2, 0.4, 1, 2, 4],  # Variance-based batch effect strengths
         "k": 30,
         "resolution": 0.5,
         "beta": 40,

@@ -254,7 +254,6 @@ done
         --mellon_d_method "{params.get('mellon_d_method', 'fractal')}" \\
         --norm_density "{params.get('norm_density', 'No')}" \\
         --hyperparameter "{params.get('hyperparameter', 'Yes')}" \\
-        --corrected "{params.get('corrected', 'No')}" \\
         --ls_factor "{params.get('ls_factor', 1.5)}" \\
         --ls_mode "${{mode_embedding}}"""
             elif method_config["script"] == "meld_bm.py":

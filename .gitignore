@@ -11,3 +11,6 @@ benchmark/
 benchmark_scripts/
 logs/
 data/
+__pycache__/
+.ipynb_checkpoints/
+core

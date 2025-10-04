@@ -75,8 +75,6 @@ def run_python_method(method_name, method_config, dataset_config, params):
                 method_params.get("norm_density", "No"),
                 "--hyperparameter",
                 method_params.get("hyperparameter", "Yes"),
-                "--corrected",
-                method_params.get("corrected", "No"),
                 "--ls_factor",
                 str(method_params.get("ls_factor", 1.5)),
                 "--ls_mode",
@@ -462,11 +460,16 @@ def execute_single_job(
 
     # Check if results already exist
     if args.skip_existing:
-        result_file = (
+        # Check for both Python and R method result file naming patterns
+        python_result_file = (
             Path(output_path)
             / f"benchmark_{args.dataset}_pop_{pop}_enr{enrichment}_seed{seed}_batchEffect{batch_sd}_package_performance.DAresults.{method_name}.csv"
         )
-        if result_file.exists():
+        r_result_file = (
+            Path(output_path)
+            / f"{method_name}_package_performance.csv"
+        )
+        if python_result_file.exists() or r_result_file.exists():
             print(f"[SKIP] {job_id} method={method_name} (result exists)")
             return
 
@@ -498,6 +501,7 @@ def execute_single_job(
 
     if result.returncode != 0:
         print(f"Warning: {method_name} failed for {job_id}")
+        sys.exit(result.returncode)
 
 
 def format_slurm_array(task_ids):
@@ -568,12 +572,20 @@ def generate_slurm_job(
                                 project_root
                                 / f"benchmark/{data_type}/{args.dataset}/{job_id}"
                             )
-                            result_file = (
+
+                            # Check for both Python and R method result file naming patterns
+                            # Python methods: benchmark_..._DAresults.{method}.csv
+                            # R methods: {method}_package_performance.csv
+                            python_result_file = (
                                 output_path
                                 / f"benchmark_{args.dataset}_pop_{pop}_enr{enrichment}_seed{seed}_batchEffect{batch_sd}_package_performance.DAresults.{method_name}.csv"
                             )
+                            r_result_file = (
+                                output_path
+                                / f"{method_name}_package_performance.csv"
+                            )
 
-                            if not result_file.exists():
+                            if not (python_result_file.exists() or r_result_file.exists()):
                                 incomplete_tasks.append(job_number)
 
         if incomplete_tasks:

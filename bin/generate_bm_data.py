@@ -80,14 +80,13 @@ def main():
         )
 
         logger.debug("Generating enrichment scores")
-        enr_scores = condition_prob_centroid.generate_enr_prob(args.pop, args.pop_enr, w_logit)
+        enr_scores = condition_prob_centroid.create_enrichment_scores(
+            args.pop, args.pop_enr, w_logit.columns
+        )
 
-        logger.debug("Normalizing enrichment probabilities")
-        enr_prob = condition_prob_centroid.normalize_enr_prob(w_logit, enr_scores)
-
-        logger.debug("Setting condition probabilities")
+        logger.debug("Computing condition probabilities")
         cond_probability = condition_prob_centroid.set_relevant_prob(
-            enr_prob, args.pop_enr, args.pop, adata, args.pop_column
+            w_logit, enr_scores, args.pop, adata, args.pop_column
         )
 
         logger.debug("Saving weight matrix")

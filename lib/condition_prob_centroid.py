@@ -1,9 +1,16 @@
+"""
+Condition probability calculation for synthetic differential abundance labeling.
+
+This module handles the generation of enrichment probabilities for synthetic
+benchmark data. It computes smooth transcriptional gradients based on distance
+to population centroids, ensuring biologically realistic enrichment patterns.
+
+Key functions:
+- create_enrichment_scores: Map populations to target enrichment levels
+- set_relevant_prob: Compute final probabilities with smooth gradients from fuzzy membership scores
+"""
 import numpy as np
-import matplotlib.pyplot as plt
 import pandas as pd
-import scanpy as sc
-import anndata as ad
-from sklearn.preprocessing import StandardScaler
 import sys
 from pathlib import Path
 
@@ -13,97 +20,107 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from lib.helper_functions import scale
 
 
-def generate_enr_prob(pop, pop_enr, w_logit, cell_type_dict=None):
+def create_enrichment_scores(pop, pop_enr, populations):
     """
-    Assign enrichment score to the selected random_cells
+    Create enrichment score mapping for each population.
 
+    Assigns target enrichment values to specified populations,
+    with all other populations defaulting to 0.5 (neutral).
+
+    Parameters:
+    - pop: Population name(s) to enrich (string or list)
+    - pop_enr: Enrichment level(s) for target populations (float or list)
+    - populations: All population names (list or Index)
+
+    Returns:
+    - enr_scores: Series mapping population names to enrichment scores
+                  (target populations → specified enrichment, others → 0.5)
+
+    Example:
+        create_enrichment_scores('M1', 0.95, ['M1', 'M2', 'M3'])
+        → Series({'M1': 0.95, 'M2': 0.5, 'M3': 0.5})
     """
+    # Initialize all populations to neutral (0.5)
+    enr_scores = pd.Series(0.5, index=populations)
 
-    n_clusters = w_logit.shape[1]
-    enr_scores = pd.Series(0.5, index=w_logit.columns)
+    # Ensure inputs are lists
+    pop_list = [pop] if not isinstance(pop, list) else pop
+    enr_list = [pop_enr] if not isinstance(pop_enr, list) else pop_enr
 
-    if not isinstance(pop_enr, list):
-        pop_enr_new = [pop_enr]
+    # Assign enrichment scores to target populations
+    if len(enr_list) == len(pop_list):
+        # One enrichment value per population
+        for population, enrichment in zip(pop_list, enr_list):
+            enr_scores[population] = enrichment
     else:
-        pop_enr_new = pop_enr
-
-    if not isinstance(pop, list):
-        pop_new = [pop]
-    else:
-        pop_new = pop
-
-    if len(pop_enr_new) == len(pop_new):
-        # If 'pop_enr' is a list and matches the length of 'pop', assign directly
-        for cluster, enr in zip(pop_new, pop_enr_new):
-            enr_scores[cluster] = enr
-    else:
-        # If 'pop_enr' is a single value or doesn't match 'pop' in length, repeat 'pop_enr' for each 'pop' and assign
-        # This ensures 'pop_enr' is treated as a repeated value if it's not already a list matching 'pop' in length
-        pop_enr = np.repeat(pop_enr, len(pop_new))
-        enr_scores[pop] = pop_enr
+        # Single enrichment value for all target populations
+        for population in pop_list:
+            enr_scores[population] = enr_list[0]
 
     return enr_scores
 
 
-def normalize_enr_prob(w_logit, enr_scores):
+def set_relevant_prob(w_logit, enr_scores, pop, adata, pop_column):
     """
-    Normalize enrichment probabilities for each cell population.
+    Compute final enrichment probability for each cell based on proximity to enriched centroids.
 
-    Scales weight matrix values to range [0.5, enrichment_score] for each population.
-    This creates smooth probability gradients where:
-    - Cells far from centroid → probability = 0.5 (neutral)
-    - Cells close to centroid → probability = enrichment_score
+    Uses a consistent algorithm for all cells to ensure smooth transcriptional gradients
+    without artificial discontinuities at cluster label boundaries. This function combines
+    the scaling and rescaling logic that was previously split between normalize_enr_prob
+    and set_relevant_prob.
+
+    Algorithm:
+    1. Scale each enriched population column to [0, target_enrichment_score]
+    2. Take max probability across enriched populations (minimum distance principle)
+    3. Find minimum probability among cells labeled as enriched populations
+    4. Rescale [min_prob, max_prob] → [0.5, max_prob] to ensure labeled cells ≥ 0.5
+    5. Floor all probabilities at 0.5 (neutral baseline for distant cells)
+
+    This logic applies consistently to both single and multiple enriched populations.
 
     Parameters:
-    - w_logit: Weight matrix (cells x populations) from distance calculations
-    - enr_scores: Enrichment scores for each population (0.5 = neutral, 0.95 = highly enriched)
+    - w_logit: DataFrame (cells x populations) with fuzzy membership scores from distance calculations
+    - enr_scores: Series mapping population names to target enrichment scores (0.5-1.0)
+    - pop: Population name(s) to enrich (string or list)
+    - adata: AnnData object with cluster labels in .obs[pop_column]
+    - pop_column: Column name containing cluster labels
 
     Returns:
-    - enr_prob: Normalized probabilities (DataFrame, cells x populations)
+    - cond_probability: Series with final probability for each cell
+
+    Example:
+        For single population M1 with enrichment 0.95:
+        - Cells close to M1 centroid → ~0.95
+        - Cells far from M1 centroid but labeled M1 → ~0.5
+        - Other cells → 0.5
     """
-    enr_prob = pd.DataFrame(index=w_logit.index, columns=w_logit.columns)
-
-    for i, col in enumerate(w_logit.columns):
-        min_val = 0.5
-        max_val = enr_scores.iloc[i]
-        enr_prob[col] = scale(w_logit[col], min_val, max_val)
-    return enr_prob
-
-
-def set_relevant_prob(enr_prob, pop_enr, pop, adata, pop_column, cell_type_dict=None):
-    """
-    set probability to each cells when certain cell type is selected
-    """
-
-    # Initialize `cond_probability` with a default of 0.5
-    prob_matrix = enr_prob[pop]
-
-    # Initialize `cond_probability` with a default of 0.5
-    cond_probability = pd.Series(0.5, index=enr_prob.index)
-
-    if not isinstance(pop_enr, list):
-        pop_enr_new = [pop_enr]
-    else:
-        pop_enr_new = pop_enr
-
+    # Ensure pop is a list
     if not isinstance(pop, list):
-        pop_new = [pop]
-    else:
-        pop_new = pop
+        pop = [pop]
 
-        # If prob_matrix is not reduced to a single column, calculate the row means as the condition probability
-    if len(pop_new) > 1:
-        cond_probability = prob_matrix.mean(axis=1)
+    # Select columns for enriched populations
+    prob_matrix = w_logit[pop].copy()
 
-        # Update `cond_probability` for cells belonging to any of the populations in `pop`
-        for population in pop_new:
-            # Identify cells belonging to the current population
-            cells_in_pop = adata.obs_names[adata.obs[pop_column] == population]
+    # Scale each column to [0, target_enrichment_score]
+    for col in prob_matrix.columns:
+        prob_matrix[col] = scale(prob_matrix[col], 0, enr_scores[col])
 
-            # Directly assign probabilities from `prob_matrix` for these cells
-            cond_probability.loc[cells_in_pop] = prob_matrix.loc[
-                cells_in_pop, population
-            ]
-    else:
-        cond_probability = prob_matrix
+    # Take max probability (closest enriched centroid)
+    cond_probability = prob_matrix.max(axis=1) if len(pop) > 1 else prob_matrix.iloc[:, 0]
+
+    # Find minimum probability among cells labeled as enriched populations
+    enriched_mask = adata.obs[pop_column].isin(pop)
+
+    if enriched_mask.any():
+        min_prob = cond_probability[enriched_mask].min()
+        max_prob = cond_probability.max()
+
+        # Rescale so minimum in enriched populations becomes 0.5
+        # Linear rescaling: [min_prob, max_prob] → [0.5, max_prob]
+        if max_prob > min_prob:
+            cond_probability = 0.5 + (cond_probability - min_prob) / (max_prob - min_prob) * (max_prob - 0.5)
+
+    # Floor at 0.5 (neutral baseline for cells far from enriched centroids)
+    cond_probability = np.maximum(cond_probability, 0.5)
+
     return cond_probability

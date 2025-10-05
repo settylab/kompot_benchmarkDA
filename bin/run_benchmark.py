@@ -161,11 +161,10 @@ for embedding in $(echo "$embeddings" | tr ',' ' '); do
                             fi
 
                             # Create job ID and paths
-                            # Use standard jobid for label input (embedding-independent)
-                            # Note: "No" is hardcoded for historical compatibility (was balance parameter)
-                            standard_jobid="${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-No"
-                            # Use embedding-specific jobid for benchmark output
-                            jobid="${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-No-${analysis_layer}"
+                            # Standard jobid for label input (embedding-independent)
+                            standard_jobid="${data_id}-${p}-${enr}-${seed}-${batch_sd_num}"
+                            # Embedding-specific jobid for benchmark output
+                            jobid="${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-${analysis_layer}"
                             input_path="${data_dir}/${standard_jobid}"
                             save_path="${root}/benchmark/${data_type}/${data_id}/${jobid}"
                             save_path_iteration="${save_path}/iteration_${iteration}"

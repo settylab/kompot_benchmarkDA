@@ -113,10 +113,10 @@ def get_job_id(data_id, pop, enr, seed, batch_sd_num, analysis_layer):
     """
     Generate a consistent job ID across scripts.
 
-    Note: Includes "No" for historical compatibility with existing data directories.
-    This was formerly the balance parameter (always "No" in practice).
+    Format: {dataset}-{population}-{enrichment}-{seed}-{batch_sd}-{layer}
+    Example: linear-M1-0.95-43-0.5-pca
     """
-    return f"{data_id}-{pop}-{enr}-{seed}-{batch_sd_num}-No-{analysis_layer}"
+    return f"{data_id}-{pop}-{enr}-{seed}-{batch_sd_num}-{analysis_layer}"
 
 def get_input_dir(root, data_id, job_id):
     """Get the input directory path."""

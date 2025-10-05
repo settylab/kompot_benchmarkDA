@@ -125,7 +125,7 @@ def main():
 
                     # Create output directory
                     data_dir = project_root / "data" / data_type / dataset
-                    output_dir = data_dir / "{}-{}-{}-{}-{}-No".format(
+                    output_dir = data_dir / "{}-{}-{}-{}-{}".format(
                         dataset, pop, enrichment, seed, batch_sd
                     )
 

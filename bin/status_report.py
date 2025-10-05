@@ -145,7 +145,7 @@ class BenchmarkStatus:
                 for enr in ENRICHMENT_VALUES:
                     for batch_sd in config["batch_vec"]:
                         # Unified label naming (embedding-independent)
-                        label_id = f"{dataset}-{pop}-{enr}-{seed}-{batch_sd}-No"
+                        label_id = f"{dataset}-{pop}-{enr}-{seed}-{batch_sd}"
                         label_dir = data_dir / label_id
 
                         if label_dir.exists() and any(label_dir.iterdir()):
@@ -216,7 +216,7 @@ class BenchmarkStatus:
                     for enr in ENRICHMENT_VALUES:
                         for batch_sd in config["batch_vec"]:
                             # Unified job ID without embedding suffix
-                            job_id = f"{dataset}-{pop}-{enr}-{seed}-{batch_sd}-No"
+                            job_id = f"{dataset}-{pop}-{enr}-{seed}-{batch_sd}"
                             job_dir = benchmark_dir / job_id
 
                             method_jobs += 1

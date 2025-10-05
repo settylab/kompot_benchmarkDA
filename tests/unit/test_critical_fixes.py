@@ -13,7 +13,9 @@ import pandas as pd
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
+# Add project root to path (two levels up from tests/unit/)
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
 
 from lib.helper_functions import scale
 from lib.weight_calculation import calculate_weights_centroid

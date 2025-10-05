@@ -270,9 +270,6 @@ def main():
             sigmoid_fuzzy_weights, enr_scores, args.pop, adata, args.pop_column
         )
 
-        logger.debug("Saving weight matrix")
-        sigmoid_fuzzy_weights.to_csv(output_dir / "weight_matrix.csv")
-
         logger.step("Generating synthetic labels and batch-simulated embeddings")
 
         # Generate labels directly to output_dir (no iteration subdirectory)

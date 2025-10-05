@@ -184,6 +184,20 @@ Default SLURM settings for labels:
 
 The `benchmarkda` environment is detected and activated automatically by `cli.sh`.
 
+## Testing
+
+Run the test suite to verify scientific correctness:
+
+```bash
+# Via CLI (recommended)
+./cli.sh test
+
+# Direct execution
+python bin/run_tests.py
+```
+
+Tests cover numerical stability, probability calculations, and data structure correctness. See `tests/` for details.
+
 ## Troubleshooting
 
 **Environment not found:**

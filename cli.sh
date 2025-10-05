@@ -154,6 +154,7 @@ STEPS:
     preprocess             Create PCA embeddings and DM from PCA+batch
     labels                 Generate synthetic labels
     benchmark              Run DA method benchmarks
+    test                   Run test suite
     status                 Show completion status
     all                    Run all steps (default)
 
@@ -172,6 +173,7 @@ R METHODS:
 
 EXAMPLES:
     ./cli.sh                                         Complete pipeline (local)
+    ./cli.sh test                                    Run test suite
     ./cli.sh labels --slurm                          Submit label generation as SLURM array (splits by population)
     ./cli.sh --datasets bcr-xl labels --slurm        Submit labels for specific dataset(s)
     ./cli.sh benchmark --slurm                       Submit ALL benchmarks to SLURM
@@ -254,7 +256,7 @@ while [[ $# -gt 0 ]]; do
             SBATCH_OPTIONS="$2"
             shift 2
             ;;
-        setup|preprocess|labels|benchmark|status|all)
+        setup|preprocess|labels|benchmark|test|status|all)
             STEPS+=("$1")
             shift
             ;;
@@ -799,6 +801,39 @@ run_benchmarks() {
     print_success "Benchmark execution completed"
 }
 
+run_tests() {
+    print_step "Running test suite"
+
+    # Testing needs environment active
+    if [ "$DRY_RUN" != true ]; then
+        # Load environment utilities
+        if [[ -f "bin/environment_utils.sh" ]]; then
+            source "bin/environment_utils.sh"
+        fi
+
+        # Activate environment if not already active
+        if [ -z "$CONDA_PREFIX" ]; then
+            print_info "Activating environment for testing"
+            if ! activate_benchmarkda_environment; then
+                print_error "Failed to activate environment"
+                return 1
+            fi
+        fi
+    fi
+
+    if [ "$DRY_RUN" = true ]; then
+        echo "[DRY RUN] python bin/run_tests.py"
+    else
+        print_info "Running all tests"
+        python bin/run_tests.py || {
+            print_error "Tests failed"
+            return 1
+        }
+    fi
+
+    print_success "All tests passed"
+}
+
 show_status_report() {
     print_step "Generating status report"
 
@@ -872,6 +907,9 @@ main() {
                 ;;
             benchmark)
                 run_benchmarks
+                ;;
+            test)
+                run_tests
                 ;;
             status)
                 show_status_report

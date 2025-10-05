@@ -1,16 +1,37 @@
+# Trash directory for old data
+.trash/
+
+# Data directories
 data/
-*.pyc
-.ipynb_checkpoints/
-scripts/core
-notebooks/
-__pycache__/
-.DS_Store
-.nfs*
-status.json
 benchmark/
 benchmark_scripts/
 logs/
-data/
+results/
+
+# Python cache
+*.pyc
 __pycache__/
+
+# Jupyter
 .ipynb_checkpoints/
+notebooks/
+
+# System files
+.DS_Store
+.nfs*
 core
+scripts/core
+
+# Status files
+status.json
+analysis_results.csv
+
+# Slurm logs (ignore contents but keep directory)
+SlurmLog/*
+!SlurmLog/.gitkeep
+
+# Test outputs
+test_output/
+
+# Old backups
+backup_old_architecture/

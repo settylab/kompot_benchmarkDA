@@ -55,9 +55,7 @@ PYTHON_METHODS = {
         "description": "Kompot differential abundance testing (DM-based)",
         "params": {
             "ls_factor": 10.0,
-            "n_landmarks": None,
-            "log_fold_change_threshold": 1.0,
-            "pvalue_threshold": 0.05
+            "n_landmarks": None
         }
     },
 
@@ -81,8 +79,6 @@ PYTHON_METHODS = {
         "params": {
             "ls_factor": 10.0,
             "n_landmarks": None,
-            "log_fold_change_threshold": 1.0,
-            "pvalue_threshold": 0.05,
             "force_pca": True
         }
     }
@@ -205,8 +201,6 @@ def get_python_method_cmd(method, file_path, pop, pop_enr, pop_col, ds_type, bat
         cmd += f"    --ls_factor {method_params.get('ls_factor', 10.0)} \\\n"
         if method_params.get('n_landmarks') is not None:
             cmd += f"    --n_landmarks {method_params.get('n_landmarks')} \\\n"
-        cmd += f"    --log_fold_change_threshold {method_params.get('log_fold_change_threshold', 1.0)} \\\n"
-        cmd += f"    --pvalue_threshold {method_params.get('pvalue_threshold', 0.05)} \\\n"
         if method_params.get('force_pca'):
             cmd += f"    --force_pca \\\n"
 

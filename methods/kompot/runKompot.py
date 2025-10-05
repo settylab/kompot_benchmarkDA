@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import scanpy as sc
 import anndata as ad
+import palantir
 import logging
 import sys
 from pathlib import Path
@@ -20,8 +21,6 @@ def runKOMPOT(
     obsm_key: str = "X_pca",
     ls_factor: float = 10.0,
     n_landmarks: int = None,
-    log_fold_change_threshold: float = 1.0,
-    pvalue_threshold: float = 0.05,
     random_state: int = None,
     **kwargs
 ):
@@ -36,14 +35,11 @@ def runKOMPOT(
         Column name in adata.obs containing condition labels
     obsm_key : str, default "X_pca"
         Key in adata.obsm to use for embedding (e.g., "X_pca", "DM_EigenVectors")
+        The embedding MUST already exist in adata.obsm - this function will not compute it.
     ls_factor : float, default 10.0
         Length scale factor for density estimation
     n_landmarks : int, optional
         Number of landmarks to use. If None, kompot will determine automatically
-    log_fold_change_threshold : float, default 1.0
-        Threshold for log fold change significance
-    ptp_threshold : float, default 0.05
-        Peak-to-peak threshold for significance
     random_state : int, optional
         Random seed for reproducibility
     **kwargs : additional arguments
@@ -66,18 +62,13 @@ def runKOMPOT(
     logger.info(f"Using embedding: {obsm_key}")
     logger.info(f"Number of cells: {adata.n_obs}")
 
-    # Ensure the obsm_key exists
+    # Verify the obsm_key exists - fail if it doesn't
     if obsm_key not in adata.obsm:
-        if obsm_key == "X_pca" and "X_pca" not in adata.obsm:
-            logger.info("Computing PCA since X_pca not found")
-            sc.tl.pca(adata, n_comps=50)
-        elif obsm_key == "DM_EigenVectors":
-            logger.warning(f"Diffusion map embedding {obsm_key} not found, using X_pca")
-            obsm_key = "X_pca"
-            if "X_pca" not in adata.obsm:
-                sc.tl.pca(adata, n_comps=50)
-        else:
-            raise ValueError(f"Embedding {obsm_key} not found in adata.obsm")
+        raise ValueError(
+            f"Embedding '{obsm_key}' not found in adata.obsm. "
+            f"Available embeddings: {list(adata.obsm.keys())}. "
+            f"Use runKOMPOT_with_params() or ensure embeddings are computed before calling this function."
+        )
 
     try:
         # Run kompot differential abundance analysis
@@ -89,60 +80,13 @@ def runKOMPOT(
             obsm_key=obsm_key,
             ls_factor=ls_factor,
             n_landmarks=n_landmarks,
-            log_fold_change_threshold=log_fold_change_threshold,
-            pvalue_threshold=pvalue_threshold,
             random_state=random_state,
             return_full_results=True,
             inplace=False,
             **kwargs
         )
-
-        # Extract results - kompot returns a dictionary with various metrics
-        if isinstance(results, dict):
-            # Get log fold change
-            log_fold_change = results.get('log_fold_change', np.zeros(adata.n_obs))
-
-            # Convert JAX arrays to numpy if necessary
-            if hasattr(log_fold_change, 'device_array') or str(type(log_fold_change)).startswith('<class \'jaxlib'):
-                log_fold_change = np.array(log_fold_change)
-
-            # Use neg_log10_fold_change_ptp as the significance score (like z-scores in other methods)
-            # This is kompot's main significance measure - higher values = more significant
-            if 'neg_log10_fold_change_ptp' in results:
-                significance_scores = results['neg_log10_fold_change_ptp']
-                # Convert JAX arrays to numpy if necessary
-                if hasattr(significance_scores, 'device_array') or str(type(significance_scores)).startswith('<class \'jaxlib'):
-                    significance_scores = np.array(significance_scores)
-
-                # Apply sign of log fold change to significance scores for consistency
-                # This allows threshold-based classification like other methods
-                z_scores = significance_scores * np.sign(log_fold_change)
-
-            elif 'log_fold_change_zscore' in results:
-                # Fallback to z-scores if available
-                z_scores = results['log_fold_change_zscore']
-                if hasattr(z_scores, 'device_array') or str(type(z_scores)).startswith('<class \'jaxlib'):
-                    z_scores = np.array(z_scores)
-            else:
-                # Last resort: use log fold change magnitude as significance score
-                z_scores = np.abs(log_fold_change)
-                logger.warning("Neither neg_log10_fold_change_ptp nor log_fold_change_zscore found, using |log_fold_change|")
-
-        elif hasattr(results, 'obsm'):  # If results is an AnnData object
-            result_key = kwargs.get('result_key', 'kompot_da')
-            if result_key in results.obsm:
-                result_data = results.obsm[result_key]
-                if result_data.shape[1] >= 2:
-                    log_fold_change = result_data[:, 0]
-                    z_scores = result_data[:, 1]
-                else:
-                    log_fold_change = result_data[:, 0]
-                    z_scores = np.abs(log_fold_change)
-            else:
-                raise ValueError(f"Result key {result_key} not found in results.obsm")
-
-        else:
-            raise ValueError(f"Unexpected result type from kompot: {type(results)}")
+        log_fold_change = np.asarray(results["log_fold_change"])
+        z_scores = np.asarray(results['log_fold_change_zscore'])
 
         logger.info(f"Kompot analysis completed successfully")
         logger.info(f"Log fold change range: [{np.min(log_fold_change):.3f}, {np.max(log_fold_change):.3f}]")

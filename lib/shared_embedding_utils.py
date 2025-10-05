@@ -34,16 +34,16 @@ def ensure_batch_corrected_embeddings(adata, layer_embedding="X_pca", dm_comp=10
         Modified AnnData with consistent embeddings
     """
 
-    # 1. Ensure PCA exists
+    # 1. Ensure PCA exists - NEVER recompute it!
+    # PCA embeddings should come from data_loader with batch effects already applied.
+    # Recomputing PCA would remove the batch effects added during labeling.
     if layer_embedding not in adata.obsm:
-        logger.warning(f"{layer_embedding} not found in adata.obsm.")
-        # Fallback: use X_pca if a different layer was requested
-        if layer_embedding != "X_pca" and "X_pca" in adata.obsm:
-            logger.warning(f"Using X_pca instead of {layer_embedding}.")
-            # Don't copy - just let methods fall back to X_pca
-        else:
-            logger.error("No PCA embedding found. Computing PCA now.")
-            sc.tl.pca(adata, n_comps=50)
+        raise ValueError(
+            f"Requested embedding '{layer_embedding}' not found in adata.obsm. "
+            f"Available embeddings: {list(adata.obsm.keys())}. "
+            f"Embeddings with batch effects should be loaded by data_loader - "
+            f"they should NEVER be recomputed from expression data."
+        )
 
     # 2. Compute DM from PCA if needed
     dm_key = "DM_EigenVectors"

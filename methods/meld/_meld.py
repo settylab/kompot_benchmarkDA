@@ -52,9 +52,14 @@ def runMELD_real(
     if adata.n_vars <= 50:
         G = gt.Graph(adata.X, knn=k, use_pygsp=True)
     else:
+        # X_pca must already exist with batch effects from data_loader
+        # NEVER recompute PCA as it would remove batch effects!
         if 'X_pca' not in adata.obsm:
-            # perform pca and use it to generate graph
-            sc.tl.pca(adata, n_comps=50)
+            raise ValueError(
+                "X_pca embedding not found in adata.obsm. "
+                "Batch-affected embeddings must be loaded by data_loader. "
+                "Do not recompute PCA as it removes batch effects."
+            )
         G = gt.Graph(adata.obsm['X_pca'], knn=k, use_pygsp=True)
     
     meld_op = meld.MELD(beta=beta)
@@ -86,9 +91,14 @@ def runMELD(adata: anndata.AnnData, k: int, sample_col: str, label_col: str, bet
     if adata.n_vars <= 50:
         G = gt.Graph(adata.X, knn=k, use_pygsp=True)
     else:
+        # X_pca must already exist with batch effects from data_loader
+        # NEVER recompute PCA as it would remove batch effects!
         if 'X_pca' not in adata.obsm:
-            # perform pca and use it to generate graph
-            sc.tl.pca(adata, n_comps=50)
+            raise ValueError(
+                "X_pca embedding not found in adata.obsm. "
+                "Batch-affected embeddings must be loaded by data_loader. "
+                "Do not recompute PCA as it removes batch effects."
+            )
         G = gt.Graph(adata.obsm['X_pca'], knn=k, use_pygsp=True)
     
     meld_op = meld.MELD(beta=beta)

@@ -10,11 +10,9 @@ from . import runKompot
 
 def add_arguments(parser):
     """Add Kompot-specific arguments to parser."""
-    parser.add_argument('--n_dm', type=int, default=10, help='Number of diffusion component for Kompot')
+    parser.add_argument('--n_dm', type=int, default=10, help='Number of diffusion components for Kompot')
     parser.add_argument('--ls_factor', type=float, default=10.0, help='Length scale factor for Kompot')
     parser.add_argument('--n_landmarks', type=int, default=None, help='Number of landmarks for Kompot')
-    parser.add_argument('--log_fold_change_threshold', type=float, default=1.0, help='Log fold change threshold')
-    parser.add_argument('--pvalue_threshold', type=float, default=0.05, help='P-value threshold')
     parser.add_argument('--force_pca', action='store_true', help='Force PCA mode even if n_dm > 0')
 
 
@@ -41,8 +39,6 @@ def run(adata, args):
         dm_comp=n_dm,
         ls_factor=args.ls_factor,
         n_landmarks=args.n_landmarks,
-        log_fold_change_threshold=args.log_fold_change_threshold,
-        pvalue_threshold=args.pvalue_threshold,
         random_state=args.seed
     )
 

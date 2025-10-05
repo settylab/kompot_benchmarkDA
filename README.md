@@ -25,7 +25,31 @@ bash setup_environment.sh --minimal
 
 **Synthetic**: `linear`, `branch`, `cluster` - Generated automatically
 
-**Real**: `covid19-pbmc`, `bcr-xl`, `levine32`, `pancreas` - [Download here](https://drive.google.com/drive/folders/15wWFD5FMe0VdzN1pUnaUUpQ17OXkeebH)
+**Real**: `covid19-pbmc`, `bcr-xl`, `levine32`, `pancreas` - Require setup (see below)
+
+### Data Setup
+
+Real datasets are provided as RDS files (R format) and must be converted to H5AD (Python format):
+
+**1. Download RDS files:** [Google Drive](https://drive.google.com/drive/folders/15wWFD5FMe0VdzN1pUnaUUpQ17OXkeebH)
+
+**2. Place in:** `data/real/<dataset-name>/<dataset-name>.rds`
+
+**3. Convert to H5AD:**
+```bash
+# Automatic conversion via CLI (recommended)
+./cli.sh convert-data
+
+# Or manual conversion:
+python bin/convert_rds_to_h5ad.py \
+  --input data/real/covid19-pbmc/covid19-pbmc.rds \
+  --output data/real/covid19-pbmc/covid19-pbmc.h5ad
+```
+
+**4. Preprocess:**
+```bash
+./cli.sh preprocess
+```
 
 ## Common Commands
 

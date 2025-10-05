@@ -151,6 +151,7 @@ FILTERING OPTIONS (for labels step):
 
 STEPS:
     setup                   Setup environment and directories
+    convert-data           Convert RDS files to H5AD format
     preprocess             Create PCA embeddings and DM from PCA+batch
     labels                 Generate synthetic labels
     benchmark              Run DA method benchmarks
@@ -173,6 +174,7 @@ R METHODS:
 
 EXAMPLES:
     ./cli.sh                                         Complete pipeline (local)
+    ./cli.sh convert-data                            Convert all RDS files to H5AD
     ./cli.sh test                                    Run test suite
     ./cli.sh labels --slurm                          Submit label generation as SLURM array (splits by population)
     ./cli.sh --datasets bcr-xl labels --slurm        Submit labels for specific dataset(s)
@@ -256,7 +258,7 @@ while [[ $# -gt 0 ]]; do
             SBATCH_OPTIONS="$2"
             shift 2
             ;;
-        setup|preprocess|labels|benchmark|test|status|all)
+        setup|convert-data|preprocess|labels|benchmark|test|status|all)
             STEPS+=("$1")
             shift
             ;;
@@ -453,6 +455,67 @@ check_datasets() {
     fi
 
     print_info "Processing datasets: ${SELECTED_DATASETS[*]}"
+}
+
+convert_data() {
+    print_step "Converting RDS files to H5AD format"
+
+    # Conversion needs environment active
+    if [ "$DRY_RUN" != true ]; then
+        # Load environment utilities
+        if [[ -f "bin/environment_utils.sh" ]]; then
+            source "bin/environment_utils.sh"
+        fi
+
+        # Activate environment if not already active
+        if [ -z "$CONDA_PREFIX" ]; then
+            print_info "Activating environment for data conversion"
+            if ! activate_benchmarkda_environment; then
+                print_error "Failed to activate environment"
+                return 1
+            fi
+        fi
+    fi
+
+    local converted_count=0
+    local skipped_count=0
+
+    for dataset in "${SELECTED_DATASETS[@]}"; do
+        # Skip synthetic datasets
+        if [[ " ${SYNTHETIC_DATASETS[*]} " =~ " ${dataset} " ]]; then
+            continue
+        fi
+
+        local rds_file="data/real/$dataset/$dataset.rds"
+        local h5ad_file="data/real/$dataset/$dataset.h5ad"
+
+        if [[ ! -f "$rds_file" ]]; then
+            print_warning "RDS file not found: $rds_file"
+            continue
+        fi
+
+        if [[ -f "$h5ad_file" ]]; then
+            print_info "H5AD already exists for $dataset, skipping"
+            ((skipped_count++))
+            continue
+        fi
+
+        print_info "Converting $dataset: RDS → H5AD"
+
+        if [ "$DRY_RUN" = true ]; then
+            echo "[DRY RUN] python bin/convert_rds_to_h5ad.py --input \"$rds_file\" --output \"$h5ad_file\""
+        else
+            python bin/convert_rds_to_h5ad.py --input "$rds_file" --output "$h5ad_file" || {
+                print_warning "Conversion failed for $dataset"
+                continue
+            }
+            ((converted_count++))
+        fi
+    done
+
+    if [ "$DRY_RUN" != true ]; then
+        print_success "Data conversion completed: $converted_count converted, $skipped_count skipped"
+    fi
 }
 
 preprocess_datasets() {
@@ -898,6 +961,9 @@ main() {
             setup)
                 setup_environment
                 check_datasets
+                ;;
+            convert-data)
+                convert_data
                 ;;
             preprocess)
                 preprocess_datasets

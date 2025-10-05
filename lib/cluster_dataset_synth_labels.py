@@ -160,8 +160,8 @@ def quantile_assign_label(adata, pop_col, pop_enr, pop):
     else:
         da_upper = pop_enr - (pop_enr / 100) * QUANTILE_LABEL_THRESHOLD_PCT
         da_lower = 1 - da_upper
-    print(da_lower, da_upper)
-    assert da_upper > da_lower, "da_upper must be greater than da_lower"
+
+    assert da_upper > da_lower, f"da_upper ({da_upper:.4f}) must be greater than da_lower ({da_lower:.4f})"
 
     # Assign the synthetic labels based on 'Condition2_prob'
     true_label = np.where(

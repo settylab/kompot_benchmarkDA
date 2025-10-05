@@ -60,7 +60,7 @@ def create_enrichment_scores(pop, pop_enr, populations):
     return enr_scores
 
 
-def set_relevant_prob(w_logit, enr_scores, pop, adata, pop_column):
+def set_relevant_prob(sigmoid_fuzzy_weights, enr_scores, pop, adata, pop_column):
     """
     Compute final enrichment probability for each cell based on proximity to enriched centroids.
 
@@ -79,14 +79,23 @@ def set_relevant_prob(w_logit, enr_scores, pop, adata, pop_column):
     This logic applies consistently to both single and multiple enriched populations.
 
     Parameters:
-    - w_logit: DataFrame (cells x populations) with fuzzy membership scores from distance calculations
-    - enr_scores: Series mapping population names to target enrichment scores (0.5-1.0)
-    - pop: Population name(s) to enrich (string or list)
-    - adata: AnnData object with cluster labels in .obs[pop_column]
-    - pop_column: Column name containing cluster labels
+    ----------
+    sigmoid_fuzzy_weights : DataFrame
+        Sigmoid-transformed fuzzy membership weights (cells x populations)
+        from get_weight_matrix_centroid(). Values in (0, 1) range.
+    enr_scores : Series
+        Mapping of population names to target enrichment scores (0.5-1.0)
+    pop : str or list
+        Population name(s) to enrich
+    adata : AnnData
+        AnnData object with cluster labels in .obs[pop_column]
+    pop_column : str
+        Column name containing cluster labels
 
     Returns:
-    - cond_probability: Series with final probability for each cell
+    --------
+    cond_probability : Series
+        Final enrichment probability for each cell
 
     Example:
         For single population M1 with enrichment 0.95:
@@ -99,7 +108,7 @@ def set_relevant_prob(w_logit, enr_scores, pop, adata, pop_column):
         pop = [pop]
 
     # Select columns for enriched populations
-    prob_matrix = w_logit[pop].copy()
+    prob_matrix = sigmoid_fuzzy_weights[pop].copy()
 
     # Scale each column to [0, target_enrichment_score]
     for col in prob_matrix.columns:

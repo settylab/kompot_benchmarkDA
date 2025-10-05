@@ -12,8 +12,125 @@ from lib import get_weight_matrix
 from lib import helper_functions
 from lib import read_file
 from lib.logger import get_logger
+from lib.constants import (
+    validate_enrichment,
+    validate_m_parameter,
+    validate_batch_sd,
+    FUZZY_CMEANS_M,
+    SIGMOID_STEEPNESS
+)
 
 import argparse
+
+
+def save_benchmark_outputs(adata, args, output_dir, logger):
+    """
+    Save benchmark outputs: coldata and embeddings.
+
+    Common function for both cluster and non-cluster datasets to save:
+    - Cell metadata (coldata.csv)
+    - PCA/batch-affected embeddings (.emb.csv)
+    - DM embeddings if computed (.emb.dm.csv)
+
+    Parameters:
+    -----------
+    adata : AnnData
+        AnnData object with batch-affected embeddings in .obsm
+    args : Namespace
+        Parsed command-line arguments
+    output_dir : Path
+        Output directory for saving files
+    logger : Logger
+        Logger instance for progress messages
+
+    Returns:
+    --------
+    None (files are saved to disk)
+    """
+    logger.debug("Saving coldata and embeddings")
+
+    # Extract and save cell metadata
+    obs_df = adata.obs.copy()
+    obs_df["rowname"] = obs_df.index
+    cols = ["rowname"] + [col for col in obs_df.columns if col != "rowname"]
+    obs_df = obs_df[cols]
+
+    coldata_path = output_dir / f"benchmark_{args.ds_type}_pop_{args.pop}_enr{args.pop_enr}_seed{args.seed}.coldata.csv"
+    obs_df.to_csv(coldata_path, index=False)
+    logger.debug(f"Saved coldata to {coldata_path.name}")
+
+    # Convert batch_sd to int if it's a whole number (for filename)
+    str_batch = str(args.batch_sd)
+    int_batch = helper_functions.convert_number_str(str_batch)
+
+    # Save PCA/batch-affected embeddings
+    X_pca = pd.DataFrame(
+        adata.obsm[f"{args.layer_embedding}_batch"], index=adata.obs_names
+    )
+    X_pca["rowname"] = obs_df.index
+    cols = ["rowname"] + [col for col in X_pca.columns if col != "rowname"]
+    X_pca = X_pca[cols]
+
+    emb_path = output_dir / f"benchmark_{args.ds_type}_pop_{args.pop}_enr{args.pop_enr}_seed{args.seed}_batchEffect{int_batch}.emb.csv"
+    X_pca.to_csv(emb_path, index=False, float_format="%.16f")
+    logger.debug(f"Saved PCA embeddings to {emb_path.name}")
+
+    # Save DM embeddings if computed
+    if args.n_dm > 0:
+        X_dm = pd.DataFrame(
+            adata.obsm["DM_EigenVectors_batch"], index=adata.obs_names
+        )
+        X_dm["rowname"] = obs_df.index
+        cols = ["rowname"] + [col for col in X_dm.columns if col != "rowname"]
+        X_dm = X_dm[cols]
+
+        dm_path = output_dir / f"benchmark_{args.ds_type}_pop_{args.pop}_enr{args.pop_enr}_seed{args.seed}_batchEffect{int_batch}.emb.dm.csv"
+        X_dm.to_csv(dm_path, index=False, float_format="%.16f")
+        logger.debug(f"Saved DM embeddings to {dm_path.name}")
+
+
+def add_batch_effects_and_compute_dm(adata, args, logger):
+    """
+    Add batch effects to embeddings and optionally compute diffusion map.
+
+    Common function for both cluster and non-cluster datasets to:
+    1. Add batch effects to original embeddings
+    2. Optionally compute DM on batch-affected embeddings
+
+    Parameters:
+    -----------
+    adata : AnnData
+        AnnData object with original embeddings
+    args : Namespace
+        Parsed command-line arguments
+    logger : Logger
+        Logger instance for progress messages
+
+    Returns:
+    --------
+    adata : AnnData
+        Modified AnnData with batch-affected embeddings (and DM if requested)
+    """
+    logger.debug("Adding batch effects to embeddings")
+    adata = synth_labels.add_batch_effect_pca(
+        adata,
+        args.layer_embedding,
+        batch_col="synth_batches",
+        norm_sd=args.batch_sd,
+        seed=args.seed,
+    )
+
+    # Compute DM on batch-simulated embeddings if needed
+    if args.n_dm > 0:
+        logger.info(
+            f"Computing DM ({args.n_dm} components) on batch-simulated embeddings"
+        )
+        adata = calculate_diffusion_map.calculate_dm(
+            adata, f"{args.layer_embedding}_batch", args.n_dm
+        )
+        logger.debug("DM computation complete")
+
+    return adata
 
 
 def main():
@@ -67,6 +184,70 @@ def main():
     )
     logger.debug(f"Output directory: {args.output_dir}")
 
+    # ========================================================================
+    # Input Validation
+    # ========================================================================
+    logger.debug("Validating input parameters")
+
+    # Validate enrichment probability
+    try:
+        validate_enrichment(args.pop_enr)
+    except ValueError as e:
+        logger.error(f"Invalid enrichment value: {e}")
+        sys.exit(1)
+
+    # Validate batch SD
+    try:
+        validate_batch_sd(args.batch_sd)
+    except ValueError as e:
+        logger.error(f"Invalid batch SD: {e}")
+        sys.exit(1)
+
+    # Validate m parameter
+    try:
+        validate_m_parameter(args.m)
+    except ValueError as e:
+        logger.error(f"Invalid m parameter: {e}")
+        sys.exit(1)
+
+    # Validate file path exists
+    file_path = Path(args.file_path)
+    if not file_path.exists():
+        logger.error(f"Data file not found: {file_path}")
+        sys.exit(1)
+
+    # Validate output directory can be created
+    output_dir = Path(args.output_dir)
+    try:
+        output_dir.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        logger.error(f"Cannot create output directory {output_dir}: {e}")
+        sys.exit(1)
+
+    # Validate population is not empty
+    if not args.pop or (isinstance(args.pop, str) and args.pop.strip() == ""):
+        logger.error("Population name cannot be empty")
+        sys.exit(1)
+
+    # Validate number of conditions, replicates, batches
+    if args.n_conditions < 2:
+        logger.error(f"Number of conditions must be >= 2, got {args.n_conditions}")
+        sys.exit(1)
+
+    if args.n_replicates < 1:
+        logger.error(f"Number of replicates must be >= 1, got {args.n_replicates}")
+        sys.exit(1)
+
+    if args.n_batches < 1:
+        logger.error(f"Number of batches must be >= 1, got {args.n_batches}")
+        sys.exit(1)
+
+    if args.n_dm < 0:
+        logger.error(f"Number of DM components must be >= 0, got {args.n_dm}")
+        sys.exit(1)
+
+    logger.debug("All input parameters validated successfully")
+
     adata = read_file.read_dataset(args.file_path, args.layer_embedding)
     output_dir = Path(args.output_dir)
 
@@ -75,22 +256,22 @@ def main():
         X_emb = read_file.get_embedding_value(adata, args.layer_embedding)
 
         logger.debug("Computing weight matrix from centroids")
-        w_logit, conditions = get_weight_matrix.get_weight_matrix_centroid(
+        sigmoid_fuzzy_weights, conditions = get_weight_matrix.get_weight_matrix_centroid(
             adata, args.pop_column, args.seed, X_emb, args.n_conditions, args.m, args.a_logit
         )
 
         logger.debug("Generating enrichment scores")
         enr_scores = condition_prob_centroid.create_enrichment_scores(
-            args.pop, args.pop_enr, w_logit.columns
+            args.pop, args.pop_enr, sigmoid_fuzzy_weights.columns
         )
 
         logger.debug("Computing condition probabilities")
         cond_probability = condition_prob_centroid.set_relevant_prob(
-            w_logit, enr_scores, args.pop, adata, args.pop_column
+            sigmoid_fuzzy_weights, enr_scores, args.pop, adata, args.pop_column
         )
 
         logger.debug("Saving weight matrix")
-        w_logit.to_csv(output_dir / "weight_matrix.csv")
+        sigmoid_fuzzy_weights.to_csv(output_dir / "weight_matrix.csv")
 
         logger.step("Generating synthetic labels and batch-simulated embeddings")
 
@@ -120,72 +301,11 @@ def main():
             adata, args.pop_column, args.pop_enr, args.pop
         )
 
-        logger.debug("Adding batch effects to embeddings")
-        adata = synth_labels.add_batch_effect_pca(
-            adata,
-            args.layer_embedding,
-            batch_col="synth_batches",
-            norm_sd=args.batch_sd,
-            seed=args.seed,
-        )
+        # Add batch effects and compute DM (common function)
+        adata = add_batch_effects_and_compute_dm(adata, args, logger)
 
-        # Compute DM on batch-simulated embeddings if needed
-        if args.n_dm > 0:
-            logger.info(
-                f"Computing DM ({args.n_dm} components) on batch-simulated embeddings"
-            )
-            adata = calculate_diffusion_map.calculate_dm(
-                adata, f"{args.layer_embedding}_batch", args.n_dm
-            )
-            logger.debug("DM computation complete")
-
-        X_pca = pd.DataFrame(
-            adata.obsm[f"{args.layer_embedding}_batch"], index=adata.obs_names
-        )
-
-        # Assuming `adata` is your AnnData object
-        obs_df = adata.obs.copy()
-
-        # Add the index as a column named "rowname"
-        obs_df["rowname"] = obs_df.index
-
-        cols = ["rowname"] + [col for col in obs_df.columns if col != "rowname"]
-        obs_df = obs_df[cols]
-
-        obs_df.to_csv(
-            output_dir
-            / f"benchmark_{args.ds_type}_pop_{args.pop}_enr{args.pop_enr}_seed{args.seed}.coldata.csv",
-            index=False,
-        )
-
-        str_batch = str(args.batch_sd)
-        int_batch = helper_functions.convert_number_str(str_batch)
-
-        # Save X_pca_batch (for PCA-based methods like MELD, CNA, R methods)
-        X_pca["rowname"] = obs_df.index
-        cols = ["rowname"] + [col for col in X_pca.columns if col != "rowname"]
-        X_pca = X_pca[cols]
-        X_pca.to_csv(
-            output_dir
-            / f"benchmark_{args.ds_type}_pop_{args.pop}_enr{args.pop_enr}_seed{args.seed}_batchEffect{int_batch}.emb.csv",
-            index=False,
-            float_format="%.16f",
-        )
-
-        # Save DM_EigenVectors_batch separately (for DM-based methods like Mellon, Kompot)
-        if args.n_dm > 0:
-            X_dm = pd.DataFrame(
-                adata.obsm["DM_EigenVectors_batch"], index=adata.obs_names
-            )
-            X_dm["rowname"] = obs_df.index
-            cols = ["rowname"] + [col for col in X_dm.columns if col != "rowname"]
-            X_dm = X_dm[cols]
-            X_dm.to_csv(
-                output_dir
-                / f"benchmark_{args.ds_type}_pop_{args.pop}_enr{args.pop_enr}_seed{args.seed}_batchEffect{int_batch}.emb.dm.csv",
-                index=False,
-                float_format="%.16f",
-            )
+        # Save outputs (common function)
+        save_benchmark_outputs(adata, args, output_dir, logger)
 
         logger.success(
             f"Successfully generated labels for {args.ds_type}-{args.pop}-{args.pop_enr}-{args.seed}-{args.batch_sd}"
@@ -205,68 +325,11 @@ def main():
             adata, args.pop_column, args.pop_enr, args.pop
         )
 
-        logger.debug("Adding batch effects to embeddings")
-        adata = cluster_dataset_synth_labels.add_batch_effect_pca(
-            adata,
-            args.layer_embedding,
-            batch_col="synth_batches",
-            norm_sd=args.batch_sd,
-            seed=args.seed,
-        )
+        # Add batch effects and compute DM (common function)
+        adata = add_batch_effects_and_compute_dm(adata, args, logger)
 
-        # Compute DM on batch-simulated embeddings if needed
-        if args.n_dm > 0:
-            logger.info(
-                f"Computing DM ({args.n_dm} components) on batch-simulated embeddings"
-            )
-            adata = calculate_diffusion_map.calculate_dm(
-                adata, f"{args.layer_embedding}_batch", args.n_dm
-            )
-            logger.debug("DM computation complete")
-
-        X_pca = pd.DataFrame(
-            adata.obsm[f"{args.layer_embedding}_batch"], index=adata.obs_names
-        )
-
-        obs_df = adata.obs.copy()
-
-        # Add the index as a column named "rowname"
-        obs_df["rowname"] = obs_df.index
-        cols = ["rowname"] + [col for col in obs_df.columns if col != "rowname"]
-        obs_df = obs_df[cols]
-        obs_df.to_csv(
-            output_dir
-            / f"benchmark_{args.ds_type}_pop_{args.pop}_enr{args.pop_enr}_seed{args.seed}.coldata.csv",
-            index=False,
-        )
-        str_batch = str(args.batch_sd)
-        int_batch = helper_functions.convert_number_str(str_batch)
-
-        # Save X_pca_batch (for PCA-based methods like MELD, CNA, R methods)
-        X_pca["rowname"] = obs_df.index
-        cols = ["rowname"] + [col for col in X_pca.columns if col != "rowname"]
-        X_pca = X_pca[cols]
-        X_pca.to_csv(
-            output_dir
-            / f"benchmark_{args.ds_type}_pop_{args.pop}_enr{args.pop_enr}_seed{args.seed}_batchEffect{int_batch}.emb.csv",
-            index=False,
-            float_format="%.16f",
-        )
-
-        # Save DM_EigenVectors_batch separately (for DM-based methods like Mellon, Kompot)
-        if args.n_dm > 0:
-            X_dm = pd.DataFrame(
-                adata.obsm["DM_EigenVectors_batch"], index=adata.obs_names
-            )
-            X_dm["rowname"] = obs_df.index
-            cols = ["rowname"] + [col for col in X_dm.columns if col != "rowname"]
-            X_dm = X_dm[cols]
-            X_dm.to_csv(
-                output_dir
-                / f"benchmark_{args.ds_type}_pop_{args.pop}_enr{args.pop_enr}_seed{args.seed}_batchEffect{int_batch}.emb.dm.csv",
-                index=False,
-                float_format="%.16f",
-            )
+        # Save outputs (common function)
+        save_benchmark_outputs(adata, args, output_dir, logger)
 
         logger.success(
             f"Successfully generated labels for {args.ds_type}-{args.pop}-{args.pop_enr}-{args.seed}-{args.batch_sd}"

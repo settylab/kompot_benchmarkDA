@@ -45,15 +45,26 @@ def generate_enr_prob(pop, pop_enr, w_logit, cell_type_dict=None):
     return enr_scores
 
 
-def normalize_enr_prob(w_logit, enr_scores, condition_balance):
+def normalize_enr_prob(w_logit, enr_scores):
     """
-    Normalize enrichment probability
-    """
+    Normalize enrichment probabilities for each cell population.
 
+    Scales weight matrix values to range [0.5, enrichment_score] for each population.
+    This creates smooth probability gradients where:
+    - Cells far from centroid → probability = 0.5 (neutral)
+    - Cells close to centroid → probability = enrichment_score
+
+    Parameters:
+    - w_logit: Weight matrix (cells x populations) from distance calculations
+    - enr_scores: Enrichment scores for each population (0.5 = neutral, 0.95 = highly enriched)
+
+    Returns:
+    - enr_prob: Normalized probabilities (DataFrame, cells x populations)
+    """
     enr_prob = pd.DataFrame(index=w_logit.index, columns=w_logit.columns)
 
     for i, col in enumerate(w_logit.columns):
-        min_val = 0.5 * condition_balance
+        min_val = 0.5
         max_val = enr_scores.iloc[i]
         enr_prob[col] = scale(w_logit[col], min_val, max_val)
     return enr_prob

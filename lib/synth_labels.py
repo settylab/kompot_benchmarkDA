@@ -7,72 +7,59 @@ import os
 import sys
 
 
-def cap_probabilities(adata, cond_probability, conditions, balance="Yes", cap_enr=None):
+def cap_probabilities(adata, cond_probability, conditions, cap_enr=None):
     """
-    Genrate condition 1 probability and condition 2 probability
-    """
+    Generate condition probabilities for each cell.
 
+    Parameters:
+    - adata: AnnData object
+    - cond_probability: Array of condition 1 probabilities for each cell
+    - conditions: List of condition names (e.g., ["Condition1", "Condition2"])
+    - cap_enr: Optional maximum enrichment probability (capped if exceeded)
+
+    Returns:
+    - conditions: List of condition names
+    - cond_probability_df: DataFrame with probabilities for both conditions
+    """
     if cap_enr is not None:
         cond_probability = np.where(
             cond_probability > cap_enr, cap_enr, cond_probability
         )
 
-    if balance == "Yes":
-        norm_factor = 0.5 * adata.n_obs / np.sum(cond_probability)
-    elif balance == "No":
-        norm_factor = 1
-    condition1_prob = norm_factor * cond_probability
+    condition1_prob = cond_probability
     condition2_prob = 1 - condition1_prob
 
     cond_probability_df = pd.DataFrame(
         {conditions[0]: condition1_prob, conditions[1]: condition2_prob}
     )
-    # conditions,cond_probability_df,w_logit,centroid_distance
     return conditions, cond_probability_df
 
 
 def label_condition_and_rep_labels(adata, cond_probability, seed):
     """
-    Generated synth_labels based in the condition probability
-    Based on n_batches to label batches
-    Based on n_replicates and synth_labels to label samples.
+    Assign synth_labels to each cell based on condition probabilities.
 
+    Uses weighted random sampling where each cell is assigned to a condition
+    based on its condition probabilities.
+
+    Parameters:
+    - adata: AnnData object
+    - cond_probability: DataFrame with condition probabilities (columns = conditions)
+    - seed: Random seed for reproducibility
+
+    Returns:
+    - adata: Modified AnnData with synth_labels, Condition1_prob, Condition2_prob in .obs
     """
-    # Use numpy for weighted random sampling (replaces R code)
     np.random.seed(seed)
     conditions = cond_probability.columns.tolist()
     synth_labels = []
 
     for i in range(len(cond_probability)):
-        # Get probabilities for this cell
         probs = cond_probability.iloc[i].values
-        # Weighted random choice
         label = np.random.choice(conditions, p=probs)
         synth_labels.append(label)
 
-    #     replicates = [f"R{i}" for i in range(1, n_replicates + 1)]
-
-    #     batch_labels = [f"B{i}" for i in range(1, n_batches + 1) for _ in range(n_replicates)]
-    #     np.random.shuffle(batch_labels)
-    #     batches = batch_labels
-
-    #     synth_samples = [f"{label}_{rep}" for label, rep in zip(synth_labels, replicates * len(synth_labels))]
-
-    #     if n_batches > 1:
-    #     # Use a dictionary comprehension to map unique synth_samples to sorted unique labels
-    #         batch_labels_dict = {sample:batches[i] for i, sample in enumerate(sorted(set(synth_samples)))}
-    #     else:
-    #         # If there is only one batch, map all unique synth_samples to "B1"
-    #         batch_labels_dict = {sample: "B1" for sample in set(synth_samples)}
-    #     synth_batches = [batch_labels_dict[sample] for sample in synth_samples]
-
-    #     synth_batches_df = pd.DataFrame(synth_batches, index = synth_samples)
-
     adata.obs["synth_labels"] = synth_labels
-    # adata.obs["synth_samples"] = synth_samples
-    # if synth_samples == list(synth_batches_df.index):
-    #     print("yes")
-    # adata.obs["synth_batches"] = list(synth_batches_df.iloc[:,0])
     adata.obs["Condition1_prob"] = list(cond_probability.iloc[:, 0])
     adata.obs["Condition2_prob"] = list(cond_probability.iloc[:, 1])
 
@@ -81,21 +68,22 @@ def label_condition_and_rep_labels(adata, cond_probability, seed):
 
 def label_condition_and_rep_other(adata, n_replicates, n_batches, seed):
     """
-    Generated synth_labels based in the condition probability
-    Based on n_batches to label batches
-    Based on n_replicates and synth_labels to label samples.
+    Generate sample and batch labels from existing synth_labels.
 
+    Creates:
+    - synth_samples: Combination of condition label and replicate (e.g., "Condition1_R1")
+    - synth_batches: Batch assignments for each sample
+
+    Parameters:
+    - adata: AnnData object with synth_labels already assigned
+    - n_replicates: Number of replicates per condition
+    - n_batches: Number of batches
+    - seed: Random seed for batch shuffling
+
+    Returns:
+    - adata: Modified AnnData with synth_samples and synth_batches in .obs
     """
-    # cond_probability = pd.DataFrame()
-    # cond_probability.loc[:,0] = adata.obs["condition1_prob"]
-    # cond_probability.loc[:,1] = adata.obs["condition2_prob"]
     np.random.seed(seed)
-
-    # synth_labels = [
-    #         np.random.choice(a=conditions,replace=False,p=cond_probability.iloc[i, :])
-    #         for i in range(len(cond_probability))
-    # ]
-
     synth_labels = adata.obs["synth_labels"]
 
     replicates = [f"R{i}" for i in range(1, n_replicates + 1)]
@@ -112,29 +100,36 @@ def label_condition_and_rep_other(adata, n_replicates, n_batches, seed):
     ]
 
     if n_batches > 1:
-        # Use a dictionary comprehension to map unique synth_samples to sorted unique labels
         batch_labels_dict = {
             sample: batches[i] for i, sample in enumerate(sorted(set(synth_samples)))
         }
     else:
-        # If there is only one batch, map all unique synth_samples to "B1"
         batch_labels_dict = {sample: "B1" for sample in set(synth_samples)}
     synth_batches = [batch_labels_dict[sample] for sample in synth_samples]
 
-    synth_batches_df = pd.DataFrame(synth_batches, index=synth_samples)
-
-    # adata.obs["synth_labels"] = synth_labels
     adata.obs["synth_samples"] = synth_samples
-    if synth_samples == list(synth_batches_df.index):
-        print("yes")
-    adata.obs["synth_batches"] = list(synth_batches_df.iloc[:, 0])
+    adata.obs["synth_batches"] = synth_batches
 
     return adata
 
 
 def quantile_assign_label(adata, pop_col, pop_enr, pop):
     """
-    Assign "true_labels" to adata, allow to perform mellon or meld and do the performance evaluation.
+    Assign true_labels for evaluation based on condition probabilities.
+
+    Uses quantile-based thresholds to classify cells as:
+    - "PosLFC": Enriched in condition 1
+    - "NegLFC": Enriched in condition 2
+    - "NotDA": Not differentially abundant
+
+    Parameters:
+    - adata: AnnData object with Condition1_prob
+    - pop_col: Column name for population/cluster labels
+    - pop_enr: Enrichment level for the target population
+    - pop: Target population name
+
+    Returns:
+    - adata: Modified AnnData with true_labels in .obs
     """
     pop_tbl = adata.obs[pop_col].value_counts()
 
@@ -169,7 +164,8 @@ def quantile_assign_label(adata, pop_col, pop_enr, pop):
 
 def quantile_assign_label_old(adata, pop_col, pop_enr, pop):
     """
-    Assign "true_labels" to adata, allow to perform mellon or meld and do the performance evaluation.
+    DEPRECATED: Old version of quantile_assign_label.
+    Use quantile_assign_label() instead (inverted probability logic).
     """
     pop_tbl = pd.DataFrame(adata.obs[pop_col].value_counts())
 
@@ -207,23 +203,25 @@ def add_batch_effect_pca(
     adata, layer_embedding, batch_col="synth_batches", norm_sd=0.5, seed=43
 ):
     """
-    Adds a batch effect to the PCA results stored in an AnnData object.
+    Add batch effects to embeddings by adding batch-specific noise.
 
-    Batch effects are scaled by the sqrt of sum of component variances to make
-    the norm_sd parameter comparable across datasets.
+    Each batch gets a unique random offset scaled by the data variance.
+    This simulates technical batch effects while preserving biological signal.
+
+    Batch effects are scaled by sqrt(sum of component variances) to make
+    norm_sd comparable across datasets with different scales.
 
     Parameters:
-    - adata: AnnData object containing single-cell data with embeddings in .obsm[layer_embedding]
-    - layer_embedding: Name of embedding layer to use (e.g., 'X_pca', 'DM_EigenVectors')
-    - batch_col: The column in .obs corresponding to batch information
+    - adata: AnnData object with embeddings in .obsm[layer_embedding]
+    - layer_embedding: Name of embedding ('X_pca' or 'DM_EigenVectors')
+    - batch_col: Column in .obs with batch labels (default: 'synth_batches')
     - norm_sd: Batch effect strength as fraction of data variance
-               (0 = no effect, 1 = effect size equals data std)
+               (0 = no effect, 1 = effect size equals data std, default: 0.5)
     - seed: Random seed for reproducibility
 
     Returns:
-    - Modified AnnData object with added batch effects in .obsm['{layer_embedding}_batch']
+    - adata: Modified AnnData with batch-affected embeddings in .obsm['{layer_embedding}_batch']
     """
-
     np.random.seed(seed)
     # Extract embeddings
     X_emb = adata.obsm[layer_embedding]

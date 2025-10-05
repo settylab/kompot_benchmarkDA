@@ -109,9 +109,14 @@ def get_data_file_path(root, data_id, mode_embedding, n_dm):
     else:
         return f"{root}/data/{data_id}/{data_id}_{mode_embedding}_{n_dm}.h5ad"
 
-def get_job_id(data_id, pop, enr, seed, batch_sd_num, balance_bool, analysis_layer):
-    """Generate a consistent job ID across scripts."""
-    return f"{data_id}-{pop}-{enr}-{seed}-{batch_sd_num}-{balance_bool}-{analysis_layer}"
+def get_job_id(data_id, pop, enr, seed, batch_sd_num, analysis_layer):
+    """
+    Generate a consistent job ID across scripts.
+
+    Note: Includes "No" for historical compatibility with existing data directories.
+    This was formerly the balance parameter (always "No" in practice).
+    """
+    return f"{data_id}-{pop}-{enr}-{seed}-{batch_sd_num}-No-{analysis_layer}"
 
 def get_input_dir(root, data_id, job_id):
     """Get the input directory path."""

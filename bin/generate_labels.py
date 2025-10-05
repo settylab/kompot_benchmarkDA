@@ -23,11 +23,9 @@ PIPELINE_CONSTANTS = {
     "n_conditions": 2,
     "n_replicates": 3,
     "n_batches": 2,
-    "condition_balance": 1,
     "m": 2,
     "a_logit": 0.5,
     "layer_embedding": "X_pca",
-    "balance": "No",
 }
 
 
@@ -171,8 +169,6 @@ def main():
                         str(PIPELINE_CONSTANTS["n_replicates"]),
                         "--n_batches",
                         str(PIPELINE_CONSTANTS["n_batches"]),
-                        "--condition_balance",
-                        str(PIPELINE_CONSTANTS["condition_balance"]),
                         "--m",
                         str(PIPELINE_CONSTANTS["m"]),
                         "--a_logit",
@@ -181,8 +177,6 @@ def main():
                         PIPELINE_CONSTANTS["layer_embedding"],
                         "--n_dm",
                         str(n_dm),
-                        "--balance",
-                        PIPELINE_CONSTANTS["balance"],
                         "--output_dir",
                         str(output_dir) + "/",
                     ]

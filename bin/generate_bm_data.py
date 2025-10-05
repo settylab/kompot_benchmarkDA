@@ -36,7 +36,6 @@ def main():
     parser.add_argument("--n_replicates", type=int, help="Number of replicates")
     parser.add_argument("--n_batches", type=int, help="Number of batches")
     parser.add_argument("--seed", type=int, help="Seed for random number generation")
-    parser.add_argument("--condition_balance", type=int, help="Condition balance")
 
     parser.add_argument("--m", type=float, help="M value")
     parser.add_argument("--a_logit", type=float, help="A_logit value")
@@ -49,11 +48,6 @@ def main():
         type=int,
         default=0,
         help="Number of diffusion components to compute on batch-simulated embeddings",
-    )
-    parser.add_argument(
-        "--balance",
-        type=str,
-        help="whether we want to balance number of cells in each condition manually",
     )
     parser.add_argument(
         "--output_dir", type=str, required=True, help="Output directory path"
@@ -89,9 +83,7 @@ def main():
         enr_scores = condition_prob_centroid.generate_enr_prob(args.pop, args.pop_enr, w_logit)
 
         logger.debug("Normalizing enrichment probabilities")
-        enr_prob = condition_prob_centroid.normalize_enr_prob(
-            w_logit, enr_scores, args.condition_balance
-        )
+        enr_prob = condition_prob_centroid.normalize_enr_prob(w_logit, enr_scores)
 
         logger.debug("Setting condition probabilities")
         cond_probability = condition_prob_centroid.set_relevant_prob(
@@ -114,7 +106,7 @@ def main():
         temp_cond = cond_probability_temp.iloc[:, 0]
 
         conditions, cond_probability_df = synth_labels.cap_probabilities(
-            adata, temp_cond, conditions, args.balance, cap_enr=None
+            adata, temp_cond, conditions, cap_enr=None
         )
 
         adata = synth_labels.label_condition_and_rep_labels(
@@ -125,12 +117,9 @@ def main():
             adata, args.n_replicates, args.n_batches, args.seed
         )
 
-        if args.balance == "Yes":
-            adata = synth_labels.quantile_assign_label(adata, args.pop_column, args.pop_enr, args.pop)
-        elif args.balance == "No":
-            adata = synth_labels.quantile_assign_label_old(
-                adata, args.pop_column, args.pop_enr, args.pop
-            )
+        adata = synth_labels.quantile_assign_label_old(
+            adata, args.pop_column, args.pop_enr, args.pop
+        )
 
         logger.debug("Adding batch effects to embeddings")
         adata = synth_labels.add_batch_effect_pca(
@@ -207,20 +196,15 @@ def main():
         logger.debug(f"Processing cluster dataset: {args.ds_type}")
 
         adata = cluster_dataset_synth_labels.add_synth_label_cluster_labels(
-            adata, args.pop, args.seed, args.pop_enr, args.pop_column, args.n_conditions, args.balance, cap_enr=None
+            adata, args.pop, args.seed, args.pop_enr, args.pop_column, args.n_conditions, cap_enr=None
         )
         adata = cluster_dataset_synth_labels.label_condition_and_rep_other(
             adata, args.n_replicates, args.n_batches, args.seed
         )
 
-        if args.balance == "Yes":
-            adata = cluster_dataset_synth_labels.quantile_assign_label(
-                adata, args.pop_column, args.pop_enr, args.pop
-            )
-        elif args.balance == "No":
-            adata = cluster_dataset_synth_labels.quantile_assign_label_old(
-                adata, args.pop_column, args.pop_enr, args.pop
-            )
+        adata = cluster_dataset_synth_labels.quantile_assign_label_old(
+            adata, args.pop_column, args.pop_enr, args.pop
+        )
 
         logger.debug("Adding batch effects to embeddings")
         adata = cluster_dataset_synth_labels.add_batch_effect_pca(

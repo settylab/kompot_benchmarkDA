@@ -71,7 +71,6 @@ echo "Working directory: ${root}/scripts"
 # Parameters from command line
 data_id="{args.dataset}"
 iteration_num="{args.iteration_num}"
-balance_bool="{args.balance}"
 n_dm="{args.n_dm}"
 embeddings="{args.embeddings}"
 
@@ -163,9 +162,10 @@ for embedding in $(echo "$embeddings" | tr ',' ' '); do
 
                             # Create job ID and paths
                             # Use standard jobid for label input (embedding-independent)
-                            standard_jobid="${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-${balance_bool}"
+                            # Note: "No" is hardcoded for historical compatibility (was balance parameter)
+                            standard_jobid="${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-No"
                             # Use embedding-specific jobid for benchmark output
-                            jobid="${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-${balance_bool}-${analysis_layer}"
+                            jobid="${data_id}-${p}-${enr}-${seed}-${batch_sd_num}-No-${analysis_layer}"
                             input_path="${data_dir}/${standard_jobid}"
                             save_path="${root}/benchmark/${data_type}/${data_id}/${jobid}"
                             save_path_iteration="${save_path}/iteration_${iteration}"
@@ -318,9 +318,6 @@ def main():
     # Optional arguments with defaults
     parser.add_argument(
         "--iteration_num", type=int, default=0, help="Number of iterations (default: 0)"
-    )
-    parser.add_argument(
-        "--balance", type=str, default="No", help="Balance flag (default: No)"
     )
     parser.add_argument(
         "--methods", type=str, nargs="+", help="Methods to run (space-separated list)"

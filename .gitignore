@@ -3,6 +3,7 @@
 
 # Data directories
 data/
+data_old/
 benchmark/
 benchmark_scripts/
 logs/

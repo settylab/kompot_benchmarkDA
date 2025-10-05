@@ -14,7 +14,7 @@ script_dir="$(dirname "$script_path")"
 if [ -z "${root+x}" ]; then
     export root="$(readlink -f "$script_dir/..")"
 fi
-cd ${root}/python_method 
+# Stay in project root (no cd to python_method - that directory doesn't exist) 
 
 #data_dir="$root/data"
 #out_dir="$root/benchmark_python"
@@ -68,7 +68,6 @@ fi
 # Set file paths
 data_file=${data_dir}/${data_id}.h5ad
 out_dir=${data_dir}/${data_id}.h5ad.tmp  # Write to temp file first
-out_dir_rds=${data_dir}/${data_id}.rds
 
 echo -e "${BLUE}[INFO] Input file: ${data_file}${NC}"
 echo -e "${BLUE}[INFO] Working directory: ${data_dir}${NC}"
@@ -77,7 +76,7 @@ echo ""
 # Run preprocessing pipeline
 echo -e "${BLUE}[STEP] Running preprocessing pipeline...${NC}"
 if [ -n "${MAMBA_EXE}" ]; then
-    ${MAMBA_EXE} run -n benchmarkda python data_preprocessing_pipeline.py \
+    ${MAMBA_EXE} run -n benchmarkda python ${root}/lib/data_preprocessing_pipeline.py \
         --file_path "${data_file}" \
         --embedding_layer "${embedding_layer}" \
         --n_dm "${n_dm}" \
@@ -85,7 +84,7 @@ if [ -n "${MAMBA_EXE}" ]; then
         --mode_embedding "${mode_embedding}" \
         --output_dir "${out_dir}" 2>&1 | grep -v "^During startup" | grep -v "^package 'colorout'"
 else
-    python data_preprocessing_pipeline.py \
+    python ${root}/lib/data_preprocessing_pipeline.py \
         --file_path "${data_file}" \
         --embedding_layer "${embedding_layer}" \
         --n_dm "${n_dm}" \
@@ -96,19 +95,9 @@ fi
 
 echo ""
 
-# Convert to RDS for R methods
-echo -e "${BLUE}[STEP] Converting to RDS format for R methods...${NC}"
-if [ -n "${MAMBA_EXE}" ]; then
-    ${MAMBA_EXE} run -n benchmarkda python anndata_rds_transfer.py \
-        --input_file_path "${out_dir}" \
-        --output_file_path "${out_dir_rds}" 2>&1 | \
-        grep -v "^During startup" | grep -v "^package 'colorout'" | grep -v "^Warning message"
-else
-    python anndata_rds_transfer.py \
-        --input_file_path "${out_dir}" \
-        --output_file_path "${out_dir_rds}" 2>&1 | \
-        grep -v "^During startup" | grep -v "^package 'colorout'" | grep -v "^Warning message"
-fi
+# Skip RDS conversion - R methods read H5AD directly via R anndata package
+# (scripts/run_DA.r line 75: adata <- read_h5ad(args$file_path))
+echo -e "${BLUE}[INFO] Skipping RDS conversion (R methods use H5AD directly)${NC}"
 
 # Move temp file to main file (overwrite)
 if [ -f "${out_dir}" ]; then

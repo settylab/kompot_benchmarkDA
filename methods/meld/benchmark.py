@@ -28,12 +28,13 @@ def run(adata, args):
     # Determine embedding mode: DM by default, PCA if n_dm=0
     use_dm = (args.n_dm > 0)
 
-    # Run MELD with standardized embedding handling
+    # Run MELD with hardcoded benchmark columns
+    # synth_samples and synth_labels are a matched pair from the labeling process
     sample_likelihoods_meld, samplem = runMELD.runMELD(
         adata,
         args.k_meld,
-        "synth_samples",
-        "synth_labels",
+        "synth_samples",  # Hardcoded - required for benchmark
+        "synth_labels",   # Hardcoded - required for benchmark
         args.layer_embedding,
         args.beta,
         use_dm=use_dm,

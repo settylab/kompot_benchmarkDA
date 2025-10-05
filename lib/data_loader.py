@@ -78,6 +78,22 @@ def load_dataset(file_path, label_directory, ds_type, pop, pop_enr, seed, batch_
         index_col=0
     )
 
+    # Verify required columns exist for benchmark
+    # synth_samples and synth_labels are a matched pair from the labeling process
+    if 'synth_samples' not in adata.obs.columns:
+        raise ValueError(
+            f"Required column 'synth_samples' not found in observation data. "
+            f"Available columns: {list(adata.obs.columns)}. "
+            f"This data is incompatible with the benchmark."
+        )
+
+    if 'synth_labels' not in adata.obs.columns:
+        raise ValueError(
+            f"Required column 'synth_labels' not found in observation data. "
+            f"Available columns: {list(adata.obs.columns)}. "
+            f"This data is incompatible with the benchmark."
+        )
+
     return adata
 
 def read_dataset(filename):

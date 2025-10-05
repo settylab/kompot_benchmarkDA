@@ -198,18 +198,21 @@ def quantile_assign_label(adata, pop_col, pop_enr, pop):
     """
     pop_tbl = pd.DataFrame(adata.obs[pop_col].value_counts())
 
+    # Calculate population fraction (for quantile threshold)
+    pop_fraction_df = pop_tbl[pop_tbl.index == pop] / sum(pop_tbl.iloc[:, 0])
+
+    # Extract scalar value from DataFrame
+    if pop_fraction_df.empty:
+        raise ValueError(f"Population '{pop}' not found in column '{pop_col}'")
+
+    pop_fraction = float(pop_fraction_df.iloc[0, 0])
+
     # Determine the quantile based on the condition
     if pop_enr < 0.5:
-        da_lower = np.quantile(
-            adata.obs["Condition1_prob"],
-            pop_tbl[pop_tbl.index == pop] / sum(pop_tbl.iloc[:, 0]),
-        )
+        da_lower = np.quantile(adata.obs["Condition1_prob"], pop_fraction)
         da_upper = 1 - da_lower
     else:
-        da_upper = np.quantile(
-            adata.obs["Condition1_prob"],
-            1 - pop_tbl[pop_tbl.index == pop] / sum(pop_tbl.iloc[:, 0]),
-        )
+        da_upper = np.quantile(adata.obs["Condition1_prob"], 1 - pop_fraction)
         da_lower = 1 - da_upper
 
     assert da_upper > da_lower, "da_upper must be greater than da_lower"
@@ -221,7 +224,7 @@ def quantile_assign_label(adata, pop_col, pop_enr, pop):
         np.where(np.array(adata.obs["Condition2_prob"]) > da_upper, "PosLFC", "NotDA"),
     )
 
-    adata.obs["true_labels"] = true_label[0]
+    adata.obs["true_labels"] = true_label
     # Replace spaces with underscores in pop if necessary
     pop = pop.replace(" ", "_")
 

@@ -5,6 +5,7 @@ import scanpy as sc
 import anndata as ad
 import os
 import sys
+from itertools import cycle
 
 
 def cap_probabilities(adata, cond_probability, conditions, cap_enr=None):
@@ -40,7 +41,8 @@ def label_condition_and_rep_labels(adata, cond_probability, seed):
     Assign synth_labels to each cell based on condition probabilities.
 
     Uses weighted random sampling where each cell is assigned to a condition
-    based on its condition probabilities.
+    based on its condition probabilities. Probabilities are normalized to
+    ensure they sum to exactly 1.0 before sampling.
 
     Parameters:
     - adata: AnnData object
@@ -49,6 +51,11 @@ def label_condition_and_rep_labels(adata, cond_probability, seed):
 
     Returns:
     - adata: Modified AnnData with synth_labels, Condition1_prob, Condition2_prob in .obs
+
+    Notes:
+    ------
+    Normalizes probabilities to handle floating point errors that may cause
+    probabilities to not sum to exactly 1.0, which would cause np.random.choice to fail.
     """
     np.random.seed(seed)
     conditions = cond_probability.columns.tolist()
@@ -56,7 +63,17 @@ def label_condition_and_rep_labels(adata, cond_probability, seed):
 
     for i in range(len(cond_probability)):
         probs = cond_probability.iloc[i].values
-        label = np.random.choice(conditions, p=probs)
+
+        # Normalize probabilities to ensure they sum to exactly 1.0
+        # This handles floating point errors from probability calculations
+        prob_sum = np.sum(probs)
+        if prob_sum > 0:
+            probs_normalized = probs / prob_sum
+        else:
+            # Edge case: if all probabilities are 0, use uniform distribution
+            probs_normalized = np.ones(len(probs)) / len(probs)
+
+        label = np.random.choice(conditions, p=probs_normalized)
         synth_labels.append(label)
 
     adata.obs["synth_labels"] = synth_labels
@@ -74,6 +91,12 @@ def label_condition_and_rep_other(adata, n_replicates, n_batches, seed):
     - synth_samples: Combination of condition label and replicate (e.g., "Condition1_R1")
     - synth_batches: Batch assignments for each sample
 
+    The replicate assignment cycles through R1, R2, R3, ... for all cells,
+    ensuring even distribution of cells across replicates within each condition.
+
+    Batch assignment is done at the sample level (not cell level), where each
+    unique sample (condition_replicate pair) is randomly assigned to a batch.
+
     Parameters:
     - adata: AnnData object with synth_labels already assigned
     - n_replicates: Number of replicates per condition
@@ -82,29 +105,46 @@ def label_condition_and_rep_other(adata, n_replicates, n_batches, seed):
 
     Returns:
     - adata: Modified AnnData with synth_samples and synth_batches in .obs
+
+    Example:
+        If synth_labels = ["Condition1", "Condition1", "Condition2", "Condition1"]
+        and n_replicates = 2:
+        synth_samples = ["Condition1_R1", "Condition1_R2", "Condition2_R1", "Condition1_R1"]
     """
     np.random.seed(seed)
     synth_labels = adata.obs["synth_labels"]
 
+    # Create replicate names
     replicates = [f"R{i}" for i in range(1, n_replicates + 1)]
 
-    batch_labels = [
-        f"B{i}" for i in range(1, n_batches + 1) for _ in range(n_replicates)
-    ]
-    np.random.shuffle(batch_labels)
-    batches = batch_labels
+    # Use itertools.cycle to properly cycle through replicates for all cells
+    replicate_cycle = cycle(replicates)
 
-    synth_samples = [
-        f"{label}_{rep}"
-        for label, rep in zip(synth_labels, replicates * len(synth_labels))
-    ]
+    # Assign each cell to a replicate (cycles through R1, R2, R3, ...)
+    synth_samples = [f"{label}_{next(replicate_cycle)}" for label in synth_labels]
+
+    # Create batch assignments for each unique sample
+    unique_samples = sorted(set(synth_samples))
+    n_samples = len(unique_samples)
 
     if n_batches > 1:
-        batch_labels_dict = {
-            sample: batches[i] for i, sample in enumerate(sorted(set(synth_samples)))
-        }
+        # Create balanced batch assignments
+        # Each batch gets roughly equal number of samples
+        batch_assignments = []
+        for i, sample in enumerate(unique_samples):
+            batch_idx = (i % n_batches) + 1
+            batch_assignments.append(f"B{batch_idx}")
+
+        # Shuffle to randomize batch assignment
+        np.random.shuffle(batch_assignments)
+
+        # Create mapping from sample to batch
+        batch_labels_dict = dict(zip(unique_samples, batch_assignments))
     else:
-        batch_labels_dict = {sample: "B1" for sample in set(synth_samples)}
+        # Single batch - all samples go to B1
+        batch_labels_dict = {sample: "B1" for sample in unique_samples}
+
+    # Assign batch to each cell based on its sample
     synth_batches = [batch_labels_dict[sample] for sample in synth_samples]
 
     adata.obs["synth_samples"] = synth_samples
@@ -164,8 +204,29 @@ def quantile_assign_label(adata, pop_col, pop_enr, pop):
 
 def quantile_assign_label_old(adata, pop_col, pop_enr, pop):
     """
-    DEPRECATED: Old version of quantile_assign_label.
-    Use quantile_assign_label() instead (inverted probability logic).
+    Assign true_labels based on Condition2 probability quantiles.
+
+    NOTE: This function uses Condition2_prob for thresholding, while
+    quantile_assign_label() uses Condition1_prob. Both versions exist
+    because the correct one depends on how condition probabilities are defined.
+
+    Current status: ACTIVELY USED in generate_bm_data.py (lines 119, 204)
+    Alternative: quantile_assign_label() (uses Condition1_prob instead)
+
+    TODO: Verify which version is scientifically correct for the current pipeline
+    and remove the other. The difference is which probability column is used:
+    - This function: uses Condition2_prob
+    - Alternative: uses Condition1_prob
+
+    Parameters:
+    - adata: AnnData object with Condition1_prob and Condition2_prob in .obs
+    - pop_col: Column name for population/cluster labels
+    - pop_enr: Enrichment level for the target population
+    - pop: Target population name
+
+    Returns:
+    - adata: Modified AnnData with true_labels in .obs
+             ("NegLFC", "NotDA", or "PosLFC")
     """
     pop_tbl = pd.DataFrame(adata.obs[pop_col].value_counts())
 

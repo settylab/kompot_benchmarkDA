@@ -12,6 +12,9 @@ def scale(x, min_x, max_x):
     Maps the range [min(x), max(x)] to [min_x, max_x] using linear interpolation.
     Preserves relative differences between values while changing the scale.
 
+    Edge case: If all values in x are identical (constant array), returns
+    an array filled with min_x (the minimum of the target range).
+
     Parameters:
     - x: Array-like of values to rescale
     - min_x: Target minimum value
@@ -23,8 +26,19 @@ def scale(x, min_x, max_x):
     Example:
         scale([0, 0.5, 1.0], 0.5, 0.95)
         → [0.5, 0.725, 0.95]
+
+        scale([1.0, 1.0, 1.0], 0.5, 0.95)  # Constant array
+        → [0.5, 0.5, 0.5]
     """
-    scaled_x = (((x - np.min(x)) / (np.max(x) - np.min(x))) * (max_x - min_x)) + min_x
+    x_min = np.min(x)
+    x_max = np.max(x)
+    x_range = x_max - x_min
+
+    # Handle constant array (all values identical)
+    if x_range == 0 or np.abs(x_range) < 1e-10:
+        return np.full_like(x, min_x, dtype=float)
+
+    scaled_x = (((x - x_min) / x_range) * (max_x - min_x)) + min_x
     return scaled_x
 
 

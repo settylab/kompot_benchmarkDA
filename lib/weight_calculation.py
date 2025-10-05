@@ -8,24 +8,61 @@ import anndata as ad
 # from scipy.spatial.distance import pdist, squareform, cdist
 
 
-def calculate_weights_centroid(centroid_dist, m=2):
+def calculate_weights_centroid(centroid_dist, m=2, eps=1e-10):
     """
-    Parameters:
-    1. centroid_dist: euclidean distance between cells and centroids
-    2. m: parameter for fuzzy c means clustering
+    Calculate fuzzy membership weights using fuzzy c-means algorithm.
 
-    return:
-    1. w: weight matrix calculated based on centroid distance
+    The weight w[i,j] represents the fuzzy membership of cell i to centroid j.
+    Formula: w[i,j] = 1 / sum_k[(d[i,j] / d[i,k])^(2/(m-1))]
+
+    Parameters:
+    -----------
+    centroid_dist : array-like, shape (n_cells, n_centroids)
+        Euclidean distance matrix between cells and centroids
+    m : float, default=2
+        Fuzziness parameter for fuzzy c-means clustering.
+        m > 1 required. Larger m → fuzzier memberships.
+        m=2 is standard choice (moderate fuzziness).
+    eps : float, default=1e-10
+        Small value added to distances to prevent division by zero
+        when distances are very small or cells are exactly at centroids
+
+    Returns:
+    --------
+    w : array, shape (n_cells, n_centroids)
+        Fuzzy membership weight matrix. Each row sums to ~1.0.
+        w[i,j] closer to 1 means cell i belongs more to centroid j.
+
+    Notes:
+    ------
+    - Edge case: If all distances for a cell are equal, returns uniform weights
+    - Numerical stability: eps added to prevent division by zero
+    - Input validation: m must be > 1 for valid fuzzy c-means
     """
+    if m <= 1:
+        raise ValueError(f"Fuzziness parameter m must be > 1, got m={m}")
 
     n_rows, n_cols = centroid_dist.shape
-    w = np.zeros_like(centroid_dist)
+    w = np.zeros_like(centroid_dist, dtype=float)
+
+    # Add eps for numerical stability
+    centroid_dist_stable = centroid_dist + eps
+
+    exponent = 2 / (m - 1)
 
     for j in range(n_cols):
         for i in range(n_rows):
-            w[i, j] = 1 / np.sum(centroid_dist[i, j] / centroid_dist[i, :]) ** (
-                2 / (m - 1)
-            )
+            # Calculate ratio of distances
+            distance_ratios = centroid_dist_stable[i, j] / centroid_dist_stable[i, :]
+
+            # Sum of ratios raised to exponent
+            ratio_sum = np.sum(distance_ratios ** exponent)
+
+            # Handle edge case: if all distances equal, weights should be uniform
+            if ratio_sum == 0 or not np.isfinite(ratio_sum):
+                w[i, j] = 1.0 / n_cols
+            else:
+                w[i, j] = 1.0 / ratio_sum
 
     return w
 

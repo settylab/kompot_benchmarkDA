@@ -3,12 +3,18 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import scanpy as sc
 import anndata as ad
+import sys
+from pathlib import Path
 
+# Add project root to path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from lib.constants import FUZZY_CMEANS_M, FUZZY_CMEANS_EPS
 
 # from scipy.spatial.distance import pdist, squareform, cdist
 
 
-def calculate_weights_centroid(centroid_dist, m=2, eps=1e-10):
+def calculate_weights_centroid(centroid_dist, m=FUZZY_CMEANS_M, eps=FUZZY_CMEANS_EPS):
     """
     Calculate fuzzy membership weights using fuzzy c-means algorithm.
 

@@ -116,7 +116,7 @@ def main():
             adata, args.n_replicates, args.n_batches, args.seed
         )
 
-        adata = synth_labels.quantile_assign_label_old(
+        adata = synth_labels.quantile_assign_label(
             adata, args.pop_column, args.pop_enr, args.pop
         )
 
@@ -201,7 +201,7 @@ def main():
             adata, args.n_replicates, args.n_batches, args.seed
         )
 
-        adata = cluster_dataset_synth_labels.quantile_assign_label_old(
+        adata = cluster_dataset_synth_labels.quantile_assign_label(
             adata, args.pop_column, args.pop_enr, args.pop
         )
 

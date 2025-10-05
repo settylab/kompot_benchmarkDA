@@ -14,10 +14,11 @@ from lib.find_centroid import find_centroid
 from lib.euclidean_distance import euclidean_distance
 from lib.weight_calculation import calculate_weights_centroid
 from lib.helper_functions import log_function
+from lib.constants import FUZZY_CMEANS_M, SIGMOID_STEEPNESS
 
 
 def get_weight_matrix_centroid(
-    adata, pop_column, seed, X_emb, n_conditions, m=2, a_logit=0.5
+    adata, pop_column, seed, X_emb, n_conditions, m=FUZZY_CMEANS_M, a_logit=SIGMOID_STEEPNESS
 ):
     """
     Calculated final weight matrix when the distance is calculated from cells to centroids

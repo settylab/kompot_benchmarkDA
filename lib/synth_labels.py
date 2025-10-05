@@ -5,7 +5,13 @@ import scanpy as sc
 import anndata as ad
 import os
 import sys
+from pathlib import Path
 from itertools import cycle
+
+# Add project root to path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from lib.constants import SEED_BATCH_EFFECT, QUANTILE_LABEL_THRESHOLD_PCT
 
 
 def cap_probabilities(adata, cond_probability, conditions, cap_enr=None):
@@ -155,78 +161,40 @@ def label_condition_and_rep_other(adata, n_replicates, n_batches, seed):
 
 def quantile_assign_label(adata, pop_col, pop_enr, pop):
     """
-    Assign true_labels for evaluation based on condition probabilities.
-
-    Uses quantile-based thresholds to classify cells as:
-    - "PosLFC": Enriched in condition 1
-    - "NegLFC": Enriched in condition 2
-    - "NotDA": Not differentially abundant
-
-    Parameters:
-    - adata: AnnData object with Condition1_prob
-    - pop_col: Column name for population/cluster labels
-    - pop_enr: Enrichment level for the target population
-    - pop: Target population name
-
-    Returns:
-    - adata: Modified AnnData with true_labels in .obs
-    """
-    pop_tbl = adata.obs[pop_col].value_counts()
-
-    total_cells = pop_tbl.sum()
-    n_enr_cells = pop_tbl[pop]
-    neutral_prop = (total_cells - n_enr_cells) / (total_cells * 2)
-    print(neutral_prop)
-    # Determine the quantile based on the condition
-    if pop_enr < 0.5:
-        da_lower = np.quantile(
-            adata.obs["Condition1_prob"], pop_tbl[pop_tbl.index == pop] / total_cells
-        )[0]
-        da_upper = (2 * neutral_prop) - da_lower
-    else:
-        da_upper = np.quantile(
-            adata.obs["Condition1_prob"],
-            1 - pop_tbl[pop_tbl.index == pop] / total_cells,
-        )[0]
-        print(da_upper)
-
-        da_lower = (2 * neutral_prop) - da_upper
-        print(da_lower)
-
-    assert da_upper > da_lower, "da_upper must be greater than da_lower"
-
-    bins = [-float("inf"), da_lower, da_upper, float("inf")]
-    labels = ["PosLFC", "NotDA", "NegLFC"]
-    adata.obs["true_labels"] = pd.cut(adata.obs["Condition1_prob"], bins, labels=labels)
-
-    return adata
-
-
-def quantile_assign_label_old(adata, pop_col, pop_enr, pop):
-    """
     Assign true_labels based on Condition2 probability quantiles.
 
-    NOTE: This function uses Condition2_prob for thresholding, while
-    quantile_assign_label() uses Condition1_prob. Both versions exist
-    because the correct one depends on how condition probabilities are defined.
+    Uses quantile-based thresholds to classify cells as differentially abundant:
+    - "NegLFC": Enriched in Condition1 (Condition2_prob < da_lower)
+    - "NotDA": Not differentially abundant (da_lower ≤ Condition2_prob ≤ da_upper)
+    - "PosLFC": Enriched in Condition2 (Condition2_prob > da_upper)
 
-    Current status: ACTIVELY USED in generate_bm_data.py (lines 119, 204)
-    Alternative: quantile_assign_label() (uses Condition1_prob instead)
-
-    TODO: Verify which version is scientifically correct for the current pipeline
-    and remove the other. The difference is which probability column is used:
-    - This function: uses Condition2_prob
-    - Alternative: uses Condition1_prob
+    The thresholds (da_lower, da_upper) are determined based on the enrichment
+    level and the proportion of cells in the target population.
 
     Parameters:
-    - adata: AnnData object with Condition1_prob and Condition2_prob in .obs
-    - pop_col: Column name for population/cluster labels
-    - pop_enr: Enrichment level for the target population
-    - pop: Target population name
+    ----------
+    adata : AnnData
+        AnnData object with Condition1_prob and Condition2_prob in .obs
+    pop_col : str
+        Column name for population/cluster labels
+    pop_enr : float
+        Enrichment level for the target population (0 < pop_enr < 1)
+        pop_enr > 0.5: population enriched in Condition1
+        pop_enr < 0.5: population enriched in Condition2
+    pop : str
+        Target population name
 
     Returns:
-    - adata: Modified AnnData with true_labels in .obs
-             ("NegLFC", "NotDA", or "PosLFC")
+    --------
+    adata : AnnData
+        Modified AnnData with true_labels in .obs ("NegLFC", "NotDA", or "PosLFC")
+
+    Notes:
+    ------
+    This is the correct implementation for the current pipeline where:
+    - Condition1_prob + Condition2_prob = 1.0
+    - High Condition2_prob indicates enrichment in Condition2
+    - Thresholding on Condition2_prob for label assignment
     """
     pop_tbl = pd.DataFrame(adata.obs[pop_col].value_counts())
 
@@ -261,7 +229,7 @@ def quantile_assign_label_old(adata, pop_col, pop_enr, pop):
 
 
 def add_batch_effect_pca(
-    adata, layer_embedding, batch_col="synth_batches", norm_sd=0.5, seed=43
+    adata, layer_embedding, batch_col="synth_batches", norm_sd=0.5, seed=SEED_BATCH_EFFECT
 ):
     """
     Add batch effects to embeddings by adding batch-specific noise.

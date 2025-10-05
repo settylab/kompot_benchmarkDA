@@ -29,8 +29,8 @@ def modified_auroc(adata, lfc):
         Mean AUROC and separate scores for negative and positive classes
     """
     true_label = adata.obs["true_labels"]
-    true_label_transformed_neg = (true_label == "NegLFC")
-    true_label_transformed_pos = (true_label == "PosLFC")
+    true_label_transformed_neg = true_label == "NegLFC"
+    true_label_transformed_pos = true_label == "PosLFC"
 
     # Compute AUROC for negative class
     if np.any(true_label_transformed_neg) and np.any(~true_label_transformed_neg):
@@ -68,8 +68,8 @@ def modified_auprc(adata, lfc):
         Mean AUPRC and separate scores for negative and positive classes
     """
     true_label = adata.obs["true_labels"]
-    true_label_transformed_neg = (true_label == "NegLFC")
-    true_label_transformed_pos = (true_label == "PosLFC")
+    true_label_transformed_neg = true_label == "NegLFC"
+    true_label_transformed_pos = true_label == "PosLFC"
 
     # Compute AUPRC for negative class
     if np.any(true_label_transformed_neg) and np.any(~true_label_transformed_neg):
@@ -106,26 +106,38 @@ def calculate_outcome(adata, true_label, predicted_label):
         DataFrame with metrics: TP, FP, FN, TN, TPR, FPR, TNR, FNR,
         FDR, Precision, Power, Accuracy
     """
-    TP = ((adata.obs[true_label] == adata.obs[predicted_label]) &
-          (adata.obs[predicted_label] != 'NotDA')).sum()
-    FP = ((adata.obs[true_label] != adata.obs[predicted_label]) &
-          (adata.obs[predicted_label] != 'NotDA')).sum()
-    FN = ((adata.obs[true_label] != adata.obs[predicted_label]) &
-          (adata.obs[predicted_label] == 'NotDA')).sum()
-    TN = ((adata.obs[true_label] == adata.obs[predicted_label]) &
-          (adata.obs[predicted_label] == 'NotDA')).sum()
+    TP = (
+        (adata.obs[true_label] == adata.obs[predicted_label])
+        & (adata.obs[predicted_label] != "NotDA")
+    ).sum()
+    FP = (
+        (adata.obs[true_label] != adata.obs[predicted_label])
+        & (adata.obs[predicted_label] != "NotDA")
+    ).sum()
+    FN = (
+        (adata.obs[true_label] != adata.obs[predicted_label])
+        & (adata.obs[predicted_label] == "NotDA")
+    ).sum()
+    TN = (
+        (adata.obs[true_label] == adata.obs[predicted_label])
+        & (adata.obs[predicted_label] == "NotDA")
+    ).sum()
 
     metrics_dic = {
-        'TP': TP, 'FP': FP,
-        'FN': FN, 'TN': TN,
-        'TPR': [TP / (TP + FN)] if (TP + FN) > 0 else [np.nan],
-        'FPR': [FP / (FP + TN)] if (FP + TN) > 0 else [np.nan],
-        'TNR': [TN / (TN + FP)] if (TN + FP) > 0 else [np.nan],
-        'FNR': [FN / (FN + TP)] if (FN + TP) > 0 else [np.nan],
-        'FDR': [FP / (TP + FP)] if (TP + FP) > 0 else [np.nan],
-        'Precision': [TP / (TP + FP)] if (TP + FP) > 0 else [np.nan],
-        'Power': [1 - FN / (FN + TP)] if (FN + TP) > 0 else [np.nan],
-        'Accuracy': [(TP + TN) / (TP + TN + FP + FN)] if (TP + TN + FP + FN) > 0 else [np.nan]
+        "TP": TP,
+        "FP": FP,
+        "FN": FN,
+        "TN": TN,
+        "TPR": [TP / (TP + FN)] if (TP + FN) > 0 else [np.nan],
+        "FPR": [FP / (FP + TN)] if (FP + TN) > 0 else [np.nan],
+        "TNR": [TN / (TN + FP)] if (TN + FP) > 0 else [np.nan],
+        "FNR": [FN / (FN + TP)] if (FN + TP) > 0 else [np.nan],
+        "FDR": [FP / (TP + FP)] if (TP + FP) > 0 else [np.nan],
+        "Precision": [TP / (TP + FP)] if (TP + FP) > 0 else [np.nan],
+        "Power": [1 - FN / (FN + TP)] if (FN + TP) > 0 else [np.nan],
+        "Accuracy": (
+            [(TP + TN) / (TP + TN + FP + FN)] if (TP + TN + FP + FN) > 0 else [np.nan]
+        ),
     }
 
-    return pd.DataFrame(metrics_dic, index=['metric'])
+    return pd.DataFrame(metrics_dic, index=["metric"])

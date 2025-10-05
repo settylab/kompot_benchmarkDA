@@ -11,6 +11,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 def ensure_batch_corrected_embeddings(adata, layer_embedding="X_pca", dm_comp=10):
     """
     Ensure that both PCA and DM embeddings are available.
@@ -49,8 +50,7 @@ def ensure_batch_corrected_embeddings(adata, layer_embedding="X_pca", dm_comp=10
     dm_key = "DM_EigenVectors"
     if dm_comp > 0:
         # Check if DM exists with correct number of components
-        if (dm_key not in adata.obsm or
-            adata.obsm[dm_key].shape[1] != dm_comp):
+        if dm_key not in adata.obsm or adata.obsm[dm_key].shape[1] != dm_comp:
 
             logger.info(f"Computing diffusion maps ({dm_comp} components) from PCA")
 
@@ -58,12 +58,13 @@ def ensure_batch_corrected_embeddings(adata, layer_embedding="X_pca", dm_comp=10
             palantir.utils.run_diffusion_maps(
                 adata,
                 n_components=dm_comp,
-                pca_key=layer_embedding  # Use the PCA embedding (has batch effects)
+                pca_key=layer_embedding,  # Use the PCA embedding (has batch effects)
             )
 
             logger.info(f"{dm_key} shape: {adata.obsm[dm_key].shape}")
 
     return adata
+
 
 def get_embedding_for_method(adata, use_dm=True, dm_comp=10):
     """
@@ -103,6 +104,7 @@ def get_embedding_for_method(adata, use_dm=True, dm_comp=10):
     logger.info(f"Using embedding: {embedding_name}, shape: {X.shape}")
 
     return X, embedding_name
+
 
 def get_obsm_key_for_method(use_dm=True):
     """

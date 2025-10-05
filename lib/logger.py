@@ -12,47 +12,46 @@ from datetime import datetime
 
 # ANSI color codes
 class Colors:
-    RESET = '\033[0m'
-    BOLD = '\033[1m'
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
 
     # Standard colors
-    BLACK = '\033[30m'
-    RED = '\033[31m'
-    GREEN = '\033[32m'
-    YELLOW = '\033[33m'
-    BLUE = '\033[34m'
-    MAGENTA = '\033[35m'
-    CYAN = '\033[36m'
-    WHITE = '\033[37m'
+    BLACK = "\033[30m"
+    RED = "\033[31m"
+    GREEN = "\033[32m"
+    YELLOW = "\033[33m"
+    BLUE = "\033[34m"
+    MAGENTA = "\033[35m"
+    CYAN = "\033[36m"
+    WHITE = "\033[37m"
 
     # Bright colors
-    BRIGHT_BLACK = '\033[90m'
-    BRIGHT_RED = '\033[91m'
-    BRIGHT_GREEN = '\033[92m'
-    BRIGHT_YELLOW = '\033[93m'
-    BRIGHT_BLUE = '\033[94m'
-    BRIGHT_MAGENTA = '\033[95m'
-    BRIGHT_CYAN = '\033[96m'
-    BRIGHT_WHITE = '\033[97m'
+    BRIGHT_BLACK = "\033[90m"
+    BRIGHT_RED = "\033[91m"
+    BRIGHT_GREEN = "\033[92m"
+    BRIGHT_YELLOW = "\033[93m"
+    BRIGHT_BLUE = "\033[94m"
+    BRIGHT_MAGENTA = "\033[95m"
+    BRIGHT_CYAN = "\033[96m"
+    BRIGHT_WHITE = "\033[97m"
 
 
 class ColoredFormatter(logging.Formatter):
     """Formatter that adds colors to terminal output."""
 
     COLORS = {
-        'DEBUG': Colors.BRIGHT_BLACK,
-        'INFO': Colors.BLUE,
-        'STEP': f"{Colors.BOLD}{Colors.CYAN}",
-        'SUCCESS': Colors.GREEN,
-        'WARNING': Colors.YELLOW,
-        'ERROR': Colors.RED,
-        'CRITICAL': f"{Colors.BOLD}{Colors.RED}",
+        "DEBUG": Colors.BRIGHT_BLACK,
+        "INFO": Colors.BLUE,
+        "STEP": f"{Colors.BOLD}{Colors.CYAN}",
+        "SUCCESS": Colors.GREEN,
+        "WARNING": Colors.YELLOW,
+        "ERROR": Colors.RED,
+        "CRITICAL": f"{Colors.BOLD}{Colors.RED}",
     }
 
     def __init__(self):
         super().__init__(
-            fmt='[%(asctime)s] %(levelname)s %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
+            fmt="[%(asctime)s] %(levelname)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
         )
 
     def format(self, record):
@@ -69,8 +68,8 @@ class ColoredFormatter(logging.Formatter):
             formatted = super().format(record)
 
             # Color the timestamp
-            formatted = formatted.replace('[', f'{Colors.BRIGHT_BLACK}[', 1)
-            formatted = formatted.replace(']', f']{Colors.RESET}', 1)
+            formatted = formatted.replace("[", f"{Colors.BRIGHT_BLACK}[", 1)
+            formatted = formatted.replace("]", f"]{Colors.RESET}", 1)
 
             # Restore original levelname for other handlers
             record.levelname = original_levelname
@@ -84,8 +83,7 @@ class PlainFormatter(logging.Formatter):
 
     def __init__(self):
         super().__init__(
-            fmt='[%(asctime)s] %(levelname)s %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
+            fmt="[%(asctime)s] %(levelname)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
         )
 
 
@@ -142,7 +140,7 @@ class BenchmarkLogger:
         # Add file handler if requested
         if log_file:
             log_file.parent.mkdir(parents=True, exist_ok=True)
-            file_handler = logging.FileHandler(log_file, mode='a', encoding='utf-8')
+            file_handler = logging.FileHandler(log_file, mode="a", encoding="utf-8")
             file_handler.setLevel(logging.DEBUG)
             file_handler.setFormatter(PlainFormatter())
             self.logger.addHandler(file_handler)
@@ -190,12 +188,12 @@ class BenchmarkLogger:
         """
         # Map status to log level
         status_levels = {
-            'OK': self.SUCCESS,
-            'SUCCESS': self.SUCCESS,
-            'FAIL': logging.ERROR,
-            'ERROR': logging.ERROR,
-            'SKIP': logging.WARNING,
-            'TIMEOUT': logging.WARNING
+            "OK": self.SUCCESS,
+            "SUCCESS": self.SUCCESS,
+            "FAIL": logging.ERROR,
+            "ERROR": logging.ERROR,
+            "SKIP": logging.WARNING,
+            "TIMEOUT": logging.WARNING,
         }
 
         if status:
@@ -220,7 +218,7 @@ class BenchmarkLogger:
         # Write to file handler if exists
         if self.file_handler:
             file_msg = f"{separator}\n{title}\n{separator}"
-            self.file_handler.stream.write(file_msg + '\n')
+            self.file_handler.stream.write(file_msg + "\n")
             self.file_handler.stream.flush()
 
     def close(self):
@@ -239,7 +237,9 @@ class BenchmarkLogger:
         self.close()
 
 
-def get_logger(name: str, log_file: Path = None, verbose: bool = True) -> BenchmarkLogger:
+def get_logger(
+    name: str, log_file: Path = None, verbose: bool = True
+) -> BenchmarkLogger:
     """
     Get a logger instance.
 

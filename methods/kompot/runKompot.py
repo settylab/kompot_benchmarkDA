@@ -15,6 +15,7 @@ from lib import shared_embedding_utils
 
 logger = logging.getLogger("kompot")
 
+
 def runKOMPOT(
     adata,
     label_col: str,
@@ -22,7 +23,7 @@ def runKOMPOT(
     ls_factor: float = 10.0,
     n_landmarks: int = None,
     random_state: int = None,
-    **kwargs
+    **kwargs,
 ):
     """
     Run Kompot differential abundance analysis.
@@ -54,7 +55,9 @@ def runKOMPOT(
     # Get unique conditions
     conditions = adata.obs[label_col].unique()
     if len(conditions) != 2:
-        raise ValueError(f"Expected exactly 2 conditions, got {len(conditions)}: {conditions}")
+        raise ValueError(
+            f"Expected exactly 2 conditions, got {len(conditions)}: {conditions}"
+        )
 
     condition1, condition2 = sorted(conditions)
 
@@ -83,13 +86,15 @@ def runKOMPOT(
             random_state=random_state,
             return_full_results=True,
             inplace=False,
-            **kwargs
+            **kwargs,
         )
         log_fold_change = np.asarray(results["log_fold_change"])
-        z_scores = np.asarray(results['log_fold_change_zscore'])
+        z_scores = np.asarray(results["log_fold_change_zscore"])
 
         logger.info(f"Kompot analysis completed successfully")
-        logger.info(f"Log fold change range: [{np.min(log_fold_change):.3f}, {np.max(log_fold_change):.3f}]")
+        logger.info(
+            f"Log fold change range: [{np.min(log_fold_change):.3f}, {np.max(log_fold_change):.3f}]"
+        )
         logger.info(f"Z-scores range: [{np.min(z_scores):.3f}, {np.max(z_scores):.3f}]")
 
         return log_fold_change, z_scores
@@ -105,7 +110,7 @@ def runKOMPOT_with_params(
     use_dm: bool = True,
     dm_comp: int = 10,
     ls_factor: float = 10.0,
-    **kwargs
+    **kwargs,
 ):
     """
     Wrapper function that ensures consistent embeddings across all methods.
@@ -136,7 +141,9 @@ def runKOMPOT_with_params(
 
     logger.info(f"Kompot using embedding: {obsm_key}")
     if use_dm:
-        logger.info(f"Diffusion maps with {dm_comp} components (computed from batch-corrected PCA)")
+        logger.info(
+            f"Diffusion maps with {dm_comp} components (computed from batch-corrected PCA)"
+        )
     else:
         logger.info("Batch-corrected PCA")
 
@@ -145,7 +152,7 @@ def runKOMPOT_with_params(
         label_col=label_col,
         obsm_key=obsm_key,
         ls_factor=ls_factor,
-        **kwargs
+        **kwargs,
     )
 
 
@@ -196,6 +203,7 @@ def kompot2output(lfcs, significance_scores, out_type="continuous", thresholds=N
     if out_type == "continuous":
         da_cell = significance_scores
     else:
+
         def get_da_cell(thres):
             issign = np.abs(significance_scores) > thres
             isPos = np.logical_and(issign, lfcs > 0)
@@ -216,5 +224,3 @@ def kompot2output(lfcs, significance_scores, out_type="continuous", thresholds=N
             raise RuntimeError("param: thresholds can only support list or float")
 
     return da_cell
-
-

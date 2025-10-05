@@ -13,10 +13,14 @@ def anndata():
     make_nhoods(adata)
 
     ## Simulate experimental condition ##
-    adata.obs["condition"] = np.random.choice(["ConditionA", "ConditionB"], size=adata.n_obs, p=[0.5,0.5])
+    adata.obs["condition"] = np.random.choice(
+        ["ConditionA", "ConditionB"], size=adata.n_obs, p=[0.5, 0.5]
+    )
     # we simulate differential abundance in NK cells
     DA_cells = adata.obs["louvain"] == "1"
-    adata.obs.loc[DA_cells, "condition"] = np.random.choice(["ConditionA", "ConditionB"], size=sum(DA_cells), p=[0.2,0.8])
+    adata.obs.loc[DA_cells, "condition"] = np.random.choice(
+        ["ConditionA", "ConditionB"], size=sum(DA_cells), p=[0.2, 0.8]
+    )
 
     ## Simulate replicates ##
     adata.obs["replicate"] = np.random.choice(["R1", "R2", "R3"], size=adata.n_obs)
@@ -24,26 +28,32 @@ def anndata():
     count_nhoods(adata, sample_col="sample")
     return adata
 
+
 def test_missing_covariate(anndata):
-    adata = anndata.copy() 
+    adata = anndata.copy()
     with pytest.raises(KeyError):
         DA_nhoods(adata, design="~ciaone")
 
+
 def test_non_unique_covariate(anndata):
-    adata = anndata.copy() 
+    adata = anndata.copy()
     with pytest.raises(ValueError):
         DA_nhoods(adata, design="~phase")
-        
+
+
 ## Check that results make sense
 def test_pvalues(anndata):
-    adata = anndata.copy() 
+    adata = anndata.copy()
     DA_nhoods(adata, design="~condition")
     nhood_adata = adata.uns["nhood_adata"]
-    min_p, max_p = nhood_adata.obs["PValue"].min(),nhood_adata.obs["PValue"].min()
+    min_p, max_p = nhood_adata.obs["PValue"].min(), nhood_adata.obs["PValue"].min()
     assert (min_p >= 0) & (max_p <= 1), "P-values are not between 0 and 1"
-    
+
+
 def test_fdr(anndata):
-    adata = anndata.copy() 
+    adata = anndata.copy()
     DA_nhoods(adata, design="~condition")
     nhood_adata = adata.uns["nhood_adata"]
-    assert np.all(nhood_adata.obs["PValue"] <= nhood_adata.obs["SpatialFDR"] ), "FDR is higher than uncorrected P-values"
+    assert np.all(
+        nhood_adata.obs["PValue"] <= nhood_adata.obs["SpatialFDR"]
+    ), "FDR is higher than uncorrected P-values"

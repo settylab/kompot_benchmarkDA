@@ -32,12 +32,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from lib import shared_embedding_utils
 
+
 def runCNA_func(
     adata: anndata.AnnData,
     k: int,
     sample_col: str,
     label_col: str,
-    encode_label_dict: dict = {'Condition1': 0, "Condition2": 1},
+    encode_label_dict: dict = {"Condition1": 0, "Condition2": 1},
     batch_col: str = None,
     layer_embedding: str = "X_pca",
     use_dm: bool = False,
@@ -54,25 +55,25 @@ def runCNA_func(
     )
 
     # Store the embedding matrix for scanpy's neighbor computation
-    adata.obsm['X_cna_embedding'] = X
+    adata.obsm["X_cna_embedding"] = X
 
     # Build the kNN graph using the standardized embedding
-    sc.pp.neighbors(adata, n_neighbors=k, use_rep='X_cna_embedding')
+    sc.pp.neighbors(adata, n_neighbors=k, use_rep="X_cna_embedding")
 
     # create multi-anndata and convert condition and batch labels to numeric vars
-    adata.obs['sample_id'] = adata.obs[sample_col].astype('category').cat.codes + 1
-    adata.obs['label_id'] = adata.obs[label_col].map(encode_label_dict).astype(int)
+    adata.obs["sample_id"] = adata.obs[sample_col].astype("category").cat.codes + 1
+    adata.obs["label_id"] = adata.obs[label_col].map(encode_label_dict).astype(int)
     if batch_col:
-        adata.obs['batch_id'] = adata.obs[batch_col].astype('category').cat.codes
-    md = MultiAnnData(adata, sampleid='sample_id', dtype=np.float64)
+        adata.obs["batch_id"] = adata.obs[batch_col].astype("category").cat.codes
+    md = MultiAnnData(adata, sampleid="sample_id", dtype=np.float64)
     md.obs_to_sample(["label_id", "batch_id"] if batch_col else ["label_id"])
     # association test
-    cna_res = cna.tl.association(md,
-                                 getattr(md.samplem, "label_id"),
-                                 'sample_id',
-                                 covs=None,
-                                 batches=getattr(md.samplem, "batch_id", None),
-                                 allow_low_sample_size=True)
+    cna_res = cna.tl.association(
+        md,
+        getattr(md.samplem, "label_id"),
+        "sample_id",
+        covs=None,
+        batches=getattr(md.samplem, "batch_id", None),
+        allow_low_sample_size=True,
+    )
     return cna_res, md
-
-

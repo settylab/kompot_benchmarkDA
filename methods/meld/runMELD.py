@@ -19,6 +19,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from lib import shared_embedding_utils
+from lib.evaluation_metrics import calculate_outcome
 
 def replicate_normalize_densities(sample_densities, replicate):
     sample_likelihoods = sample_densities.copy()
@@ -60,29 +61,7 @@ def runMELD(adata,k,sample_col, label_col, layer_embedding,beta, use_dm=False, d
     obj_cond = sorted(samplem[label_col].unique())[-1]
     obj_cond_columns = samplem.loc[samplem[label_col] == obj_cond,:].index.to_list()
     sample_likelihoods = sample_likelihoods[obj_cond_columns].mean(axis=1)
-    
-    # elif embedding_method == "DiffusionMap":
-    #         # run meld method
-    #     if adata.n_vars <= 50:
-    #         G = gt.Graph(adata.X, knn=k, use_pygsp=True)
-    #     else:
-    #         if "DM_EigenVectors" not in adata.obsm:
-    #             palantir.utils.run_diffusion_maps(
-    #                 adata, n_components=dm_comp, pca_key="X_pca_batch"
-    #             )
-    #         G = gt.Graph(adata.obsm["DM_EigenVectors"], knn=k, use_pygsp=True)
-    
-    #     meld_op = meld.MELD(beta=beta)
-    #     # generate the densities of each sample
-    #     sample_densities = meld_op.fit_transform(G, sample_labels=adata.obs[sample_col])
-    #     # normalize the densities for each replicate
-    #     replicates = samplem.index.map(lambda x: x.split('_')[-1]).unique()
-    #     sample_likelihoods = replicate_normalize_densities(sample_densities, replicates)
-    #     # average the likelihoods w.r.t conditions
-    #     obj_cond = sorted(samplem[label_col].unique())[-1]
-    #     obj_cond_columns = samplem.loc[samplem[label_col] == obj_cond,:].index.to_list()
-    #     sample_likelihoods = sample_likelihoods[obj_cond_columns].mean(axis=1)
-        
+
     return sample_likelihoods.values,samplem
 
 
@@ -121,28 +100,6 @@ def meld2output(meld_res, out_type="continuous", thresholds=None):
     
     return da_cell
 
-def calculate_outcome(adata,true_label,predicted_label):
-    # calculate the metrics, TP, FP, TN, FN and so on.
-    TP = ((adata.obs[true_label] == adata.obs[predicted_label]) & (adata.obs[predicted_label] != 'NotDA')).sum()
-    FP = ((adata.obs[true_label] != adata.obs[predicted_label]) & (adata.obs[predicted_label] != 'NotDA')).sum()
-    FN = ((adata.obs[true_label] != adata.obs[predicted_label]) & (adata.obs[predicted_label] == 'NotDA')).sum()
-    TN = ((adata.obs[true_label] == adata.obs[predicted_label]) & (adata.obs[predicted_label] == 'NotDA')).sum()
-    
-    metrics_dic = {
-        'TP': TP, 'FP': FP,
-        'FN': FN, 'TN': TN,
-        'TPR': [TP / (TP + FN)],
-        'FPR': [FP / (FP + TN)],
-        'TNR': [TN / (TN + FP)],
-        'FNR': [FN / (FN + TP)],
-        'FDR': [FP / (TP + FP)],
-        'Precision': [TP / (TP + FP)],
-        'Power': [1 - FN / (FN + TP)],
-        'Accuracy': [(TP + TN) / (TP + TN + FP + FN)]
-    }
-    
-    return pd.DataFrame(metrics_dic, index=['metric'])
-
 
 def get_performance_df_meld(adata,true_label_col,predicted_labels_meld,threshold_meld_res):
     new_adata = adata.copy()
@@ -170,55 +127,3 @@ def evaluation(result_performance):
     print("AUC: ", auc)
     print("PRC: ", prc)
     return auc,prc
-
-
-def modified_auprc(adata, lfc):
-    true_label = adata.obs["true_labels"]
-    true_label_transformed_neg = (true_label == "NegLFC")
-    true_label_transformed_pos = (true_label == "PosLFC")
-    
-    # Check if there are both positive and negative samples in the transformed arrays
-    if np.any(true_label_transformed_neg) and np.any(~true_label_transformed_neg):
-        auprc_score_neg = average_precision_score(true_label_transformed_neg, lfc)
-    else:
-        auprc_score_neg = np.nan
-        
-    if np.any(true_label_transformed_pos) and np.any(~true_label_transformed_pos):
-        auprc_score_pos = average_precision_score(true_label_transformed_pos, lfc)
-    else:
-        auprc_score_pos = np.nan
-    # except ValueError as e:
-    #     print(f"ValueError: {e}")
-    #     auprc_score_neg = np.nan
-    #     auprc_score_pos = np.nan
-    
-    auprc_score = np.nanmean([auprc_score_neg, auprc_score_pos])
-    return auprc_score,auprc_score_neg, auprc_score_pos
-
-def modified_auroc(adata, lfc):
-    true_label = adata.obs["true_labels"]
-    true_label_transformed_neg = (true_label == "NegLFC")
-    true_label_transformed_pos = (true_label == "PosLFC")
-    
-
-    if np.any(true_label_transformed_neg) and np.any(~true_label_transformed_neg):
-        auc_score_neg = roc_auc_score(-true_label_transformed_neg, lfc)
-        # if auc_score_neg <= 0.5:
-        #     auc_score_neg = 1 - auc_score_neg
-    else:
-        auc_score_neg = np.nan
-
-    if np.any(true_label_transformed_pos) and np.any(~true_label_transformed_pos):
-        auc_score_pos = roc_auc_score(-true_label_transformed_pos, lfc)
-        # if auc_score_pos <= 0.5:
-        #     auc_score_pos = 1 - auc_score_pos
-    else:
-        auc_score_pos = np.nan
-    # except ValueError as e:
-    #     print(f"ValueError: {e}")
-    #     auc_score_neg = np.nan
-    #     auc_score_pos = np.nan
-    
-    auc_score = np.nanmean([auc_score_neg, auc_score_pos])
-    return auc_score,auc_score_neg, auc_score_pos
-    

@@ -3,3 +3,14 @@ data/
 .ipynb_checkpoints/
 scripts/core
 notebooks/
+__pycache__/
+.DS_Store
+.nfs*
+status.json
+benchmark/
+benchmark_scripts/
+logs/
+data/
+__pycache__/
+.ipynb_checkpoints/
+core
